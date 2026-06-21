@@ -3,8 +3,8 @@
 CLI tool to create and manage learning workspaces, with a read-only web dashboard and AI skill integration.
 
 ```bash
-# Build
-cd pharos && make build
+# Install
+go install github.com/udit-001/pharos/cmd/learn@latest
 
 # Quick start
 learn init "topic"
