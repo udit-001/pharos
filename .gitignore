@@ -5,8 +5,8 @@ learn.exe
 # Tailwind CSS standalone binary
 .local/
 
-# Generated Tailwind CSS (rebuilt via `make css`)
-internal/web/app.css
+# Tailwind CSS source (rebuilt via `make css`)
+# internal/web/app.css is committed so //go:embed resolves in CI.
 web/app.css
 
 # Playwright test artifacts
