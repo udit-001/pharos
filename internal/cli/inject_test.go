@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/udit/learn-tool/internal/db"
+	"github.com/udit-001/pharos/internal/db"
 )
 
 // newTestStore opens a fresh temp SQLite database with migrations applied.

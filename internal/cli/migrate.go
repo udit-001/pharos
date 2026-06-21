@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/udit/learn-tool/internal/db"
-	migrateutil "github.com/udit/learn-tool/internal/migrate"
+	"github.com/udit-001/pharos/internal/db"
+	migrateutil "github.com/udit-001/pharos/internal/migrate"
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 )

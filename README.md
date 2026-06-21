@@ -4,7 +4,7 @@ CLI tool to create and manage learning workspaces, with a read-only web dashboar
 
 ```bash
 # Install
-go install github.com/udit/learn-tool/cmd/learn@latest
+go install github.com/udit-001/pharos/cmd/learn@latest
 
 # Quick start
 learn init "topic"

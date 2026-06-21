@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/udit/learn-tool/internal/skills"
+	"github.com/udit-001/pharos/internal/skills"
 	"github.com/spf13/cobra"
 )
 

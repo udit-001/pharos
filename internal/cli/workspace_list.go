@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/udit/learn-tool/internal/db"
+	"github.com/udit-001/pharos/internal/db"
 	"github.com/spf13/cobra"
 )
 

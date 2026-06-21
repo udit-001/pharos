@@ -1,6 +1,6 @@
 package render
 
-import "github.com/udit/learn-tool/internal/db"
+import "github.com/udit-001/pharos/internal/db"
 
 // Frame is the page chrome: what the shell needs to render the topbar,
 // sidebar, and document wrapper. Handlers build a Frame plus page-specific

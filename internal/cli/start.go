@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 
-	"github.com/udit/learn-tool/internal/server"
+	"github.com/udit-001/pharos/internal/server"
 	"github.com/spf13/cobra"
 )
 

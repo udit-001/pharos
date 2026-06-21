@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/udit/learn-tool/internal/migrate"
+	"github.com/udit-001/pharos/internal/migrate"
 	_ "modernc.org/sqlite"
 )
 

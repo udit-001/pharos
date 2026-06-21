@@ -1,4 +1,4 @@
-module github.com/udit/learn-tool
+module github.com/udit-001/pharos
 
 go 1.25.10
 

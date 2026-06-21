@@ -15,9 +15,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/udit/learn-tool/internal/db"
-	"github.com/udit/learn-tool/internal/render"
-	"github.com/udit/learn-tool/internal/web"
+	"github.com/udit-001/pharos/internal/db"
+	"github.com/udit-001/pharos/internal/render"
+	"github.com/udit-001/pharos/internal/web"
 	"github.com/yuin/goldmark"
 )
 
