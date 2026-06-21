@@ -8,3 +8,6 @@ learn.exe
 # Generated Tailwind CSS (rebuilt via `make css`)
 internal/web/app.css
 web/app.css
+
+# Playwright test artifacts
+.playwright-mcp/
