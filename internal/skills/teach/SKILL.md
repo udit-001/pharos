@@ -1,13 +1,13 @@
 ---
 name: teach
-description: Teach the user a skill or concept over multiple sessions, driving the learn CLI to scaffold and track the workspace.
+description: Teach the user a skill or concept over multiple sessions, driving the pharos CLI to scaffold and track the workspace.
 disable-model-invocation: true
 argument-hint: "What would you like to learn about?"
 ---
 
 Teach a topic over multiple sessions. The `learn` CLI owns the **workspace** — you drive it, you don't hand-write files. Every session follows the **pipeline**: mission → resources → lesson → record → reference.
 
-For command syntax and flags, see [references/learn-cli.md](references/learn-cli.md). This skill decides _when_ and _why_ to run each, and how to teach well.
+For command syntax and flags, see [references/pharos-cli.md](references/pharos-cli.md). This skill decides _when_ and _why_ to run each, and how to teach well.
 
 ### Passing content
 
@@ -16,14 +16,14 @@ The create commands take content via `--body-file`, never inline — multiline H
 ```bash
 tmp=$(mktemp)        # in $TMPDIR (or /tmp)
 # ... write content to "$tmp" ...
-learn lesson create "<title>" -w "<name>" --body-file "$tmp" && rm "$tmp"
+pharos lesson create "<title>" -w "<name>" --body-file "$tmp" && rm "$tmp"
 ```
 
 Never write scratch content into the workspace dir or cwd — those create duplicate copies that drift from the recorded one.
 
 ## The workspace
 
-A workspace is one topic, created by `learn init`. The directory layout and file naming conventions are documented in [references/learn-cli.md](references/learn-cli.md) — that is the single source of truth for how a workspace is structured.
+A workspace is one topic, created by `pharos init`. The directory layout and file naming conventions are documented in [references/pharos-cli.md](references/pharos-cli.md) — that is the single source of truth for how a workspace is structured.
 
 The format docs ([MISSION-FORMAT.md](MISSION-FORMAT.md), [RESOURCES-FORMAT.md](RESOURCES-FORMAT.md), [LEARNING-RECORD-FORMAT.md](LEARNING-RECORD-FORMAT.md), [GLOSSARY-FORMAT.md](GLOSSARY-FORMAT.md)) describe the expected content layout for each file type — consult them when structuring your content.
 
@@ -33,7 +33,7 @@ The format docs ([MISSION-FORMAT.md](MISSION-FORMAT.md), [RESOURCES-FORMAT.md](R
 
 If `MISSION.md` is empty or the user's "why" is unclear, interview them before teaching anything. A vague mission steers every future lesson wrong — push for a concrete real-world outcome, not "understand X".
 
-`learn init "<topic>"` (or `learn workspace open "<name>"` if it exists) scaffolds the workspace; then fill `MISSION.md` per [MISSION-FORMAT.md](MISSION-FORMAT.md).
+`pharos init "<topic>"` (or `pharos workspace open "<name>"` if it exists) scaffolds the workspace; then fill `MISSION.md` per [MISSION-FORMAT.md](MISSION-FORMAT.md).
 
 **Done when**: `MISSION.md` states a concrete, observable outcome the user is chasing.
 
@@ -47,7 +47,7 @@ Before teaching, find high-trust sources. **Never trust your parametric knowledg
 
 A **lesson** is one self-contained HTML file teaching one tightly-scoped thing, tied to the mission, in the user's zone of proximal development.
 
-Read `learning-records/` first to find the zone — don't re-teach what is recorded as known. Create with `learn lesson create "<title>" --body-file <path>` (see _Passing content_ above). A lesson should be:
+Read `learning-records/` first to find the zone — don't re-teach what is recorded as known. Create with `pharos lesson create "<title>" --body-file <path>` (see _Passing content_ above). A lesson should be:
 
 - **Short** — one tangible win, within working memory
 - **Beautiful** — clean typography (think Tufte); reuse `assets/style.css` as the shared component
@@ -61,13 +61,13 @@ Open the lesson for the user when done.
 
 ### 4. Record
 
-After a lesson, capture non-obvious insights with `learn record add "<insight>" --body-file <path>` (see _Passing content_ above). Write a record when the user: showed genuine understanding, disclosed prior knowledge, had a misconception corrected, or the mission shifted. See [LEARNING-RECORD-FORMAT.md](LEARNING-RECORD-FORMAT.md).
+After a lesson, capture non-obvious insights with `pharos record add "<insight>" --body-file <path>` (see _Passing content_ above). Write a record when the user: showed genuine understanding, disclosed prior knowledge, had a misconception corrected, or the mission shifted. See [LEARNING-RECORD-FORMAT.md](LEARNING-RECORD-FORMAT.md).
 
 **Done when**: the record states _what_ is now known and _why_ it changes what to teach next.
 
 ### 5. Reference
 
-Compress a lesson's essence into `reference/*.html` — cheat sheets, algorithms, glossaries. Create with `learn reference create "<title>" --body-file <path>` (see _Passing content_ above). Maintain `GLOSSARY.md` as terms settle. References outlive lessons; they are what the user returns to.
+Compress a lesson's essence into `reference/*.html` — cheat sheets, algorithms, glossaries. Create with `pharos reference create "<title>" --body-file <path>` (see _Passing content_ above). Maintain `GLOSSARY.md` as terms settle. References outlive lessons; they are what the user returns to.
 
 **Done when**: the reference is the compressed essence, designed for quick lookup.
 
@@ -99,6 +99,6 @@ Every lesson traces to `MISSION.md`. If the mission shifts, update it (confirm w
 
 ## After each session
 
-- `learn workspace open "<name>"` — touches `last_studied`
+- `pharos workspace open "<name>"` — touches `last_studied`
 - Suggest the next lesson from the zone of proximal development
 - Check `NOTES.md` for user preferences

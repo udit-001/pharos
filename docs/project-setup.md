@@ -28,7 +28,7 @@ chmod +x .local/bin/tailwindcss
 make build
 
 # Or install directly
-go install ./cmd/learn
+go install ./cmd/pharos
 ```
 
 ## Development
@@ -67,8 +67,8 @@ internal/
 │   ├── inject_test.go    # CLI tested against in-memory SQLite
 │   └── *_create.go       # --body-file for safe multiline content creation
 ├── web/            # Embedded CSS (generated from input.css)
-└── skills/         # Bundled teach skill (installed via learn skills install)
-    └── teach/            # SKILL.md + FORMAT docs + learn CLI reference
+└── skills/         # Bundled teach skill (installed via pharos skills install)
+    └── teach/            # SKILL.md + FORMAT docs + pharos CLI reference
 ```
 
 ### Key Design Decisions
