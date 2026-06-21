@@ -56,7 +56,7 @@ pharos reference list -w "<name>" --search "<q>"         # Search references
 ## Dashboard
 
 ```bash
-pharos start              # Start the read-only web UI (default :8080)
+pharos start              # Start the read-only web UI (default :9090)
 pharos start --port 9090  # Custom port
 pharos start --no-open    # Don't auto-open the browser
 ```

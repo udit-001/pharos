@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -67,26 +68,42 @@ func Start(cfg Config) error {
 	mux.HandleFunc("GET /api/lesson-html/{name}/assets/{file}", handleAssetFile(cfg.DB))
 	mux.HandleFunc("GET /api/ref-html/{name}/assets/{file}", handleAssetFile(cfg.DB))
 
-	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
-	srv := &http.Server{Addr: addr, Handler: mux}
+	// Try the configured port, then port+1, port+2, … up to 100 attempts.
+	var listener net.Listener
+	port := cfg.Port
+	for i := 0; i < 100; i++ {
+		addr := fmt.Sprintf("127.0.0.1:%d", port)
+		var err error
+		listener, err = net.Listen("tcp", addr)
+		if err == nil {
+			break
+		}
+		port++
+	}
+	if listener == nil {
+		return fmt.Errorf("no free port found starting from %d", cfg.Port)
+	}
+	cfg.Port = port // store the actual port for messages below
+
+	srv := &http.Server{Handler: mux}
 
 	if !cfg.NoOpen && !cfg.Silent {
-		url := fmt.Sprintf("http://%s", addr)
+		url := fmt.Sprintf("http://127.0.0.1:%d", port)
 		if err := openBrowser(url); err != nil {
 			log.Printf("  Open %s in your browser", url)
 		}
 	}
 	if cfg.Silent {
-		log.Printf("Pharos listening on http://127.0.0.1:%d", cfg.Port)
+		log.Printf("Pharos listening on http://127.0.0.1:%d", port)
 	} else {
-		fmt.Printf("  Pharos Dashboard: http://127.0.0.1:%d\n", cfg.Port)
+		fmt.Printf("  Pharos Dashboard: http://127.0.0.1:%d\n", port)
 		fmt.Println()
 	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() { <-quit; srv.Close() }()
-	return srv.ListenAndServe()
+	return srv.Serve(listener)
 }
 
 // ── helpers ──

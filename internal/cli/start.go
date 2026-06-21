@@ -35,13 +35,13 @@ Examples:
 		s := mustStore(cmd)
 		background := startFlags.background && !startFlags.foreground
 		if background && !startFlags.daemon {
-			daemonArgs := []string{
+			args := []string{
 				os.Args[0], "start",
 				"--port", strconv.Itoa(startFlags.port),
 				"--no-open",
 				"--daemon",
 			}
-			c := exec.Command(daemonArgs[0], daemonArgs[1:]...)
+			c := exec.Command(args[0], args[1:]...)
 			c.Stdin = nil
 			c.Stdout = nil
 			c.Stderr = nil
@@ -72,7 +72,7 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(startCmd)
-	startCmd.Flags().IntVar(&startFlags.port, "port", 8080, "HTTP server port")
+	startCmd.Flags().IntVar(&startFlags.port, "port", 9090, "HTTP server port (auto-increments if busy)")
 	startCmd.Flags().BoolVar(&startFlags.noOpen, "no-open", false, "Don't auto-open browser")
 	startCmd.Flags().BoolVarP(&startFlags.foreground, "foreground", "f", false, "Run server in foreground")
 	startCmd.Flags().BoolVarP(&startFlags.background, "background", "b", true, "Run server in background")
