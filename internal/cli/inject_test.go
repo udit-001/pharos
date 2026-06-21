@@ -69,7 +69,7 @@ func newRootForTest() *cobra.Command {
 
 // TestWorkspaceListWithInjectedStore proves the seam: a CLI command can be
 // driven end-to-end against an injected store, with no global state and no
-// reliance on the user's ~/.learn-tool database.
+// reliance on the user's ~/.pharos database.
 func TestWorkspaceListWithInjectedStore(t *testing.T) {
 	store, cleanup := newTestStore(t)
 	defer cleanup()

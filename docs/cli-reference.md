@@ -64,7 +64,7 @@ learn start --no-open              # Don't auto-open browser
 
 ```bash
 --json      # Machine-readable JSON output (most commands)
---db        # Custom database path (default: ~/.learn-tool/learn.db)
+--db        # Custom database path (default: ~/.pharos/pharos.db)
 ```
 
 ## File Naming
@@ -93,7 +93,7 @@ The CLI generates filenames automatically from titles:
 
 ## Data
 
-SQLite database at `~/.learn-tool/learn.db` (configurable via `--db`).
+SQLite database at `~/.pharos/pharos.db` (configurable via `--db`).
 
 4 tables: `workspaces`, `lessons`, `learning_records`, `references_t`.
 FTS5 full-text search on lessons, records, and references.

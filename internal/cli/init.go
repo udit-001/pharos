@@ -15,7 +15,7 @@ var initCmd = &cobra.Command{
 	Short: "Initialize a new learning workspace",
 	Long: `Create a new SQLite database (if needed) and a learning workspace.
 
-The workspace is a directory under ~/.learn-tool/workspaces/ containing:
+The workspace is a directory under ~/.pharos/workspaces/ containing:
   MISSION.md          — Why you're learning this topic
   RESOURCES.md        — Curated sources and communities
   GLOSSARY.md         — Canonical terminology

@@ -18,7 +18,7 @@ func defaultDBPath() string {
 	if err != nil {
 		return "learn.db"
 	}
-	return filepath.Join(home, ".learn-tool", "learn.db")
+	return filepath.Join(home, ".pharos", "pharos.db")
 }
 
 func defaultWorkspacesDir() string {
@@ -26,7 +26,7 @@ func defaultWorkspacesDir() string {
 	if err != nil {
 		return "./workspaces"
 	}
-	return filepath.Join(home, ".learn-tool", "workspaces")
+	return filepath.Join(home, ".pharos", "workspaces")
 }
 
 var (
