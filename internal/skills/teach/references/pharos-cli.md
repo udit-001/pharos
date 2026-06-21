@@ -78,21 +78,32 @@ pharos start --port 9090  # Custom port
 pharos start --no-open    # Don't auto-open the browser
 ```
 
-## Asset paths in lesson HTML
+## Links inside lesson HTML
 
-The dashboard serves each lesson from the workspace **document root** —
-the served URL has no `lessons/` segment, so links resolve against the
-workspace, not the lesson's folder. Every href is **root-relative**:
+A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`,
+so two link types resolve differently:
+
+**Asset references** (stylesheets, scripts, images) resolve against the
+iframe's URL \u2014 use a **root-relative** path:
 
 ```html
 <link rel="stylesheet" href="assets/style.css">
-<a href="lessons/0002-...html">…</a>
-<a href="reference/sql-syntax.html">…</a>
 ```
 
-A `../` prefix climbs above the document root and returns a 404.
+Never use `../assets/style.css` \u2014 the `../` climbs above the iframe's
+document root and returns a 404.
 
-See the `Assets` section in `SKILL.md` for the full mechanism.
+**Contextual links** (clicking to another lesson or reference) must escape
+the iframe to update the dashboard. Use an absolute dashboard route with
+`target="_top"`:
+
+```html
+<a href="/workspace/<name>/lesson/<seq>" target="_top">\u2026</a>
+<a href="/workspace/<name>/ref/<seq>" target="_top">\u2026</a>
+```
+
+`<seq>` is the sequence number (1, 2, 3\u2026), not the filename. A bare
+`lessons/0002.html` link would load inside the iframe and break the sidebar.
 
 ## Global flags
 

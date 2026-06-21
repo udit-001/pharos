@@ -69,7 +69,7 @@ The lesson should be short, and completable very quickly. Learners' working memo
 
 A lesson isn't done when the file is written — it's done when the user is looking at it in the dashboard. After creating a lesson, **present** it: run `pharos start` (starts the dashboard in the background if it isn't already running), then open the lesson page in the browser at `http://127.0.0.1:9090/workspace/<name>/lesson/<seq>`. The dashboard renders the lesson with correct assets, navigation, and styling — the user should never open the raw HTML file directly.
 
-The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/next. Don't rebuild that chrome inside the lesson: a `← Previous` / `Next →` footer duplicates the dashboard and goes stale the moment lessons are reordered or inserted. What a lesson *does* carry is **contextual links** — mid-prose anchors to another lesson or a reference document that illuminates the point being made, placed where the reader would want it, not where it falls in the sequence.
+The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/next. Don't rebuild that chrome inside the lesson: a `← Previous` / `Next →` footer duplicates the dashboard and goes stale the moment lessons are reordered or inserted. What a lesson *does* carry is **contextual links** — mid-prose anchors to another lesson or a reference document that illuminates the point being made, placed where the reader would want it, not where it falls in the sequence. These links need special routing because a lesson renders inside an iframe — see [Assets](#assets) for the mechanism.
 
 Each lesson should recommend a primary source for the user to read or watch. This should be the most high-quality, high-trust resource you found on the topic.
 
@@ -79,7 +79,10 @@ Each lesson should contain a reminder to ask followup questions to the agent. Th
 
 Lessons are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second lesson could reuse.
 
-The dashboard serves each lesson from the workspace **document root** — the file lives at `lessons/0001-...html` on disk, but the dashboard serves it at a URL as if it sat in the workspace root, with no `lessons/` segment. So every link inside a lesson is **root-relative** and points at the workspace, not at its own folder: `assets/style.css`, `lessons/0002-...html`, `reference/...html`. A `../` prefix climbs above the document root and 404s — the instinct to escape `lessons/` is wrong here, because the served URL is already at the root.
+A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`, so two link types resolve differently from inside it:
+
+- **Asset references** (a stylesheet, script, or image the lesson loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
+- **Contextual links** (clicking to another lesson or reference) must escape the iframe to update the dashboard — use an absolute dashboard route with `target="_top"`: `<a href="/workspace/<name>/lesson/<seq>" target="_top">` for lessons, `/workspace/<name>/ref/<seq>` for references. `<seq>` is the sequence number (1, 2, 3…), not the filename. A bare `lessons/0002.html` link would load inside the iframe and break the sidebar.
 
 Reuse is the default, not the exception. Before authoring a lesson, read `./assets/` and build from the components already there. When a lesson needs something new and reusable, write it as a component in `./assets/` and link to it — never inline code a future lesson would duplicate.
 
