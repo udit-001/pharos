@@ -24,7 +24,7 @@ automatically. If multiple exist, --workspace is required.
 Examples:
   pharos lesson create "SQL Joins" --workspace "sql-for-research"
   pharos lesson create "The Connection Sequence" --workspace "jump-start-a-car"
-  pharos lesson create "Cadherins" -w "cell-adhesion" --open`,
+  pharos lesson create "Cadherins" -w "cell-adhesion" --body-file /tmp/lesson.html`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -89,12 +89,6 @@ Examples:
 		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 
-		openFile, _ := cmd.Flags().GetBool("open")
-		if openFile {
-			fmt.Printf("  Opening %s ...\n", filename)
-			openDirInExplorer(lessonPath)
-		}
-
 		return nil
 	},
 }
@@ -149,6 +143,5 @@ func resolveWorkspace(s *db.Store, name string) (*db.WorkspaceStore, error) {
 func init() {
 	lessonCmd.AddCommand(lessonCreateCmd)
 	lessonCreateCmd.Flags().StringP("workspace", "w", "", "Workspace name")
-	lessonCreateCmd.Flags().Bool("open", false, "Open the lesson file after creation")
 	lessonCreateCmd.Flags().String("body-file", "", "Read lesson HTML content from a file (required)")
 }
