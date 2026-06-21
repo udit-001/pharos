@@ -12,3 +12,4 @@ web/app.css
 # Playwright test artifacts
 .playwright-mcp/
 .pi/todos/
+design/
