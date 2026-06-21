@@ -64,6 +64,8 @@ func Start(cfg Config) error {
 	mux.HandleFunc("GET /search", handleSearchPage(cfg.DB))
 	mux.HandleFunc("GET /api/lesson-html/{name}/{file}", handleLessonHTML(cfg.DB))
 	mux.HandleFunc("GET /api/ref-html/{name}/{file}", handleRefHTML(cfg.DB))
+	mux.HandleFunc("GET /api/lesson-html/{name}/assets/{file}", handleAssetFile(cfg.DB))
+	mux.HandleFunc("GET /api/ref-html/{name}/assets/{file}", handleAssetFile(cfg.DB))
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
 	srv := &http.Server{Addr: addr, Handler: mux}
@@ -546,5 +548,19 @@ func handleRefHTML(store *db.Store) http.HandlerFunc {
 		}
 		ws := wsStore.Workspace()
 		http.ServeFile(w, r, filepath.Join(ws.Path, "reference", file))
+	}
+}
+
+func handleAssetFile(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		file := r.PathValue("file")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		ws := wsStore.Workspace()
+		http.ServeFile(w, r, filepath.Join(ws.Path, "assets", file))
 	}
 }
