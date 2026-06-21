@@ -10,7 +10,10 @@ var skillsCmd = &cobra.Command{
 	Long: `Install the pharos skill into your AI coding agent so it
 knows how to use the CLI to manage learning workspaces.
 
-Supports: opencode, claude-code, codex, pi.dev`,
+Installs globally by default (~/.agent/skills/). Use --project
+to install at the project level (./.agent/skills/) instead.
+
+Supported: opencode, claude-code, codex, pi.dev`,
 }
 
 var skillsInstallCmd = &cobra.Command{
@@ -20,12 +23,13 @@ var skillsInstallCmd = &cobra.Command{
 The skill teaches the agent how to use the pharos CLI commands.
 
 Supported agents:
-  opencode     Installs to .opencode/skills/learn/
-  claude-code  Installs to .claude/skills/learn/
-  codex        Installs to .codex/skills/learn/
-  pi.dev       Installs to .pi/skills/learn/
+  opencode     Installs to ~/.opencode/skills/ (global) or ./.opencode/skills/ (--project)
+  claude-code  Installs to ~/.claude/skills/ (global) or ./.claude/skills/ (--project)
+  codex        Installs to ~/.codex/skills/ (global) or ./.codex/skills/ (--project)
+  pi.dev       Installs to ~/.pi/skills/ (global) or ./.pi/skills/ (--project)
 
-Installs the full skill (SKILL.md + references/).
+Default is global install (home directory). Use --project to install
+at the project level instead.
 
 Run without flags for interactive mode, or pass --agent to skip prompts.`,
 	Args: cobra.NoArgs,
@@ -38,4 +42,5 @@ func init() {
 	rootCmd.AddCommand(skillsCmd)
 	skillsCmd.AddCommand(skillsInstallCmd)
 	skillsInstallCmd.Flags().String("agent", "", "Agent to install for (opencode, claude-code, codex, pi)")
+	skillsInstallCmd.Flags().Bool("project", false, "Install at project level instead of globally")
 }

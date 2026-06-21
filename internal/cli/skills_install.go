@@ -16,19 +16,39 @@ import (
 
 type agentTarget struct {
 	name    string
-	dir     string
+	subdir  string // relative path under the install root, e.g. ".opencode/skills"
 	detect  func() bool
 }
 
+func (a agentTarget) globalDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return a.localDir()
+	}
+	return filepath.Join(home, a.subdir)
+}
+
+func (a agentTarget) localDir() string {
+	return a.subdir
+}
+
+func (a agentTarget) installDir(project bool) string {
+	if project {
+		return a.localDir()
+	}
+	return a.globalDir()
+}
+
 var agents = []agentTarget{
-	{name: "opencode", dir: ".opencode/skills", detect: func() bool { return hasBinary("opencode") || hasDir(".opencode") }},
-	{name: "claude-code", dir: ".claude/skills", detect: func() bool { return hasBinary("claude") || hasDir(".claude") }},
-	{name: "codex", dir: ".codex/skills", detect: func() bool { return hasBinary("codex") || hasDir(".codex") }},
-	{name: "pi.dev", dir: ".pi/skills", detect: func() bool { return hasBinary("pi") || hasDir(".pi") }},
+	{name: "opencode", subdir: ".opencode/skills", detect: func() bool { return hasBinary("opencode") || hasDir(".opencode") }},
+	{name: "claude-code", subdir: ".claude/skills", detect: func() bool { return hasBinary("claude") || hasDir(".claude") }},
+	{name: "codex", subdir: ".codex/skills", detect: func() bool { return hasBinary("codex") || hasDir(".codex") }},
+	{name: "pi.dev", subdir: ".pi/skills", detect: func() bool { return hasBinary("pi") || hasDir(".pi") }},
 }
 
 func runSkillsInstall(cmd *cobra.Command, args []string) error {
 	agent, _ := cmd.Flags().GetString("agent")
+	project, _ := cmd.Flags().GetBool("project")
 
 	var selected agentTarget
 	if agent != "" {
@@ -45,8 +65,10 @@ func runSkillsInstall(cmd *cobra.Command, args []string) error {
 		selected = pickAgent()
 	}
 
+	baseDir := selected.installDir(project)
+
 	// Confirm overwrite if the primary skill dir already exists
-	primaryDir := filepath.Join(selected.dir, skills.SkillName)
+	primaryDir := filepath.Join(baseDir, skills.SkillName)
 	if _, err := os.Stat(primaryDir); err == nil {
 		fmt.Printf("  %s/ already exists.\n", primaryDir)
 		fmt.Print("  Overwrite? [y/N] ")
@@ -59,15 +81,15 @@ func runSkillsInstall(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	n, err := installAllSkills(selected.dir)
+	n, err := installAllSkills(baseDir)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println()
-	fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), selected.dir, n)
+	fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), baseDir, n)
 	fmt.Println()
-	printNextSteps(selected)
+	printNextSteps()
 	fmt.Println()
 	return nil
 }
@@ -202,42 +224,43 @@ func readChoice(list []agentTarget) agentTarget {
 	return list[n-1]
 }
 
-func printNextSteps(a agentTarget) {
+func printNextSteps() {
 	fmt.Println("  Next steps:")
 	fmt.Printf("  - Skills are auto-discovered at session start\n")
-	fmt.Printf("  - Ask your agent to manage learning with learn CLI\n")
+	fmt.Printf("  - Ask your agent to manage learning with pharos CLI\n")
 }
 
 func offerSkillInstall() {
 	detected := detectAgents()
 
-	install := func(a agentTarget) {
-		n, err := installAllSkills(a.dir)
+	install := func(a agentTarget, project bool) {
+		baseDir := a.installDir(project)
+		n, err := installAllSkills(baseDir)
 		if err != nil {
 			fmt.Printf("  Warning: skill install failed: %v\n", err)
 			return
 		}
 		fmt.Println()
-		fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), a.dir, n)
-		printNextSteps(a)
+		fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), baseDir, n)
+		printNextSteps()
 	}
 
 	switch len(detected) {
 	case 1:
 		fmt.Println()
 		fmt.Printf("  Detected %s — installing pharos skills...\n", detected[0].name)
-		install(detected[0])
+		install(detected[0], false) // install globally during init
 	case 0:
 		fmt.Println()
 		fmt.Print("  No AI coding agent detected. Install the pharos skills anyway? [y/N] ")
 		if promptYes() {
-			install(pickAgent())
+			install(pickAgent(), false)
 		}
 	default:
 		fmt.Println()
 		fmt.Print("  Install the pharos skills for an AI coding agent? [Y/n] ")
 		if promptDefaultYes() {
-			install(pickAgent())
+			install(pickAgent(), false)
 		}
 	}
 }
@@ -292,19 +315,27 @@ func anySkillChanged(baseDir, skill string, embedded map[string][]byte) bool {
 }
 
 func offerSkillUpgrade() {
-	// Check each embedded skill against each agent that has the primary skill.
+	// Check each embedded skill against each agent that has the primary skill,
+	// checking both global and project-level installs.
 	var outdated []agentTarget
+	seen := map[string]bool{}
 	for _, a := range agents {
-		if !isSkillInstalled(a.dir) {
-			continue
-		}
-		for _, skill := range skills.All {
-			embedded, err := skillFilesMap(skill)
-			if err != nil {
+		for _, project := range []bool{false, true} {
+			baseDir := a.installDir(project)
+			if !isSkillInstalled(baseDir) {
 				continue
 			}
-			if anySkillChanged(a.dir, skill, embedded) {
-				outdated = appendIfMissing(outdated, a)
+			for _, skill := range skills.All {
+				embedded, err := skillFilesMap(skill)
+				if err != nil {
+					continue
+				}
+				if anySkillChanged(baseDir, skill, embedded) {
+					if !seen[a.name] {
+						outdated = append(outdated, a)
+						seen[a.name] = true
+					}
+				}
 			}
 		}
 	}
@@ -329,11 +360,17 @@ func offerSkillUpgrade() {
 	}
 
 	for _, a := range outdated {
-		n, err := installAllSkills(a.dir)
-		if err != nil {
-			fmt.Printf("  Warning: failed to update skills for %s: %v\n", a.name, err)
-		} else {
-			fmt.Printf("  ✓ Updated %s skills (%d files)\n", a.name, n)
+		for _, project := range []bool{false, true} {
+			baseDir := a.installDir(project)
+			if !isSkillInstalled(baseDir) {
+				continue
+			}
+			n, err := installAllSkills(baseDir)
+			if err != nil {
+				fmt.Printf("  Warning: failed to update skills for %s: %v\n", a.name, err)
+			} else {
+				fmt.Printf("  ✓ Updated %s skills (%d files)\n", a.name, n)
+			}
 		}
 	}
 }
