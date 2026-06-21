@@ -1,0 +1,10 @@
+# Build artifacts
+learn
+learn.exe
+
+# Tailwind CSS standalone binary
+.local/
+
+# Generated Tailwind CSS (rebuilt via `make css`)
+internal/web/app.css
+web/app.css
