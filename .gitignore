@@ -9,10 +9,14 @@ pharos.exe
 # internal/web/app.css is committed so //go:embed resolves in CI.
 web/app.css
 
-# Playwright test artifacts
-.playwright-mcp/
-.pi/todos/
-design/
+# Installed skills from 'pharos skills install'
+.claude/
+.codex/
+.opencode/
+.pi/
 .agents/skills/
 skills-lock.json
-.opencode/
+
+# Playwright test artifacts
+.playwright-mcp/
+design/
