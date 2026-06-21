@@ -7,19 +7,22 @@ argument-hint: "What would you like to learn about?"
 
 The user has asked you to teach them something. This is a stateful request - they intend to learn the topic over multiple sessions.
 
-Create a new workspace with `pharos init "<topic>"` (or open an existing one with `pharos workspace open "<name>"`). This scaffolds the workspace directory and tracks it in the database. All file operations below use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
+Before creating anything, check whether the work already exists. A workspace is curated through **revision**, not accumulation — the same principle applies at every level. Run `pharos workspace list` to check for an existing workspace on the topic; if one exists, open it with `pharos workspace open "<name>"` and continue where the learner left off. Only run `pharos init "<topic>"` when no workspace covers the topic yet. All file operations below use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
 
 ## Teaching Workspace
 
 Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:
 
-- `MISSION.md`: A document capturing the _reason_ the user is interested in the topic. This should be used to ground all teaching. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
-- `./reference/*.html`: A directory of reference materials. These are the compressed learnings from the lessons - cheat sheets, reference algorithms, syntax, yoga poses, glossaries. They are the raw units of learning. They should be beautiful documents which print out well, and are designed for quick reference. Create with `pharos reference create "<title>" --body-file <path>`.
-- `RESOURCES.md`: A list of resources which can be explored to ground your teaching in contextual knowledge, or to acquire knowledge and wisdom. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
-- `./learning-records/*.md`: A directory of learning records, which capture what the user has learned. These are loosely equivalent to architectural decision records in software development - they capture non-obvious lessons and key insights that may need to be revised later, or drive future sessions. These should be used to calculate the zone of proximal development. They are titled `0001-<dash-case-name>.md`, where the number increments each time. Use the format in [LEARNING-RECORD-FORMAT.md](./LEARNING-RECORD-FORMAT.md). Create with `pharos record add "<title>" --body-file <path>`.
-- `./lessons/*.html`: A directory of lessons. A **lesson** is a single, self-contained HTML output that teaches one tightly-scoped thing tied to the mission. This is the primary unit of teaching in this workspace. Create with `pharos lesson create "<title>" --body-file <path>`.
+- `MISSION.md`: The _reason_ the user is learning. Update with `pharos mission -w "<name>" --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
+- `RESOURCES.md`: Curated knowledge sources and communities. Update with `pharos resources -w "<name>" --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
+- `GLOSSARY.md`: Canonical terminology for the workspace. Update with `pharos glossary -w "<name>" --body-file <path>`. Use the format in [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md).
+- `NOTES.md`: Scratchpad for preferences and working notes. Direct file write is fine here.
+- `./lessons/*.html`: Self-contained lesson HTML files. Create with `pharos lesson create "<title>" --body-file <path>`.
+- `./learning-records/*.md`: ADR-style records of what was learned. Create with `pharos record add "<title>" --body-file <path>`.
+- `./reference/*.html`: Reference documents — cheat sheets, syntax guides. Create with `pharos reference create "<title>" --body-file <path>`.
 - `./assets/*`: Reusable **components** shared across lessons. See [Assets](#assets).
-- `NOTES.md`: A scratchpad for you to jot down user preferences, or working notes.
+
+Every workspace **mutation** goes through the CLI — never write files directly with the agent's write tool. The CLI doesn't just write the file; it updates `last_studied`, validates the workspace, and keeps the database in sync. A direct write bypasses all of that, so the dashboard goes stale and stats drift. The only exception is `NOTES.md`.
 
 The create commands take content via `--body-file`, never inline — multiline HTML/MD breaks in the shell. Write the content to a temp file in the **system temp dir** (`mktemp`), pass `--body-file <path>`, then **remove the temp file once the command succeeds**:
 
@@ -58,13 +61,15 @@ Fluency can give the user an illusory sense of mastery, but storage strength is 
 
 A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and titled `0001-<dash-case-name>.html` where the number increments each time.
 
+Before creating a lesson, search for an existing one on the same topic: `pharos lesson list -w "<name>" --search "<topic>"`. Same principle — if a lesson already covers the topic, overwrite its file with improved content instead of creating a duplicate under a new number. The sequence stays tight; the learner isn't served two lessons on the same thing.
+
 A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte.
 
 The lesson should be short, and completable very quickly. Learners' working memory is very small, and we need to stay within it. But each lesson should give the user a single tangible win that they can build on. It should be directly tied to the mission, and should be in the user's zone of proximal development.
 
-If possible, open the lesson file for the user by running `pharos lesson create "<title>" --workspace "<name>" --open`.
+A lesson isn't done when the file is written — it's done when the user is looking at it in the dashboard. After creating a lesson, **present** it: run `pharos start` (starts the dashboard in the background if it isn't already running), then open the lesson page in the browser at `http://127.0.0.1:9090/workspace/<name>/lesson/<seq>`. The dashboard renders the lesson with correct assets, navigation, and styling — the user should never open the raw HTML file directly.
 
-Each lesson should link via HTML anchors to other lessons and reference documents.
+The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/next. Don't rebuild that chrome inside the lesson: a `← Previous` / `Next →` footer duplicates the dashboard and goes stale the moment lessons are reordered or inserted. What a lesson *does* carry is **contextual links** — mid-prose anchors to another lesson or a reference document that illuminates the point being made, placed where the reader would want it, not where it falls in the sequence.
 
 Each lesson should recommend a primary source for the user to read or watch. This should be the most high-quality, high-trust resource you found on the topic.
 
@@ -74,7 +79,7 @@ Each lesson should contain a reminder to ask followup questions to the agent. Th
 
 Lessons are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second lesson could reuse.
 
-Lessons reference assets via relative paths like `assets/style.css` (not `../assets/style.css`). The pharos web dashboard serves lesson HTML so that `assets/style.css` resolves to the workspace's shared `assets/` directory.
+The dashboard serves each lesson from the workspace **document root** — the file lives at `lessons/0001-...html` on disk, but the dashboard serves it at a URL as if it sat in the workspace root, with no `lessons/` segment. So every link inside a lesson is **root-relative** and points at the workspace, not at its own folder: `assets/style.css`, `lessons/0002-...html`, `reference/...html`. A `../` prefix climbs above the document root and 404s — the instinct to escape `lessons/` is wrong here, because the served URL is already at the root.
 
 Reuse is the default, not the exception. Before authoring a lesson, read `./assets/` and build from the components already there. When a lesson needs something new and reusable, write it as a component in `./assets/` and link to it — never inline code a future lesson would duplicate.
 

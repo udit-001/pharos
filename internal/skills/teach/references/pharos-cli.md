@@ -6,15 +6,20 @@ mechanism; the teach skill decides _when_ and _why_ to run each.
 ## Workspace management
 
 ```bash
-pharos init "<name>"              # Create a new learning workspace
-pharos init "<name>" --cwd        # Create in current directory
-pharos init "<name>" --dir <path> # Create at a custom path
-pharos init "<name>" --topic "<friendly title>"  # Override the display title
-
 pharos workspace list             # List all workspaces
 pharos workspace open "<name>"     # Open workspace, show path
 pharos workspace open "<name>" --open  # Open in file manager
 pharos workspace stats            # Show learning statistics
+
+pharos init "<name>"              # Create a new learning workspace
+pharos init "<name>" --cwd        # Create in current directory
+pharos init "<name>" --dir <path> # Create at a custom path
+pharos init "<name>" --topic "<friendly title>"  # Override the display title
+```
+
+Before running `pharos init`, check `pharos workspace list` for an existing
+workspace on the same topic. If one exists, open it and continue — don't
+duplicate.
 
 pharos mission   -w "<name>"                          # Show mission
 pharos mission   -w "<name>" --edit                   # Edit mission in $EDITOR
@@ -30,11 +35,20 @@ pharos glossary  -w "<name>" --body-file <path>       # Write glossary from file
 ## Lessons
 
 ```bash
-pharos lesson create "<title>" -w "<name>"              # Create lesson scaffold
-pharos lesson create "<title>" -w "<name>" --open       # Create and open
 pharos lesson create "<title>" -w "<name>" --body-file <path>  # Content from file (verbatim, no stub)
 pharos lesson list  -w "<name>"                          # List lessons
 pharos lesson list  -w "<name>" --search "<q>"           # Search lessons
+```
+
+Before creating, search for an existing lesson on the same topic. If one
+exists, **revise** it — overwrite the file at its current path with improved
+content — rather than create a duplicate under a new sequence number.
+
+After creating or revising a lesson, **present** it in the dashboard:
+
+```bash
+pharos start                                                      # Start dashboard (background, default :9090)
+open http://127.0.0.1:9090/workspace/<name>/lesson/<seq>           # Open the lesson page in browser
 ```
 
 ## Learning records
@@ -66,17 +80,19 @@ pharos start --no-open    # Don't auto-open the browser
 
 ## Asset paths in lesson HTML
 
-Lessons are served at `/api/lesson-html/<workspace>/<file>` in the dashboard.
-Assets live in the workspace's `assets/` directory and are served at
-`/api/lesson-html/<workspace>/assets/<file>`. Reference them with a
-**relative** path:
+The dashboard serves each lesson from the workspace **document root** —
+the served URL has no `lessons/` segment, so links resolve against the
+workspace, not the lesson's folder. Every href is **root-relative**:
 
 ```html
 <link rel="stylesheet" href="assets/style.css">
+<a href="lessons/0002-...html">…</a>
+<a href="reference/sql-syntax.html">…</a>
 ```
 
-Do **not** use `../assets/style.css` — the `..` resolves outside the
-workspace context and returns a 404.
+A `../` prefix climbs above the document root and returns a 404.
+
+See the `Assets` section in `SKILL.md` for the full mechanism.
 
 ## Global flags
 
