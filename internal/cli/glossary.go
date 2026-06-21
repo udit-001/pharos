@@ -18,7 +18,8 @@ It records terminology with opinionated definitions.
 
 Examples:
   pharos glossary --workspace "jump-start-a-car"
-  pharos glossary --workspace "cell-adhesion" --edit`,
+  pharos glossary --workspace "cell-adhesion" --edit
+  pharos glossary --workspace "cell-adhesion" --body-file /tmp/glossary.md`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -31,6 +32,12 @@ Examples:
 		glossaryPath := filepath.Join(ws.Path, "GLOSSARY.md")
 
 		edit, _ := cmd.Flags().GetBool("edit")
+		bodyFile, _ := cmd.Flags().GetString("body-file")
+
+		if bodyFile != "" {
+			return writeWorkspaceFile(wsStore, glossaryPath, bodyFile, "Glossary")
+		}
+
 		if edit {
 			editor := os.Getenv("EDITOR")
 			if editor == "" {
@@ -76,4 +83,5 @@ func init() {
 	rootCmd.AddCommand(glossaryCmd)
 	glossaryCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	glossaryCmd.Flags().BoolP("edit", "e", false, "Open in $EDITOR")
+	glossaryCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
 }

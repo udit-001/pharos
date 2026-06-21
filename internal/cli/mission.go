@@ -18,7 +18,8 @@ success looks like. Every lesson should trace back to it.
 
 Examples:
   pharos mission --workspace "sql-for-research"
-  pharos mission --workspace "yoga" --edit`,
+  pharos mission --workspace "yoga" --edit
+  pharos mission --workspace "yoga" --body-file /tmp/mission.md`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -32,6 +33,12 @@ Examples:
 		missionPath := filepath.Join(ws.Path, "MISSION.md")
 
 		edit, _ := cmd.Flags().GetBool("edit")
+		bodyFile, _ := cmd.Flags().GetString("body-file")
+
+		if bodyFile != "" {
+			return writeWorkspaceFile(wsStore, missionPath, bodyFile, "Mission")
+		}
+
 		if edit {
 			// Open MISSION.md in $EDITOR
 			editor := os.Getenv("EDITOR")
@@ -86,4 +93,5 @@ func init() {
 	rootCmd.AddCommand(missionCmd)
 	missionCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	missionCmd.Flags().BoolP("edit", "e", false, "Open in $EDITOR")
+	missionCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
 }

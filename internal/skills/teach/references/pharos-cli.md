@@ -16,12 +16,15 @@ pharos workspace open "<name>"     # Open workspace, show path
 pharos workspace open "<name>" --open  # Open in file manager
 pharos workspace stats            # Show learning statistics
 
-pharos mission   -w "<name>"        # Show mission
-pharos mission   -w "<name>" --edit # Edit mission in $EDITOR
-pharos resources -w "<name>"        # Show resources
-pharos resources -w "<name>" --edit # Edit resources
-pharos glossary  -w "<name>"        # Show glossary
-pharos glossary  -w "<name>" --edit # Edit glossary
+pharos mission   -w "<name>"                          # Show mission
+pharos mission   -w "<name>" --edit                   # Edit mission in $EDITOR
+pharos mission   -w "<name>" --body-file <path>       # Write mission from file (non-interactive)
+pharos resources -w "<name>"                          # Show resources
+pharos resources -w "<name>" --edit                   # Edit resources in $EDITOR
+pharos resources -w "<name>" --body-file <path>       # Write resources from file
+pharos glossary  -w "<name>"                          # Show glossary
+pharos glossary  -w "<name>" --edit                   # Edit glossary in $EDITOR
+pharos glossary  -w "<name>" --body-file <path>       # Write glossary from file
 ```
 
 ## Lessons
@@ -60,6 +63,20 @@ pharos start              # Start the read-only web UI (default :9090)
 pharos start --port 9090  # Custom port
 pharos start --no-open    # Don't auto-open the browser
 ```
+
+## Asset paths in lesson HTML
+
+Lessons are served at `/api/lesson-html/<workspace>/<file>` in the dashboard.
+Assets live in the workspace's `assets/` directory and are served at
+`/api/lesson-html/<workspace>/assets/<file>`. Reference them with a
+**relative** path:
+
+```html
+<link rel="stylesheet" href="assets/style.css">
+```
+
+Do **not** use `../assets/style.css` — the `..` resolves outside the
+workspace context and returns a 404.
 
 ## Global flags
 

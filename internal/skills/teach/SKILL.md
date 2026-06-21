@@ -74,6 +74,8 @@ Each lesson should contain a reminder to ask followup questions to the agent. Th
 
 Lessons are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second lesson could reuse.
 
+Lessons reference assets via relative paths like `assets/style.css` (not `../assets/style.css`). The pharos web dashboard serves lesson HTML so that `assets/style.css` resolves to the workspace's shared `assets/` directory.
+
 Reuse is the default, not the exception. Before authoring a lesson, read `./assets/` and build from the components already there. When a lesson needs something new and reusable, write it as a component in `./assets/` and link to it — never inline code a future lesson would duplicate.
 
 A shared stylesheet is the first component every workspace earns: every lesson links it, so the lessons look like one consistent course rather than a pile of one-offs. As the workspace grows, so should the component library.

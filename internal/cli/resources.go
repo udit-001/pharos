@@ -18,7 +18,8 @@ Knowledge comes from high-quality resources listed here.
 
 Examples:
   pharos resources --workspace "sql-for-research"
-  pharos resources --workspace "yoga" --edit`,
+  pharos resources --workspace "yoga" --edit
+  pharos resources --workspace "yoga" --body-file /tmp/resources.md`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -32,6 +33,12 @@ Examples:
 		resourcesPath := filepath.Join(ws.Path, "RESOURCES.md")
 
 		edit, _ := cmd.Flags().GetBool("edit")
+		bodyFile, _ := cmd.Flags().GetString("body-file")
+
+		if bodyFile != "" {
+			return writeWorkspaceFile(wsStore, resourcesPath, bodyFile, "Resources")
+		}
+
 		if edit {
 			editor := os.Getenv("EDITOR")
 			if editor == "" {
@@ -77,4 +84,5 @@ func init() {
 	rootCmd.AddCommand(resourcesCmd)
 	resourcesCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	resourcesCmd.Flags().BoolP("edit", "e", false, "Open in $EDITOR")
+	resourcesCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
 }

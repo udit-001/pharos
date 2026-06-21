@@ -119,6 +119,24 @@ func truncate(s string, max int) string {
 	return s
 }
 
+// writeWorkspaceFile writes content from a body file to a workspace path,
+// touches last_studied, and prints a success message. Used by mission,
+// resources, and glossary commands for non-interactive updates.
+func writeWorkspaceFile(wsStore *db.WorkspaceStore, targetPath, bodyFile, label string) error {
+	data, err := os.ReadFile(bodyFile)
+	if err != nil {
+		return fmt.Errorf("read body file: %w", err)
+	}
+	if err := os.WriteFile(targetPath, data, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", label, err)
+	}
+	_ = wsStore.Touch()
+	fmt.Println()
+	fmt.Printf("  ✓ %s updated\n", label)
+	fmt.Println()
+	return nil
+}
+
 func formatDateShort(ts string) string {
 	if len(ts) >= 10 {
 		return ts[:10]
