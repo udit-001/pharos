@@ -13,8 +13,8 @@ var refListCmd = &cobra.Command{
 	Long: `List all reference documents for a workspace.
 
 Examples:
-  learn reference list --workspace "sql-for-research"
-  learn reference list --workspace "sql-for-research" --search "join"`,
+  pharos reference list --workspace "sql-for-research"
+  pharos reference list --workspace "sql-for-research" --search "join"`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runList(cmd, listSpec[db.Reference]{
@@ -26,7 +26,7 @@ Examples:
 			},
 			errLabel:   "failed to list references",
 			emptyMsg:   "No references yet.",
-			createHint: `learn reference create "Title" --workspace %q`,
+			createHint: `pharos reference create "Title" --workspace %q`,
 			headers:    []string{"#", "Title", "File"},
 			buildRow: func(r db.Reference) []string {
 				return []string{

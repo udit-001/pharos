@@ -1,6 +1,6 @@
 # Build artifacts
-learn
-learn.exe
+pharos
+pharos.exe
 
 # Tailwind CSS standalone binary
 .local/
@@ -15,3 +15,4 @@ web/app.css
 design/
 .agents/skills/
 skills-lock.json
+.opencode/

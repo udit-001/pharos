@@ -17,8 +17,8 @@ The glossary is the canonical language for this teaching workspace.
 It records terminology with opinionated definitions.
 
 Examples:
-  learn glossary --workspace "jump-start-a-car"
-  learn glossary --workspace "cell-adhesion" --edit`,
+  pharos glossary --workspace "jump-start-a-car"
+  pharos glossary --workspace "cell-adhesion" --edit`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -63,7 +63,7 @@ Examples:
 		}
 
 		fmt.Println()
-		fmt.Printf("  Workspace: %s\n", ws.Name)
+		fmt.Printf("  Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 		fmt.Println(string(data))
 		fmt.Println()

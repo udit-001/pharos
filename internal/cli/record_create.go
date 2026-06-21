@@ -19,9 +19,9 @@ lessons, key insights, and stated prior knowledge. They are
 titled 0001-<dash-case-name>.md with sequential numbering.
 
 Examples:
-  learn record add "The connection sequence matters" --workspace "jump-start-a-car"
-  learn record add "No prior CAM knowledge" --workspace "cell-adhesion"
-  learn record add "Understood SELECT, WHERE, JOIN" --workspace "sql-for-research"`,
+  pharos record add "The connection sequence matters" --workspace "jump-start-a-car"
+  pharos record add "No prior CAM knowledge" --workspace "cell-adhesion"
+  pharos record add "Understood SELECT, WHERE, JOIN" --workspace "sql-for-research"`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -49,7 +49,7 @@ Examples:
 		// Record body comes from --body-file (required) — no stub template.
 		bodyFile, _ := cmd.Flags().GetString("body-file")
 		if bodyFile == "" {
-			return fmt.Errorf("--body-file is required\n  Write the record markdown to a file, then: learn record add %q --workspace %q --body-file <path>", title, ws.Name)
+			return fmt.Errorf("--body-file is required\n  Write the record markdown to a file, then: pharos record add %q --workspace %q --body-file <path>", title, ws.Name)
 		}
 		data, err := os.ReadFile(bodyFile)
 		if err != nil {
@@ -85,7 +85,7 @@ Examples:
 		fmt.Println()
 		fmt.Printf("  ✓ Learning record created: %s\n", title)
 		fmt.Printf("    File: %s\n", recordPath)
-		fmt.Printf("    Workspace: %s\n", ws.Name)
+		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 
 		return nil

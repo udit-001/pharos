@@ -17,8 +17,8 @@ The mission captures why you're learning a topic and what
 success looks like. Every lesson should trace back to it.
 
 Examples:
-  learn mission --workspace "sql-for-research"
-  learn mission --workspace "yoga" --edit`,
+  pharos mission --workspace "sql-for-research"
+  pharos mission --workspace "yoga" --edit`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -70,7 +70,7 @@ Examples:
 		}
 
 		fmt.Println()
-		fmt.Printf("  Workspace: %s\n", ws.Name)
+		fmt.Printf("  Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 		fmt.Println(string(data))
 		fmt.Println()

@@ -18,16 +18,16 @@ var migrateCmd = &cobra.Command{
 Migrations are stored in the project's migrations/ directory and
 are embedded into the binary at build time.
 
-Use 'learn migrate up' to apply pending migrations,
-'learn migrate down' to roll back the last one, and
-'learn migrate status' to see the current state.
+Use 'pharos migrate up' to apply pending migrations,
+'pharos migrate down' to roll back the last one, and
+'pharos migrate status' to see the current state.
 
 Examples:
-  learn migrate up
-  learn migrate down
-  learn migrate status
-  learn migrate up-to 1
-  learn migrate down-to 0`,
+  pharos migrate up
+  pharos migrate down
+  pharos migrate status
+  pharos migrate up-to 1
+  pharos migrate down-to 0`,
 }
 
 var migrateUpCmd = &cobra.Command{

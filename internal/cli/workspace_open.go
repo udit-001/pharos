@@ -14,8 +14,8 @@ var workspaceOpenCmd = &cobra.Command{
 	Long: `Open a workspace's directory in the file manager, or print its path.
 
 Examples:
-  learn workspace open "sql-for-research"
-  learn workspace open "jump-start-a-car"`,
+  pharos workspace open "sql-for-research"
+  pharos workspace open "jump-start-a-car"`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -23,7 +23,7 @@ Examples:
 
 		wsStore, err := s.Workspace(name)
 		if err != nil {
-			return fmt.Errorf("workspace %q not found\n  Use 'learn workspace list' to see available workspaces", name)
+			return fmt.Errorf("workspace %q not found\n  Use 'pharos workspace list' to see available workspaces", name)
 		}
 		ws := wsStore.Workspace()
 
@@ -35,7 +35,7 @@ Examples:
 		}
 
 		fmt.Println()
-		fmt.Printf("  Workspace: %s\n", ws.Name)
+		fmt.Printf("  Workspace: %s\n", ws.DisplayName())
 		fmt.Printf("  Path: %s\n", ws.Path)
 		fmt.Printf("  Lessons: %d  |  Learning Records: %d\n\n", ws.LessonCount, ws.RecordCount)
 

@@ -8,9 +8,9 @@ var workspaceCmd = &cobra.Command{
 	Long: `List, open, and view stats for learning workspaces.
 
 Examples:
-  learn workspace list
-  learn workspace open "sql-for-research"
-  learn workspace stats`,
+  pharos workspace list
+  pharos workspace open "sql-for-research"
+  pharos workspace stats`,
 }
 
 func init() {

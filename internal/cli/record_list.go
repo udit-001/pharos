@@ -13,9 +13,9 @@ var recordListCmd = &cobra.Command{
 	Long: `List all learning records for a workspace, ordered by sequence number.
 
 Examples:
-  learn record list --workspace "sql-for-research"
-  learn record list
-  learn record list --search "join"`,
+  pharos record list --workspace "sql-for-research"
+  pharos record list
+  pharos record list --search "join"`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runList(cmd, listSpec[db.LearningRecord]{
@@ -27,7 +27,7 @@ Examples:
 			},
 			errLabel:   "failed to list learning records",
 			emptyMsg:   "No learning records yet.",
-			createHint: `learn record add "What you learned" --workspace %q`,
+			createHint: `pharos record add "What you learned" --workspace %q`,
 			headers:    []string{"#", "Title", "File"},
 			buildRow: func(r db.LearningRecord) []string {
 				status := ""

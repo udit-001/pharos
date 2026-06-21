@@ -13,9 +13,9 @@ var lessonListCmd = &cobra.Command{
 	Long: `List all lessons for a workspace, ordered by sequence number.
 
 Examples:
-  learn lesson list --workspace "sql-for-research"
-  learn lesson list
-  learn lesson list --search "join"`,
+  pharos lesson list --workspace "sql-for-research"
+  pharos lesson list
+  pharos lesson list --search "join"`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runList(cmd, listSpec[db.Lesson]{
@@ -27,7 +27,7 @@ Examples:
 			},
 			errLabel:   "failed to list lessons",
 			emptyMsg:   "No lessons yet.",
-			createHint: `learn lesson create "Title" --workspace %q`,
+			createHint: `pharos lesson create "Title" --workspace %q`,
 			headers:    []string{"#", "Title", "File"},
 			buildRow: func(l db.Lesson) []string {
 				return []string{

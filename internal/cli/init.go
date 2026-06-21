@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/spf13/cobra"
@@ -29,12 +28,13 @@ Use '--dir <path>' to place the workspace elsewhere, or work
 inside the current directory with '--cwd'.
 
 Examples:
-  learn init "sql-for-research"
-  learn init "jump-start-a-car" --dir ./my-workspace
-  learn init "yoga-for-beginners" --cwd`,
+  pharos init "SQL for Research"
+  pharos init "Jump Start a Car" --dir ./my-workspace
+  pharos init "Yoga for Beginners" --cwd`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
+		displayName := args[0]
+		slug := slugify(displayName)
 
 		// Determine workspace path
 		useCWD, _ := cmd.Flags().GetBool("cwd")
@@ -46,9 +46,9 @@ Examples:
 			wsPath = customDir
 		case useCWD:
 			cwd, _ := os.Getwd()
-			wsPath = filepath.Join(cwd, name)
+			wsPath = filepath.Join(cwd, slug)
 		default:
-			wsPath = filepath.Join(defaultWorkspacesDir(), name)
+			wsPath = filepath.Join(defaultWorkspacesDir(), slug)
 		}
 
 		// Create or open DB
@@ -94,7 +94,7 @@ Examples:
 
 ## Out of scope
 - {Adjacent topics you do not want to chase right now}
-`, name)
+`, displayName)
 			if err := os.WriteFile(missionFile, []byte(missionContent), 0644); err != nil {
 				return fmt.Errorf("write MISSION.md: %w", err)
 			}
@@ -117,7 +117,7 @@ Examples:
 
 ## Gaps
 - {Areas where no good resource exists yet}
-`, name)
+`, displayName)
 			if err := os.WriteFile(resourcesFile, []byte(resourcesContent), 0644); err != nil {
 				return fmt.Errorf("write RESOURCES.md: %w", err)
 			}
@@ -134,7 +134,7 @@ Examples:
 
 **Term**:
 Definition. _Avoid_: Synonyms to avoid.
-`, name)
+`, displayName)
 			if err := os.WriteFile(glossaryFile, []byte(glossaryContent), 0644); err != nil {
 				return fmt.Errorf("write GLOSSARY.md: %w", err)
 			}
@@ -151,10 +151,10 @@ Definition. _Avoid_: Synonyms to avoid.
 		// Add to database
 		topic, _ := cmd.Flags().GetString("topic")
 		if topic == "" {
-			topic = deriveTopic(name)
+			topic = displayName
 		}
 		ws := db.Workspace{
-			Name:  name,
+			Name:  slug,
 			Topic: topic,
 			Path:  wsPath,
 		}
@@ -170,13 +170,13 @@ Definition. _Avoid_: Synonyms to avoid.
 		}
 
 		fmt.Println()
-		fmt.Printf("  ✓ Created workspace: %s\n", created.Name)
+		fmt.Printf("  ✓ Created workspace: %s\n", created.DisplayName())
 		fmt.Printf("    Path: %s\n", wsPath)
 		fmt.Println()
 		fmt.Println("  Next steps:")
 		fmt.Println("    cd " + wsPath)
-		fmt.Println("    learn lesson create \"Your first lesson\"")
-		fmt.Println("    learn record add \"What you learned\"")
+		fmt.Println("    pharos lesson create \"Your first lesson\"")
+		fmt.Println("    pharos record add \"What you learned\"")
 		fmt.Println()
 
 		return nil
@@ -189,24 +189,5 @@ func init() {
 	initCmd.Flags().Bool("cwd", false, "Create workspace in current directory")
 	initCmd.Flags().String("dir", "", "Create workspace at a custom path")
 	initCmd.Flags().Bool("no-skills", false, "Skip skill installation prompt")
-	initCmd.Flags().String("topic", "", "Friendly display title for the workspace (default: derived from name)")
-}
-
-// deriveTopic produces a friendly display title from a slug-style workspace
-// name: "rubiks-cube" → "Rubiks Cube", "sql_basics" → "Sql Basics". Used when
-// the user doesn't pass --topic explicitly.
-func deriveTopic(name string) string {
-	s := strings.NewReplacer("-", " ", "_", " ").Replace(name)
-	words := strings.Fields(s)
-	for i, w := range words {
-		if w == "" {
-			continue
-		}
-		r := []rune(w)
-		if r[0] >= 'a' && r[0] <= 'z' {
-			r[0] -= 'a' - 'A'
-		}
-		words[i] = string(r)
-	}
-	return strings.Join(words, " ")
+	initCmd.Flags().String("topic", "", "Friendly display title for the workspace (default: the name you passed)")
 }

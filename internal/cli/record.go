@@ -13,8 +13,8 @@ key insights, and stated prior knowledge that will steer
 future sessions.
 
 Examples:
-  learn record add "The connection sequence matters" --workspace "jump-start-a-car"
-  learn record list --workspace "sql-for-research"`,
+  pharos record add "The connection sequence matters" --workspace "jump-start-a-car"
+  pharos record list --workspace "sql-for-research"`,
 }
 
 func init() {

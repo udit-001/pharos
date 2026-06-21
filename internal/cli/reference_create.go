@@ -15,8 +15,8 @@ var refCreateCmd = &cobra.Command{
 	Long: `Create a new reference HTML file in the workspace's reference/ directory.
 
 Examples:
-  learn reference create "SQL Join Cheat Sheet" --workspace "sql-for-research"
-  learn reference create "Jumper Cable Steps" --workspace "jump-start-a-car"`,
+  pharos reference create "SQL Join Cheat Sheet" --workspace "sql-for-research"
+  pharos reference create "Jumper Cable Steps" --workspace "jump-start-a-car"`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -43,7 +43,7 @@ Examples:
 		// Reference content comes from --body-file (required) — no stub template.
 		bodyFile, _ := cmd.Flags().GetString("body-file")
 		if bodyFile == "" {
-			return fmt.Errorf("--body-file is required\n  Write the reference HTML to a file, then: learn reference create %q --workspace %q --body-file <path>", title, ws.Name)
+			return fmt.Errorf("--body-file is required\n  Write the reference HTML to a file, then: pharos reference create %q --workspace %q --body-file <path>", title, ws.Name)
 		}
 		data, err := os.ReadFile(bodyFile)
 		if err != nil {
@@ -75,7 +75,7 @@ Examples:
 		fmt.Println()
 		fmt.Printf("  ✓ Reference created: %s\n", title)
 		fmt.Printf("    File: %s\n", refPath)
-		fmt.Printf("    Workspace: %s\n", ws.Name)
+		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 
 		return nil

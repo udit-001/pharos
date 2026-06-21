@@ -22,9 +22,9 @@ If no workspace is specified and only one exists, it is used
 automatically. If multiple exist, --workspace is required.
 
 Examples:
-  learn lesson create "SQL Joins" --workspace "sql-for-research"
-  learn lesson create "The Connection Sequence" --workspace "jump-start-a-car"
-  learn lesson create "Cadherins" -w "cell-adhesion" --open`,
+  pharos lesson create "SQL Joins" --workspace "sql-for-research"
+  pharos lesson create "The Connection Sequence" --workspace "jump-start-a-car"
+  pharos lesson create "Cadherins" -w "cell-adhesion" --open`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -54,7 +54,7 @@ Examples:
 		// multiline content lands verbatim without shell-escaping.
 		bodyFile, _ := cmd.Flags().GetString("body-file")
 		if bodyFile == "" {
-			return fmt.Errorf("--body-file is required\n  Write the lesson HTML to a file, then: learn lesson create %q --workspace %q --body-file <path>", title, ws.Name)
+			return fmt.Errorf("--body-file is required\n  Write the lesson HTML to a file, then: pharos lesson create %q --workspace %q --body-file <path>", title, ws.Name)
 		}
 		data, err := os.ReadFile(bodyFile)
 		if err != nil {
@@ -86,7 +86,7 @@ Examples:
 		fmt.Println()
 		fmt.Printf("  ✓ Lesson created: %s\n", title)
 		fmt.Printf("    File: %s\n", lessonPath)
-		fmt.Printf("    Workspace: %s\n", ws.Name)
+		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 
 		openFile, _ := cmd.Flags().GetBool("open")
@@ -104,21 +104,28 @@ func slugify(s string) string {
 	s = strings.ReplaceAll(s, " ", "-")
 	s = strings.ReplaceAll(s, "/", "-")
 	s = strings.ReplaceAll(s, "_", "-")
-	// Remove non-alphanumeric except hyphens
+	// Remove non-alphanumeric except hyphens, collapse runs of hyphens
 	var result strings.Builder
+	prevHyphen := false
 	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
 			result.WriteRune(r)
+			prevHyphen = false
+		} else if r == '-' {
+			if !prevHyphen && result.Len() > 0 {
+				result.WriteRune(r)
+				prevHyphen = true
+			}
 		}
 	}
-	return result.String()
+	return strings.Trim(result.String(), "-")
 }
 
 func resolveWorkspace(s *db.Store, name string) (*db.WorkspaceStore, error) {
 	if name != "" {
 		ws, err := s.Workspace(name)
 		if err != nil {
-			return nil, fmt.Errorf("workspace %q not found\n  Use 'learn workspace list' to see available workspaces", name)
+			return nil, fmt.Errorf("workspace %q not found\n  Use 'pharos workspace list' to see available workspaces", name)
 		}
 		return ws, nil
 	}
@@ -131,7 +138,7 @@ func resolveWorkspace(s *db.Store, name string) (*db.WorkspaceStore, error) {
 
 	switch len(workspaces) {
 	case 0:
-		return nil, fmt.Errorf("no workspaces found\n  Use 'learn init <name>' to create one")
+		return nil, fmt.Errorf("no workspaces found\n  Use 'pharos init <name>' to create one")
 	case 1:
 		return s.Workspace(workspaces[0].Name)
 	default:

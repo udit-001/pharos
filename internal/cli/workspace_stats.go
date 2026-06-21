@@ -12,8 +12,8 @@ var workspaceStatsCmd = &cobra.Command{
 	Long: `Show summary of learning progress across all workspaces.
 
 Examples:
-  learn workspace stats
-  learn workspace stats --json`,
+  pharos workspace stats
+  pharos workspace stats --json`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -67,7 +67,7 @@ Examples:
 					}
 				}
 				fmt.Printf("    %-25s L:%3d %s R:%3d %s\n",
-					w.Name, w.LessonCount, barLessons, w.RecordCount, barRecs)
+					w.DisplayName(), w.LessonCount, barLessons, w.RecordCount, barRecs)
 			}
 			fmt.Println()
 		}

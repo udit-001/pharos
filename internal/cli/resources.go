@@ -17,8 +17,8 @@ Resources are the curated set of trusted sources for this topic.
 Knowledge comes from high-quality resources listed here.
 
 Examples:
-  learn resources --workspace "sql-for-research"
-  learn resources --workspace "yoga" --edit`,
+  pharos resources --workspace "sql-for-research"
+  pharos resources --workspace "yoga" --edit`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -64,7 +64,7 @@ Examples:
 		}
 
 		fmt.Println()
-		fmt.Printf("  Workspace: %s\n", ws.Name)
+		fmt.Printf("  Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 		fmt.Println(string(data))
 		fmt.Println()

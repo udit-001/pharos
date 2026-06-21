@@ -12,8 +12,8 @@ references, algorithms, glossaries. They live in the reference/
 directory and are designed for quick lookup.
 
 Examples:
-  learn reference create "SQL Cheat Sheet" --workspace "sql-for-research"
-  learn reference list --workspace "sql-for-research"`,
+  pharos reference create "SQL Cheat Sheet" --workspace "sql-for-research"
+  pharos reference list --workspace "sql-for-research"`,
 }
 
 func init() {

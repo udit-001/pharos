@@ -27,9 +27,9 @@ Shows your workspaces, lesson progress, and stats — all read-only.
 Use the CLI commands to create lessons and learning records.
 
 Examples:
-  learn start
-  learn start --port 9090
-  learn start --foreground`,
+  pharos start
+  pharos start --port 9090
+  pharos start --foreground`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)

@@ -18,7 +18,7 @@ type listSpec[T any] struct {
 	fetch      func(ws *db.WorkspaceStore, search string) ([]T, error)
 	errLabel   string // "failed to list lessons" — wrapped around the fetch error
 	emptyMsg   string // "No lessons yet."
-	createHint string // "learn lesson create \"Title\" --workspace %q" — %q filled with ws.Name
+	createHint string // "pharos lesson create \"Title\" --workspace %q" — %q filled with ws.Name
 	headers    []string
 	buildRow   func(item T) []string
 }
@@ -50,7 +50,7 @@ func runList[T any](cmd *cobra.Command, spec listSpec[T]) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("  Workspace: %s\n\n", ws.Name)
+	fmt.Printf("  Workspace: %s\n\n", ws.DisplayName())
 
 	if len(items) == 0 {
 		fmt.Printf("  %s\n", spec.emptyMsg)

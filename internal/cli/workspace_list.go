@@ -13,8 +13,8 @@ var workspaceListCmd = &cobra.Command{
 	Long: `List all learning workspaces with stats.
 
 Examples:
-  learn workspace list
-  learn workspace list --json`,
+  pharos workspace list
+  pharos workspace list --json`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -34,7 +34,7 @@ Examples:
 		fmt.Println()
 		if len(workspaces) == 0 {
 			fmt.Println("  No workspaces found.")
-			fmt.Println("  Use 'learn init <name>' to create one.")
+			fmt.Println("  Use 'pharos init <name>' to create one.")
 			fmt.Println()
 			return nil
 		}
