@@ -49,7 +49,7 @@ func mustStore(cmd *cobra.Command) *db.Store {
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "learn",
+	Use:     "pharos",
 	Short:   "Manage learning lessons and workspaces",
 	Version: version.Version,
 	Long: `A CLI tool to create and manage learning workspaces.
@@ -58,7 +58,7 @@ Data is stored in a local SQLite database. Each workspace is a
 directory containing MISSION.md, lessons/, learning-records/,
 reference/, assets/, RESOURCES.md, GLOSSARY.md, and NOTES.md.
 
-Use 'learn init' to create a workspace, then add lessons and
+Use 'pharos init' to create a workspace, then add lessons and
 learning records as you study.
 
 Most commands support --json for machine-readable output.`,
@@ -72,7 +72,7 @@ Most commands support --json for machine-readable output.`,
 		}
 		s, err := db.Open(storePath)
 		if err != nil {
-			return fmt.Errorf("open database: %w\n\n  Run 'learn init' to create one", err)
+			return fmt.Errorf("open database: %w\n\n  Run 'pharos init' to create one", err)
 		}
 		ctx := context.WithValue(cmd.Context(), ctxStore{}, s)
 		cmd.SetContext(ctx)
