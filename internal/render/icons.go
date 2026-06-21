@@ -60,7 +60,7 @@ func iconHome() string {
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`
 }
 
-// logoSVG returns the Learn logo.
+// logoSVG returns the Pharos logo.
 func logoSVG() string {
 	return `<svg class="shrink-0" viewBox="0 0 100 100" width="28" height="28" aria-hidden="true">
 		<g fill="none" stroke="currentColor" stroke-linecap="round">

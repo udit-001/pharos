@@ -13,7 +13,7 @@ func Page(f Frame, content string) string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>%s — Learn</title>
+<title>%s — Pharos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -96,7 +96,7 @@ func sidebarHeader(f Frame) string {
 	return `<div class="flex items-center gap-2.5 px-5 py-2 border-b border-slate-200">
       <a href="/" class="flex items-center gap-2 text-sm font-semibold text-slate-800 hover:text-slate-600 no-underline">
         ` + logoSVG() + `
-        Learn
+        Pharos
       </a>
     </div>`
 }

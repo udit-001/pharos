@@ -7,7 +7,7 @@ import (
 var skillsCmd = &cobra.Command{
 	Use:   "skills",
 	Short: "Manage agent skills for this project",
-	Long: `Install the learn skill into your AI coding agent so it
+	Long: `Install the pharos skill into your AI coding agent so it
 knows how to use the CLI to manage learning workspaces.
 
 Supports: opencode, claude-code, codex, pi.dev`,
@@ -15,9 +15,9 @@ Supports: opencode, claude-code, codex, pi.dev`,
 
 var skillsInstallCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Install the learn skill into an AI agent",
-	Long: `Interactively install the learn skill for your AI coding agent.
-The skill teaches the agent how to use the learn CLI commands.
+	Short: "Install the pharos skill into an AI agent",
+	Long: `Interactively install the pharos skill for your AI coding agent.
+The skill teaches the agent how to use the pharos CLI commands.
 
 Supported agents:
   opencode     Installs to .opencode/skills/learn/

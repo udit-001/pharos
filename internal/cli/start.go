@@ -49,7 +49,7 @@ Examples:
 				return fmt.Errorf("failed to start background server: %w", err)
 			}
 			fmt.Println()
-			fmt.Printf("  Learn server started in background (PID: %d)\n", c.Process.Pid)
+			fmt.Printf("  Pharos server started in background (PID: %d)\n", c.Process.Pid)
 			fmt.Printf("  http://127.0.0.1:%d\n", startFlags.port)
 			fmt.Println()
 			return nil
@@ -57,7 +57,7 @@ Examples:
 
 		if !startFlags.daemon {
 			fmt.Println()
-			fmt.Println("  Starting Learn dashboard...")
+			fmt.Println("  Starting Pharos dashboard...")
 			fmt.Println()
 		}
 

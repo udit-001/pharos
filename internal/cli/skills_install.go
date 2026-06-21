@@ -225,17 +225,17 @@ func offerSkillInstall() {
 	switch len(detected) {
 	case 1:
 		fmt.Println()
-		fmt.Printf("  Detected %s — installing learn skills...\n", detected[0].name)
+		fmt.Printf("  Detected %s — installing pharos skills...\n", detected[0].name)
 		install(detected[0])
 	case 0:
 		fmt.Println()
-		fmt.Print("  No AI coding agent detected. Install the learn skills anyway? [y/N] ")
+		fmt.Print("  No AI coding agent detected. Install the pharos skills anyway? [y/N] ")
 		if promptYes() {
 			install(pickAgent())
 		}
 	default:
 		fmt.Println()
-		fmt.Print("  Install the learn skills for an AI coding agent? [Y/n] ")
+		fmt.Print("  Install the pharos skills for an AI coding agent? [Y/n] ")
 		if promptDefaultYes() {
 			install(pickAgent())
 		}
@@ -315,13 +315,13 @@ func offerSkillUpgrade() {
 
 	fmt.Println()
 	if len(outdated) == 1 {
-		fmt.Printf("  The learn skills for %s have changed. Update them? [Y/n] ", outdated[0].name)
+		fmt.Printf("  The pharos skills for %s have changed. Update them? [Y/n] ", outdated[0].name)
 	} else {
 		names := make([]string, len(outdated))
 		for i, a := range outdated {
 			names[i] = a.name
 		}
-		fmt.Printf("  Learn skills have changed for %s. Update them? [Y/n] ", strings.Join(names, ", "))
+		fmt.Printf("  Pharos skills have changed for %s. Update them? [Y/n] ", strings.Join(names, ", "))
 	}
 
 	if !promptDefaultYes() {

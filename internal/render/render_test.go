@@ -38,7 +38,7 @@ func TestDashboardEmptyState(t *testing.T) {
 	if !strings.Contains(out, "No workspaces yet") {
 		t.Errorf("expected empty state, got:\n%s", out)
 	}
-	if !strings.Contains(out, `learn init "topic"`) {
+	if !strings.Contains(out, `pharos init "topic"`) {
 		t.Errorf("expected init hint, got:\n%s", out)
 	}
 }
@@ -82,7 +82,7 @@ func TestPageWrapsContentInFrame(t *testing.T) {
 	if !strings.Contains(out, "<!DOCTYPE html>") {
 		t.Errorf("expected doctype, got:\n%s", out)
 	}
-	if !strings.Contains(out, "<title>My Page — Learn</title>") {
+	if !strings.Contains(out, "<title>My Page — Pharos</title>") {
 		t.Errorf("expected title tag, got:\n%s", out)
 	}
 	if !strings.Contains(out, "<p>BODY</p>") {

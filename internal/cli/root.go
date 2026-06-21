@@ -16,7 +16,7 @@ import (
 func defaultDBPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "learn.db"
+		return "pharos.db"
 	}
 	return filepath.Join(home, ".pharos", "pharos.db")
 }

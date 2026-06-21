@@ -77,9 +77,9 @@ func Start(cfg Config) error {
 		}
 	}
 	if cfg.Silent {
-		log.Printf("Learn listening on http://127.0.0.1:%d", cfg.Port)
+		log.Printf("Pharos listening on http://127.0.0.1:%d", cfg.Port)
 	} else {
-		fmt.Printf("  Learn Dashboard: http://127.0.0.1:%d\n", cfg.Port)
+		fmt.Printf("  Pharos Dashboard: http://127.0.0.1:%d\n", cfg.Port)
 		fmt.Println()
 	}
 

@@ -53,7 +53,7 @@ func Dashboard(d DashboardData) string {
 			<div class="text-4xl mb-4 opacity-50">📚</div>
 			<h3 class="text-lg font-semibold text-slate-600 mb-2">No workspaces yet</h3>
 			<p class="max-w-sm mx-auto mb-4 leading-relaxed">Create your first workspace from the terminal:</p>
-			<code class="bg-slate-100 px-3 py-1.5 rounded text-sm">learn init "topic"</code>
+			<code class="bg-slate-100 px-3 py-1.5 rounded text-sm">pharos init "topic"</code>
 		</div>`
 	}
 
