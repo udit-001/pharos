@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharos — Mystical Studies</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: #FAFAFA;
+            color: #1A1A1A;
+            overflow-x: hidden;
+        }
+        .font-mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+        body::before {
+            content: '';
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 9999;
+        }
+        html { scroll-behavior: smooth; }
+        .logo-card { transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+        .logo-card:hover { transform: translateY(-4px); }
+        .logo-canvas { position: relative; transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+        .logo-aura {
+            position: absolute; inset: 0;
+            background: radial-gradient(circle, rgba(212,149,87,0.35) 0%, transparent 70%);
+            border-radius: 50%; transform: scale(0.5); opacity: 0;
+            transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+            filter: blur(40px); pointer-events: none;
+        }
+        .logo-card:hover .logo-aura { transform: scale(1); opacity: 1; }
+        .divider-line {
+            width: 0; height: 1px; background: #1A1A1A; opacity: 0.2;
+            transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .logo-card:hover .divider-line { width: 100%; }
+        .tracking-ultra-wide { letter-spacing: 0.2em; }
+        .text-balance { text-wrap: balance; }
+        .logo-canvas svg { display: block; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="min-h-screen flex flex-col items-center py-20 px-6">
+
+        <!-- Header -->
+        <div class="text-center mb-20 max-w-3xl">
+            <p class="font-mono text-xs opacity-40 uppercase tracking-ultra-wide mb-6">
+                Direction 02 · Mystical
+            </p>
+            <h1 class="text-6xl md:text-7xl font-extralight tracking-wider mb-6">
+                Pharos
+            </h1>
+            <p class="font-mono text-xs opacity-40 uppercase tracking-ultra-wide mb-8">
+                The guiding light, drawn as sigil
+            </p>
+            <div class="w-12 h-px bg-[#1A1A1A] mx-auto opacity-30"></div>
+            <p class="mt-8 text-sm leading-relaxed opacity-50 font-light max-w-xl mx-auto text-balance">
+                No literal lighthouse. Seven occult marks for the guiding flame —
+                eyes, suns, grails, hermetic seals, sacred geometry. Engraved linework,
+                symmetry, one glowing focal point. Hover to lift.
+            </p>
+        </div>
+
+        <!-- Logo Grid -->
+        <div class="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16 mb-32">
+
+            <!-- 1. The Illuminated Eye -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.55">
+                                <line x1="50" y1="14" x2="50" y2="24"></line>
+                                <line x1="36" y1="20" x2="42" y2="28"></line>
+                                <line x1="64" y1="20" x2="58" y2="28"></line>
+                            </g>
+                            <path d="M 18 50 Q 50 30, 82 50 Q 50 70, 18 50 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+                            <path d="M 50 58 C 45 52, 45 44, 50 36 C 55 44, 55 52, 50 58 Z" fill="currentColor"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">The Illuminated Eye</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Eye · Radiant</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">An eye wreathed in rays, with a flame at its center — the lighthouse's watching lamp. The primal symbol of illumination; the eye that sees in the dark.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 2. Alchemical Sun -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                                <line x1="76" y1="50" x2="84" y2="50"></line>
+                                <line x1="72" y1="63" x2="79" y2="67"></line>
+                                <line x1="63" y1="72" x2="67" y2="79"></line>
+                                <line x1="50" y1="76" x2="50" y2="84"></line>
+                                <line x1="37" y1="72" x2="33" y2="79"></line>
+                                <line x1="28" y1="63" x2="21" y2="67"></line>
+                                <line x1="24" y1="50" x2="16" y2="50"></line>
+                                <line x1="28" y1="37" x2="21" y2="33"></line>
+                                <line x1="37" y1="28" x2="33" y2="21"></line>
+                                <line x1="50" y1="24" x2="50" y2="16"></line>
+                                <line x1="63" y1="28" x2="67" y2="21"></line>
+                                <line x1="72" y1="37" x2="79" y2="33"></line>
+                            </g>
+                            <circle cx="50" cy="50" r="22" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                            <circle cx="50" cy="50" r="5" fill="currentColor"></circle>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Alchemical Sun</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Alchemical · Solar</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">The alchemist's sun, &#9728; — circle, central seed, twelve rays. The primal sigil for the source of all light. The oldest, simplest mark of illumination there is.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 3. Sacred Chalice -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M 50 34 C 44 27, 44 18, 50 8 C 56 18, 56 27, 50 34 Z" fill="currentColor"></path>
+                            <path d="M 34 36 Q 34 50, 50 50 Q 66 50, 66 36 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+                            <line x1="50" y1="50" x2="50" y2="68" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                            <path d="M 36 68 Q 36 78, 50 78 Q 64 78, 64 68" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+                            <line x1="34" y1="78" x2="66" y2="78" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Sacred Chalice</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Vessel · Grail</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">A grail-cup bearing a flame. The vessel that holds illumination; the pursuit of the Grail as the pursuit of knowledge. Alchemical, reverent, restrained.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 4. Sigil of the Beacon -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                            <path d="M 50 22 L 74 64 L 26 64 Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+                            <circle cx="50" cy="50" r="14" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                            <path d="M 50 57 C 46 52, 46 46, 50 39 C 54 46, 54 52, 50 57 Z" fill="currentColor"></path>
+                            <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                                <line x1="50" y1="6" x2="50" y2="12"></line>
+                                <line x1="50" y1="88" x2="50" y2="94"></line>
+                                <line x1="6" y1="50" x2="12" y2="50"></line>
+                                <line x1="88" y1="50" x2="94" y2="50"></line>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Sigil of the Beacon</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Hermetic · Seal</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">A hermetic seal — circle, the triangle of fire, an inner ring, a central flame, cardinal marks. A constructed sigil for a beacon, the way a grimoire would draw one. The densest, most occult mark of the set.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 5. Astrolabe -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                            <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-width="1" opacity="0.6"></circle>
+                            <circle cx="50" cy="50" r="13" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                            <path d="M 50 10 L 54 46 L 90 50 L 54 54 L 50 90 L 46 54 L 10 50 L 46 46 Z" fill="currentColor"></path>
+                            <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.5">
+                                <line x1="76" y1="24" x2="72" y2="28"></line>
+                                <line x1="76" y1="76" x2="72" y2="72"></line>
+                                <line x1="24" y1="76" x2="28" y2="72"></line>
+                                <line x1="24" y1="24" x2="28" y2="28"></line>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Astrolabe</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Astronomical · Compass</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">A compass rose on concentric rings — the instrument sailors steered by the Pharos's light. Ancient astronomy as mysticism; navigation as a sacred art.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 6. Vesica Eye -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="36" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                            <circle cx="64" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                            <path d="M 50 58 C 45 52, 45 44, 50 36 C 55 44, 55 52, 50 58 Z" fill="currentColor"></path>
+                            <circle cx="50" cy="30" r="2.5" fill="currentColor"></circle>
+                            <circle cx="50" cy="70" r="2.5" fill="currentColor"></circle>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Vesica Eye</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Sacred Geometry</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">Two circles overlapping to form an eye, with a flame at their meeting point. Sacred geometry — duality (knowledge and skill) intersecting into a single illuminated center.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 7. The Portal -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M 22 84 L 22 50 Q 22 16, 50 16 Q 78 16, 78 50 L 78 84" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
+                            <line x1="50" y1="20" x2="50" y2="80" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.45"></line>
+                            <path d="M 50 16 C 46 12, 46 6, 50 2 C 54 6, 54 12, 50 16 Z" fill="currentColor"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">The Portal</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Threshold · Arch</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">An archway with a beam of light and a flame at its crown. The threshold between ignorance and knowledge — learning as the act of stepping through into the light.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-32 max-w-2xl text-center">
+            <p class="font-mono text-xs opacity-40 uppercase tracking-ultra-wide leading-loose">
+                Generated with Logo Generator · Direction 02<br>
+                2026
+            </p>
+        </div>
+
+    </div>
+
+</body>
+</html>

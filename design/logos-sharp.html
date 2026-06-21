@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharos — Sharp Studies</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: #FAFAFA;
+            color: #1A1A1A;
+            overflow-x: hidden;
+        }
+        .font-mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+        body::before {
+            content: '';
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 9999;
+        }
+        html { scroll-behavior: smooth; }
+        .logo-card { transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+        .logo-card:hover { transform: translateY(-4px); }
+        .logo-canvas { position: relative; transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+        .logo-aura {
+            position: absolute; inset: 0;
+            background: radial-gradient(circle, rgba(212,149,87,0.30) 0%, transparent 70%);
+            border-radius: 50%; transform: scale(0.5); opacity: 0;
+            transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+            filter: blur(40px); pointer-events: none;
+        }
+        .logo-card:hover .logo-aura { transform: scale(1); opacity: 1; }
+        .divider-line {
+            width: 0; height: 1px; background: #1A1A1A; opacity: 0.2;
+            transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .logo-card:hover .divider-line { width: 100%; }
+        .tracking-ultra-wide { letter-spacing: 0.2em; }
+        .text-balance { text-wrap: balance; }
+        .logo-canvas svg { display: block; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="min-h-screen flex flex-col items-center py-20 px-6">
+
+        <!-- Header -->
+        <div class="text-center mb-20 max-w-3xl">
+            <p class="font-mono text-xs opacity-40 uppercase tracking-ultra-wide mb-6">
+                Direction 03 · Sharp
+            </p>
+            <h1 class="text-6xl md:text-7xl font-extralight tracking-wider mb-6">
+                Pharos
+            </h1>
+            <p class="font-mono text-xs opacity-40 uppercase tracking-ultra-wide mb-8">
+                Edges, facets, bold masses
+            </p>
+            <div class="w-12 h-px bg-[#1A1A1A] mx-auto opacity-30"></div>
+            <p class="mt-8 text-sm leading-relaxed opacity-50 font-light max-w-xl mx-auto text-balance">
+                You called the round ones out. Six marks built from straight lines and
+                sharp vertices — cut gems, alchemical fire, a pentagram, a rune.
+                Bold masses, real negative space, no circles. Hover to lift.
+            </p>
+        </div>
+
+        <!-- Logo Grid -->
+        <div class="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16 mb-32">
+
+            <!-- 1. Faceted Flame -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <mask id="s1-heart">
+                                    <rect width="100" height="100" fill="white"></rect>
+                                    <path d="M 50 32 L 60 48 L 50 62 L 40 48 Z" fill="black"></path>
+                                </mask>
+                            </defs>
+                            <path d="M 50 6 L 70 40 L 58 56 L 74 86 L 50 94 L 26 86 L 42 56 L 30 40 Z" fill="currentColor" mask="url(#s1-heart)"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Faceted Flame</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Faceted · Crystal</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">A flame cut as a crystal — eight sharp facets with a diamond heart punched through its core. The sacred flame rendered as a cut gem; the hardest, most premium read of illumination.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 2. Alchemical Fire -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M 50 14 L 86 78 L 14 78 Z" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="miter"></path>
+                            <path d="M 50 50 L 56 58 L 50 66 L 44 58 Z" fill="currentColor"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Alchemical Fire</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Alchemical · Fire</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">The alchemist's glyph for fire — a bold triangle with the seed-point at its center. The actual symbol for the element of fire; sharp, authentic, and minimal.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 3. Pentagram -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M 50 12 L 72 81 L 14 38 L 86 38 L 28 81 Z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="miter" stroke-miterlimit="6"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Pentagram</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Occult · Single Stroke</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">The pentagram in a single bold stroke — all edge, no circle. One confident gesture and a great deal of negative space. Carries occult baggage; that's the point or the problem, depending.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 4. Cut Diamond -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <mask id="s4-slit">
+                                    <rect width="100" height="100" fill="white"></rect>
+                                    <rect x="48" y="22" width="4" height="56" fill="black"></rect>
+                                </mask>
+                            </defs>
+                            <path d="M 50 8 L 80 50 L 50 92 L 22 50 Z" fill="currentColor" mask="url(#s4-slit)"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Cut Diamond</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Gem · Cut</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">A solid vertical diamond with a sharp slit cut through it — a cut gem, a keyhole, a beam through crystal. Premium and minimal; one mass, one decisive cut.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 5. Bindrune -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M 50 2 L 56 10 L 50 18 L 44 10 Z" fill="currentColor"></path>
+                            <line x1="50" y1="16" x2="50" y2="86" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"></line>
+                            <line x1="50" y1="40" x2="30" y2="28" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"></line>
+                            <line x1="50" y1="62" x2="72" y2="50" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"></line>
+                            <line x1="50" y1="78" x2="34" y2="88" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"></line>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Bindrune</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Norse · Glyph</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">An angular bindrune — a rune-stave with asymmetric branches and a point of light at its crown. Norse-mystical; the only mark here drawn as a hand-cut glyph rather than a geometric construction.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+            <!-- 6. Double Chevron -->
+            <div class="flex flex-col items-center logo-card cursor-pointer">
+                <div class="w-64 h-64 mb-10 flex items-center justify-center relative">
+                    <div class="logo-aura"></div>
+                    <div class="w-32 h-32 relative z-10 logo-canvas" style="color: #1A1A1A;">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M 12 70 L 50 22 L 88 70" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="miter" stroke-linecap="butt"></path>
+                            <path d="M 22 86 L 50 50 L 78 86" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="miter" stroke-linecap="butt"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="text-center w-full px-4">
+                    <h2 class="text-xl font-medium tracking-wider mb-2 uppercase">Double Chevron</h2>
+                    <h3 class="text-xs font-mono opacity-50 tracking-widest mb-6">Minimal · Ascent</h3>
+                    <p class="text-sm leading-relaxed opacity-70 text-left font-light text-balance">Two sharp chevrons, stacked — ascent as a rank, a peak, a trajectory. The most minimal mark of the set; one gesture, twice, with the confidence to leave the rest of the canvas empty.</p>
+                </div>
+                <div class="divider-line mt-8 mx-auto"></div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-32 max-w-2xl text-center">
+            <p class="font-mono text-xs opacity-40 uppercase tracking-ultra-wide leading-loose">
+                Generated with Logo Generator · Direction 03<br>
+                2026
+            </p>
+        </div>
+
+    </div>
+
+</body>
+</html>
