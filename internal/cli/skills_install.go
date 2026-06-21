@@ -63,6 +63,7 @@ func runSkillsInstall(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		selected = pickAgent()
+		project = promptScope()
 	}
 
 	baseDir := selected.installDir(project)
@@ -92,6 +93,25 @@ func runSkillsInstall(cmd *cobra.Command, args []string) error {
 	printNextSteps()
 	fmt.Println()
 	return nil
+}
+
+// promptScope asks the user whether to install globally or at project level.
+func promptScope() bool {
+	fmt.Println()
+	fmt.Println("  Install location:")
+	fmt.Println("    1. Globally — available to all projects (~/.agent/skills/)")
+	fmt.Println("    2. This project — only in current directory (./.agent/skills/)")
+	fmt.Println()
+	fmt.Print("  Enter number [1]: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+
+	if input == "2" {
+		return true // project-level
+	}
+	return false // global (default)
 }
 
 // installAllSkills installs every embedded skill (learn, teach, ...) into

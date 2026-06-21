@@ -28,8 +28,9 @@ Supported agents:
   codex        Installs to ~/.codex/skills/ (global) or ./.codex/skills/ (--project)
   pi.dev       Installs to ~/.pi/skills/ (global) or ./.pi/skills/ (--project)
 
-Default is global install (home directory). Use --project to install
-at the project level instead.
+Default is global install (home directory). Interactive mode prompts
+for the install location. Use --project with --agent for
+non-interactive project-level install.
 
 Run without flags for interactive mode, or pass --agent to skip prompts.`,
 	Args: cobra.NoArgs,
