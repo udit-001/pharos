@@ -144,18 +144,6 @@ func (s *Store) DeleteWorkspace(id int64) error {
 	return nil
 }
 
-func (s *Store) lessonCount(workspaceID int64) int {
-	var count int
-	s.db.Get(&count, "SELECT COUNT(*) FROM lessons WHERE workspace_id = ?", workspaceID)
-	return count
-}
-
-func (s *Store) recordCount(workspaceID int64) int {
-	var count int
-	s.db.Get(&count, "SELECT COUNT(*) FROM learning_records WHERE workspace_id = ?", workspaceID)
-	return count
-}
-
 // countByWorkspace runs `SELECT workspace_id, COUNT(*) FROM <table> GROUP BY
 // workspace_id` and returns a map. Used by GetWorkspaces to enrich N workspaces
 // in 3 queries instead of 3N (the previous N+1).

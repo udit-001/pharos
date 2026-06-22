@@ -16,24 +16,34 @@ func newTestStore(t *testing.T) *Store {
 	return store
 }
 
+// seedWorkspace creates a workspace and returns its WorkspaceStore for
+// seeding items. This replaces direct store.AddLesson/AddLearningRecord/
+// AddReference calls that used the now-removed flat Store item-methods.
+func seedWorkspace(t *testing.T, store *Store, name string) *WorkspaceStore {
+	t.Helper()
+	_, err := store.AddWorkspace(Workspace{Name: name, Path: "/tmp/" + name})
+	if err != nil {
+		t.Fatalf("seed workspace %s: %v", name, err)
+	}
+	wsStore, err := store.Workspace(name)
+	if err != nil {
+		t.Fatalf("get workspace %s: %v", name, err)
+	}
+	return wsStore
+}
+
 // TestWorkspaceStoreScoping proves the WorkspaceStore seam: workspace
 // resolution happens once at construction, scoped methods need no ID.
 func TestWorkspaceStoreScoping(t *testing.T) {
 	store := newTestStore(t)
 
 	// Seed two workspaces with lessons
-	alpha, err := store.AddWorkspace(Workspace{Name: "alpha", Path: "/tmp/alpha"})
-	if err != nil {
-		t.Fatalf("seed alpha: %v", err)
-	}
-	beta, err := store.AddWorkspace(Workspace{Name: "beta", Path: "/tmp/beta"})
-	if err != nil {
-		t.Fatalf("seed beta: %v", err)
-	}
-	if _, err := store.AddLesson(Lesson{WorkspaceID: alpha.ID, Title: "alpha-1", Filename: "a1.html"}); err != nil {
+	alpha := seedWorkspace(t, store, "alpha")
+	if _, err := alpha.AddLesson(Lesson{Title: "alpha-1", Filename: "a1.html"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.AddLesson(Lesson{WorkspaceID: beta.ID, Title: "beta-1", Filename: "b1.html"}); err != nil {
+	beta := seedWorkspace(t, store, "beta")
+	if _, err := beta.AddLesson(Lesson{Title: "beta-1", Filename: "b1.html"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,8 +69,8 @@ func TestWorkspaceStoreScoping(t *testing.T) {
 	if err != nil {
 		t.Fatalf("scoped AddLesson: %v", err)
 	}
-	if created.WorkspaceID != alpha.ID {
-		t.Errorf("AddLesson WorkspaceID = %d, want %d (should be auto-set)", created.WorkspaceID, alpha.ID)
+	if created.WorkspaceID != alpha.Workspace().ID {
+		t.Errorf("AddLesson WorkspaceID = %d, want %d (should be auto-set)", created.WorkspaceID, alpha.Workspace().ID)
 	}
 	if created.SequenceNumber != 2 {
 		t.Errorf("AddLesson SequenceNumber = %d, want 2", created.SequenceNumber)
@@ -75,8 +85,7 @@ func TestWorkspaceStoreScoping(t *testing.T) {
 	}
 
 	// Cross-check: beta still has only 1 lesson (alpha-2 didn't leak)
-	betaWS, _ := store.Workspace("beta")
-	betaLessons, _ := betaWS.GetLessons()
+	betaLessons, _ := beta.GetLessons()
 	if len(betaLessons) != 1 {
 		t.Errorf("beta lessons = %d, want 1 (scoping leak?)", len(betaLessons))
 	}
@@ -97,22 +106,16 @@ func TestGetWorkspacesCountsCorrect(t *testing.T) {
 	store := newTestStore(t)
 
 	// alpha: 2 lessons, 1 record, 1 ref
-	alpha, err := store.AddWorkspace(Workspace{Name: "alpha", Path: "/tmp/alpha"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	store.AddLesson(Lesson{WorkspaceID: alpha.ID, Title: "a1", Filename: "a1.html"})
-	store.AddLesson(Lesson{WorkspaceID: alpha.ID, Title: "a2", Filename: "a2.html"})
-	store.AddLearningRecord(LearningRecord{WorkspaceID: alpha.ID, Title: "r1", Filename: "r1.md"})
-	store.AddReference(Reference{WorkspaceID: alpha.ID, Title: "ref1", Filename: "ref1.html"})
+	alpha := seedWorkspace(t, store, "alpha")
+	alpha.AddLesson(Lesson{Title: "a1", Filename: "a1.html"})
+	alpha.AddLesson(Lesson{Title: "a2", Filename: "a2.html"})
+	alpha.AddRecord(LearningRecord{Title: "r1", Filename: "r1.md"})
+	alpha.AddRef(Reference{Title: "ref1", Filename: "ref1.html"})
 
 	// beta: 0 lessons, 2 records, 0 refs
-	beta, err := store.AddWorkspace(Workspace{Name: "beta", Path: "/tmp/beta"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	store.AddLearningRecord(LearningRecord{WorkspaceID: beta.ID, Title: "b1", Filename: "b1.md"})
-	store.AddLearningRecord(LearningRecord{WorkspaceID: beta.ID, Title: "b2", Filename: "b2.md"})
+	beta := seedWorkspace(t, store, "beta")
+	beta.AddRecord(LearningRecord{Title: "b1", Filename: "b1.md"})
+	beta.AddRecord(LearningRecord{Title: "b2", Filename: "b2.md"})
 
 	ws, err := store.GetWorkspaces()
 	if err != nil {
