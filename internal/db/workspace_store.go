@@ -46,16 +46,15 @@ func (w *WorkspaceStore) GetLessons() ([]Lesson, error) {
 
 // GetLessonBySeq returns a single lesson by its sequence number, or an error if not found.
 func (w *WorkspaceStore) GetLessonBySeq(seq int) (*Lesson, error) {
-	lessons, err := w.GetLessons()
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM lessons WHERE workspace_id = ? AND sequence_number = ?", lessonColumns),
+		w.ws.ID, seq,
+	)
+	lesson, err := scanLesson(row)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lesson %d not found: %w", seq, err)
 	}
-	for i := range lessons {
-		if lessons[i].SequenceNumber == seq {
-			return &lessons[i], nil
-		}
-	}
-	return nil, fmt.Errorf("lesson %d not found", seq)
+	return &lesson, nil
 }
 
 // SearchLessons performs full-text search within this workspace.
@@ -114,16 +113,15 @@ func (w *WorkspaceStore) GetRecords() ([]LearningRecord, error) {
 
 // GetRecordBySeq returns a single learning record by its sequence number, or an error if not found.
 func (w *WorkspaceStore) GetRecordBySeq(seq int) (*LearningRecord, error) {
-	records, err := w.GetRecords()
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM learning_records WHERE workspace_id = ? AND sequence_number = ?", recordColumns),
+		w.ws.ID, seq,
+	)
+	record, err := scanRecord(row)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("record %d not found: %w", seq, err)
 	}
-	for i := range records {
-		if records[i].SequenceNumber == seq {
-			return &records[i], nil
-		}
-	}
-	return nil, fmt.Errorf("record %d not found", seq)
+	return &record, nil
 }
 
 // SearchRecords performs full-text search within this workspace.
@@ -190,16 +188,15 @@ func (w *WorkspaceStore) GetRefs() ([]Reference, error) {
 
 // GetRefBySlug returns a single reference by its slug, or an error if not found.
 func (w *WorkspaceStore) GetRefBySlug(slug string) (*Reference, error) {
-	refs, err := w.GetRefs()
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM references_t WHERE workspace_id = ? AND slug = ?", refColumns),
+		w.ws.ID, slug,
+	)
+	ref, err := scanRef(row)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reference %q not found: %w", slug, err)
 	}
-	for i := range refs {
-		if refs[i].Slug == slug {
-			return &refs[i], nil
-		}
-	}
-	return nil, fmt.Errorf("reference %q not found", slug)
+	return &ref, nil
 }
 
 // SearchRefs performs full-text search within this workspace.

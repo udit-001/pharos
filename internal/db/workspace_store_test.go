@@ -99,6 +99,81 @@ func TestWorkspaceUnknownName(t *testing.T) {
 	}
 }
 
+// TestGetLessonBySeq proves GetLessonBySeq uses a WHERE clause (not
+// fetch-all-and-loop): it finds the right lesson by seq, errors on not-found,
+// and respects workspace scoping.
+func TestGetLessonBySeq(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+	alpha.AddLesson(Lesson{Title: "a1", Filename: "a1.html"})
+	alpha.AddLesson(Lesson{Title: "a2", Filename: "a2.html"})
+	beta := seedWorkspace(t, store, "beta")
+	beta.AddLesson(Lesson{Title: "b1", Filename: "b1.html"})
+
+	// Found
+	got, err := alpha.GetLessonBySeq(2)
+	if err != nil {
+		t.Fatalf("GetLessonBySeq(2): %v", err)
+	}
+	if got.Title != "a2" {
+		t.Errorf("got %q, want a2", got.Title)
+	}
+
+	// Not found in workspace
+	if _, err := alpha.GetLessonBySeq(99); err == nil {
+		t.Error("expected error for seq 99, got nil")
+	}
+
+	// Scoping: beta's seq 1 is "b1", not "a1"
+	gotBeta, err := beta.GetLessonBySeq(1)
+	if err != nil {
+		t.Fatalf("beta GetLessonBySeq(1): %v", err)
+	}
+	if gotBeta.Title != "b1" {
+		t.Errorf("beta seq 1 = %q, want b1", gotBeta.Title)
+	}
+}
+
+// TestGetRecordBySeq proves GetRecordBySeq uses a WHERE clause.
+func TestGetRecordBySeq(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+	alpha.AddRecord(LearningRecord{Title: "r1", Filename: "r1.md"})
+	alpha.AddRecord(LearningRecord{Title: "r2", Filename: "r2.md"})
+
+	got, err := alpha.GetRecordBySeq(2)
+	if err != nil {
+		t.Fatalf("GetRecordBySeq(2): %v", err)
+	}
+	if got.Title != "r2" {
+		t.Errorf("got %q, want r2", got.Title)
+	}
+
+	if _, err := alpha.GetRecordBySeq(99); err == nil {
+		t.Error("expected error for seq 99, got nil")
+	}
+}
+
+// TestGetRefBySlug proves GetRefBySlug uses a WHERE clause.
+func TestGetRefBySlug(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+	alpha.AddRef(Reference{Title: "Joins", Slug: "joins", Filename: "joins.html"})
+	alpha.AddRef(Reference{Title: "Indexes", Slug: "indexes", Filename: "indexes.html"})
+
+	got, err := alpha.GetRefBySlug("indexes")
+	if err != nil {
+		t.Fatalf("GetRefBySlug(indexes): %v", err)
+	}
+	if got.Title != "Indexes" {
+		t.Errorf("got %q, want Indexes", got.Title)
+	}
+
+	if _, err := alpha.GetRefBySlug("nonexistent"); err == nil {
+		t.Error("expected error for nonexistent slug, got nil")
+	}
+}
+
 // TestGetWorkspacesCountsCorrect proves LEARN-17's batch enrichment: counts
 // are correct across multiple workspaces with varying lesson/record/ref
 // counts, via the grouped COUNT(*) queries (not the old per-workspace N+1).
