@@ -1,4 +1,4 @@
-.PHONY: build install clean run test css tidy
+.PHONY: build install clean run test css tidy dev
 
 # Build the pharos CLI binary (includes embedded CSS)
 build: css
@@ -29,3 +29,7 @@ test:
 # Tidy dependencies
 tidy:
 	go mod tidy
+
+# Hot-reload dev server (rebuilds Go + CSS on change)
+dev:
+	go run ./cmd/pharos dev

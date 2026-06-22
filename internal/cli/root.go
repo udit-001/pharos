@@ -63,7 +63,7 @@ to start a workspace.
 
 Most commands support --json for machine-readable output.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "init" || cmd.Name() == "migrate" {
+		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "init" || cmd.Name() == "migrate" || cmd.Name() == "dev" {
 			return nil
 		}
 		// Migrate subcommands also handle their own DB

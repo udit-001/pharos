@@ -20,3 +20,6 @@ skills-lock.json
 # Playwright test artifacts
 .playwright-mcp/
 design/
+
+# Dev hot-reload (`pharos dev`)
+tmp/

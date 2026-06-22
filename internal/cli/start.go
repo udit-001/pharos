@@ -24,6 +24,7 @@ var startFlags struct {
 	foreground bool
 	background bool
 	daemon     bool
+	devCSS     bool
 }
 
 var startCmd = &cobra.Command{
@@ -116,6 +117,7 @@ Examples:
 			DB:     s,
 			NoOpen: startFlags.noOpen,
 			Silent: startFlags.daemon,
+			DevCSS: startFlags.devCSS,
 		})
 	},
 }
@@ -127,6 +129,7 @@ func init() {
 	startCmd.Flags().BoolVarP(&startFlags.foreground, "foreground", "f", false, "Run server in foreground")
 	startCmd.Flags().BoolVarP(&startFlags.background, "background", "b", true, "Run server in background")
 	startCmd.Flags().BoolVar(&startFlags.daemon, "daemon", false, "")
+	startCmd.Flags().BoolVar(&startFlags.devCSS, "dev-css", false, "Serve CSS from disk (dev mode; run from project root)")
 	startCmd.Flags().MarkHidden("daemon")
 }
 
