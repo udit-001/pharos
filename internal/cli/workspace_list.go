@@ -10,7 +10,7 @@ import (
 var workspaceListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List learning workspaces",
-	Long: `List all learning workspaces with stats.
+	Long: `List all learning workspaces with stats. The current workspace is marked with *.
 
 Examples:
   pharos workspace list
@@ -23,18 +23,25 @@ Examples:
 			return formatError("failed to list workspaces", err)
 		}
 
+		current, _ := s.CurrentWorkspace()
+
 		if jsonOut {
-			if workspaces == nil {
-				workspaces = []db.Workspace{}
+			type wsJSON struct {
+				db.Workspace
+				Current bool `json:"current"`
 			}
-			printJSON(workspaces)
+			result := make([]wsJSON, len(workspaces))
+			for i, w := range workspaces {
+				result[i] = wsJSON{Workspace: w, Current: w.Name == current}
+			}
+			printJSON(result)
 			return nil
 		}
 
 		fmt.Println()
 		if len(workspaces) == 0 {
 			fmt.Println("  No workspaces found.")
-			fmt.Println("  Use 'pharos init <name>' to create one.")
+			fmt.Println("  Use 'pharos init' to create one.")
 			fmt.Println()
 			return nil
 		}
@@ -43,8 +50,12 @@ Examples:
 
 		rows := make([][]string, 0, len(workspaces))
 		for _, w := range workspaces {
+			marker := " "
+			if w.Name == current {
+				marker = "*"
+			}
 			rows = append(rows, []string{
-				w.Name,
+				fmt.Sprintf("%s %s", marker, w.Name),
 				truncate(w.Topic, 30),
 				fmt.Sprintf("%d lessons", w.LessonCount),
 				fmt.Sprintf("%d records", w.RecordCount),

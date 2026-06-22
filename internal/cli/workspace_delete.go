@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -10,15 +12,15 @@ import (
 var workspaceDeleteCmd = &cobra.Command{
 	Use:   "delete <name>",
 	Short: "Delete a workspace and its directory",
-	Long: `Delete a workspace from the database and remove its directory.
+	Long: `Delete a workspace from the database and remove its directory on disk.
 
 Removes the workspace row (cascading to its lessons, records, and
-references) and deletes the workspace directory on disk. The deletion
-is irreversible — use --dry-run to preview what would be removed.
+references) and deletes the workspace directory. The deletion is
+irreversible. Prompts for confirmation unless --force is given.
 
 Examples:
   pharos workspace delete "sql-for-research"
-  pharos workspace delete "jump-start-a-car" --dry-run`,
+  pharos workspace delete "jump-start-a-car" --force`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -30,26 +32,23 @@ Examples:
 		}
 		ws := wsStore.Workspace()
 
-		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		force, _ := cmd.Flags().GetBool("force")
 
-		if dryRun {
-			if jsonOut {
-				printJSON(map[string]any{
-					"dry_run":  true,
-					"name":     ws.Name,
-					"path":     ws.Path,
-					"lessons":  ws.LessonCount,
-					"records":  ws.RecordCount,
-					"refs":     ws.RefCount,
-				})
+		if !force && !jsonOut {
+			fmt.Println()
+			fmt.Printf("  Delete workspace %q and all its files?\n", ws.DisplayName())
+			fmt.Printf("  Path: %s\n", ws.Path)
+			fmt.Printf("  Contents: %d lessons, %d records, %d references\n", ws.LessonCount, ws.RecordCount, ws.RefCount)
+			fmt.Println()
+			fmt.Print("  This cannot be undone. Continue? [y/N] ")
+
+			reader := bufio.NewReader(os.Stdin)
+			answer, _ := reader.ReadString('\n')
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if answer != "y" && answer != "yes" {
+				fmt.Println("  Cancelled.")
 				return nil
 			}
-			fmt.Println()
-			fmt.Printf("  Would delete workspace: %s\n", ws.DisplayName())
-			fmt.Printf("    Path: %s\n", ws.Path)
-			fmt.Printf("    Lessons: %d  |  Records: %d  |  References: %d\n", ws.LessonCount, ws.RecordCount, ws.RefCount)
-			fmt.Println()
-			return nil
 		}
 
 		// Delete the DB row first (cascades to lessons, records, references)
@@ -62,14 +61,17 @@ Examples:
 			return fmt.Errorf("remove workspace directory: %w", err)
 		}
 
+		// Clear current workspace if it was the deleted one
+		current, _ := s.CurrentWorkspace()
+		if current == ws.Name {
+			_ = s.SetCurrentWorkspace("")
+		}
+
 		if jsonOut {
 			printJSON(map[string]any{
-				"deleted":  true,
-				"name":     ws.Name,
-				"path":     ws.Path,
-				"lessons":  ws.LessonCount,
-				"records":  ws.RecordCount,
-				"refs":     ws.RefCount,
+				"deleted": true,
+				"name":    ws.Name,
+				"path":    ws.Path,
 			})
 			return nil
 		}
@@ -86,5 +88,5 @@ Examples:
 
 func init() {
 	workspaceCmd.AddCommand(workspaceDeleteCmd)
-	workspaceDeleteCmd.Flags().Bool("dry-run", false, "Preview what would be deleted without removing anything")
+	workspaceDeleteCmd.Flags().Bool("force", false, "Skip confirmation prompt")
 }
