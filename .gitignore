@@ -21,5 +21,13 @@ skills-lock.json
 .playwright-mcp/
 design/
 
+# Architecture notes (ADRs, etc.)
+.docs/
+
+# lific issue tracker local DB
+lific.db
+lific.db-shm
+lific.db-wal
+
 # Dev hot-reload (`pharos dev`)
 tmp/

@@ -1,7 +1,5 @@
 package render
 
-import "github.com/udit-001/pharos/internal/db"
-
 // Frame is the page chrome: what the shell needs to render the topbar,
 // sidebar, and document wrapper. Handlers build a Frame plus page-specific
 // content data, then call Page(frame, content).
@@ -14,13 +12,43 @@ type Frame struct {
 	Sidebar    Sidebar
 }
 
+// Workspace is the render-owned projection of a workspace. It carries only
+// the fields render needs (name, topic, counts) — the server adapter copies
+// from db.Workspace so render never imports db.
+type Workspace struct {
+	Name                            string
+	Topic                           string
+	LessonCount, RecordCount, RefCount int
+}
+
+// LessonEntry is the render-owned projection of a lesson for sidebar and
+// workspace page lists.
+type LessonEntry struct {
+	Seq   int
+	Title string
+}
+
+// RecordEntry is the render-owned projection of a learning record.
+type RecordEntry struct {
+	Seq     int
+	Title   string
+	Status  string
+	Summary string
+}
+
+// RefEntry is the render-owned projection of a reference.
+type RefEntry struct {
+	Slug  string
+	Title string
+}
+
 // Sidebar is the workspace tree shown in the left rail. When Workspace is
 // nil, an empty-state prompt is shown instead.
 type Sidebar struct {
-	Workspace  *db.Workspace
-	Lessons    []db.Lesson
-	Records    []db.LearningRecord
-	Refs       []db.Reference
+	Workspace *Workspace
+	Lessons   []LessonEntry
+	Records   []RecordEntry
+	Refs      []RefEntry
 }
 
 // FrameContent reports whether the page body should fill the viewport as an
@@ -58,11 +86,11 @@ type DashboardData struct {
 
 // WorkspaceData drives a workspace landing page.
 type WorkspaceData struct {
-	Workspace db.Workspace
+	Workspace Workspace
 	Mission   string
-	Lessons   []db.Lesson
-	Records   []db.LearningRecord
-	Refs      []db.Reference
+	Lessons   []LessonEntry
+	Records   []RecordEntry
+	Refs      []RefEntry
 }
 
 // LessonNav is a prev/next navigation entry for lesson pages.

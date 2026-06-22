@@ -18,6 +18,7 @@ func Page(f Frame, content string) string {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/app.css?v=3">
+<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 </head>
 <body class="font-sans">
 <div class="flex h-screen overflow-hidden bg-slate-100 text-slate-800">
@@ -35,6 +36,10 @@ func Page(f Frame, content string) string {
       </div>
       %s
       <div class="flex items-center gap-2">
+        <button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Toggle theme">
+          <svg data-theme-icon="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
         <form action="/search" method="GET" class="flex items-center">
           <div class="flex items-center border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus-within:border-slate-400 transition-colors">
             <input type="text" name="q" placeholder="Search..." aria-label="Search" class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-all">
@@ -59,6 +64,24 @@ function toggleSidebar() {
   sb.classList.toggle('sidebar-hidden');
   ov.classList.toggle('hidden');
 }
+function toggleTheme() {
+  var html = document.documentElement;
+  var isDark = html.dataset.theme === 'dark';
+  var next = isDark ? 'light' : 'dark';
+  html.dataset.theme = next;
+  localStorage.setItem('pharos_theme', next);
+  document.querySelectorAll('iframe').forEach(function(f) {
+    try { f.contentWindow.postMessage({type: 'theme', theme: next}, '*'); } catch(e) {}
+  });
+  document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', next !== 'dark');
+  document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', next === 'dark');
+}
+(function() {
+  if (document.documentElement.dataset.theme === 'dark') {
+    document.querySelector('[data-theme-icon=sun]').classList.remove('hidden');
+    document.querySelector('[data-theme-icon=moon]').classList.add('hidden');
+  }
+})();
 </script>
 </body>
 </html>`,
@@ -103,19 +126,19 @@ func sidebarBody(f Frame) string {
 	if len(f.Sidebar.Lessons) > 0 {
 		b.WriteString(`<div class="sidebar-section-label">Lessons</div>`)
 		for _, l := range f.Sidebar.Lessons {
-			active := f.ActiveType == "lesson" && f.ActiveSeq == l.SequenceNumber
-			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(ws.Name), l.SequenceNumber), iconBook(), l.Title, active))
+			active := f.ActiveType == "lesson" && f.ActiveSeq == l.Seq
+			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(ws.Name), l.Seq), iconBook(), l.Title, active))
 		}
 	}
 	if len(f.Sidebar.Records) > 0 {
 		b.WriteString(`<div class="sidebar-section-label">Records</div>`)
 		for _, r := range f.Sidebar.Records {
-			active := f.ActiveType == "record" && f.ActiveSeq == r.SequenceNumber
+			active := f.ActiveType == "record" && f.ActiveSeq == r.Seq
 			ico := iconNote()
 			if r.Status == "superseded" {
 				ico = iconArchive()
 			}
-			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(ws.Name), r.SequenceNumber), ico, r.Title, active))
+			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(ws.Name), r.Seq), ico, r.Title, active))
 		}
 	}
 	if len(f.Sidebar.Refs) > 0 {
@@ -178,7 +201,7 @@ func breadcrumbs(f Frame) string {
 	case "lesson":
 		title := ""
 		for _, l := range f.Sidebar.Lessons {
-			if l.SequenceNumber == f.ActiveSeq {
+			if l.Seq == f.ActiveSeq {
 				title = l.Title
 				break
 			}
@@ -190,7 +213,7 @@ func breadcrumbs(f Frame) string {
 	case "record":
 		title := ""
 		for _, r := range f.Sidebar.Records {
-			if r.SequenceNumber == f.ActiveSeq {
+			if r.Seq == f.ActiveSeq {
 				title = r.Title
 				break
 			}

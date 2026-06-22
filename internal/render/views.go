@@ -80,8 +80,8 @@ func Dashboard(d DashboardData) string {
 	`, statsBlock, continueBlock, listBlock)
 }
 
-// Workspace renders a workspace landing page body.
-func Workspace(d WorkspaceData) string {
+// WorkspacePage renders a workspace landing page body.
+func WorkspacePage(d WorkspaceData) string {
 	ws := d.Workspace
 	var missionBlock string
 	if d.Mission != "" {
@@ -112,7 +112,7 @@ func Workspace(d WorkspaceData) string {
 					<span class="font-medium text-sm group-hover:text-blue-700 transition-colors">%d. %s</span>
 					<span class="text-xs text-slate-400 tabular-nums">L%d</span>
 				</a>
-			</div>`, urlPathEscape(ws.Name), l.SequenceNumber, l.SequenceNumber, esc(l.Title), l.SequenceNumber)
+			</div>`, urlPathEscape(ws.Name), l.Seq, l.Seq, esc(l.Title), l.Seq)
 		}
 		lessonsBlock = strings.Join(rows, "")
 	}
@@ -131,7 +131,7 @@ func Workspace(d WorkspaceData) string {
 					</div>
 					<div class="text-xs text-slate-400 mt-0.5">%s</div>
 				</a>
-			</div>`, urlPathEscape(ws.Name), rec.SequenceNumber, rec.SequenceNumber, esc(rec.Title), statusTag(rec.Status), esc(rec.Summary))
+			</div>`, urlPathEscape(ws.Name), rec.Seq, rec.Seq, esc(rec.Title), statusTag(rec.Status), esc(rec.Summary))
 		}
 		recordsBlock = strings.Join(rows, "")
 	}
