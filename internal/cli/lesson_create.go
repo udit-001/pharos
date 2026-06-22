@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/spf13/cobra"
@@ -45,7 +44,7 @@ Examples:
 		seqNum := len(lessons) + 1
 
 		// Create filename
-		slug := slugify(title)
+		slug := db.Slugify(title)
 		filename := fmt.Sprintf("%04d-%s.html", seqNum, slug)
 		lessonPath := filepath.Join(ws.Path, "lessons", filename)
 
@@ -76,7 +75,6 @@ Examples:
 			return formatError("failed to save lesson", err)
 		}
 
-		_ = wsStore.Touch()
 
 		if jsonOut {
 			printJSON(created)
@@ -93,27 +91,8 @@ Examples:
 	},
 }
 
-func slugify(s string) string {
-	s = strings.ToLower(s)
-	s = strings.ReplaceAll(s, " ", "-")
-	s = strings.ReplaceAll(s, "/", "-")
-	s = strings.ReplaceAll(s, "_", "-")
-	// Remove non-alphanumeric except hyphens, collapse runs of hyphens
-	var result strings.Builder
-	prevHyphen := false
-	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			result.WriteRune(r)
-			prevHyphen = false
-		} else if r == '-' {
-			if !prevHyphen && result.Len() > 0 {
-				result.WriteRune(r)
-				prevHyphen = true
-			}
-		}
-	}
-	return strings.Trim(result.String(), "-")
-}
+// resolveWorkspace resolves the workspace to use: explicit -w flag, then current
+// workspace, then auto-select if only one exists.
 
 func resolveWorkspace(s *db.Store, name string) (*db.WorkspaceStore, error) {
 	if name != "" {
@@ -124,7 +103,21 @@ func resolveWorkspace(s *db.Store, name string) (*db.WorkspaceStore, error) {
 		return ws, nil
 	}
 
-	// No name given — auto-select if only one exists
+	// Check current workspace
+	current, err := s.CurrentWorkspace()
+	if err != nil {
+		return nil, formatError("failed to get current workspace", err)
+	}
+	if current != "" {
+		ws, err := s.Workspace(current)
+		if err == nil {
+			return ws, nil
+		}
+		// Current workspace was deleted — fall through to auto-select
+		_ = s.SetCurrentWorkspace("")
+	}
+
+	// Auto-select if only one exists
 	workspaces, err := s.GetWorkspaces()
 	if err != nil {
 		return nil, formatError("failed to list workspaces", err)
@@ -132,11 +125,11 @@ func resolveWorkspace(s *db.Store, name string) (*db.WorkspaceStore, error) {
 
 	switch len(workspaces) {
 	case 0:
-		return nil, fmt.Errorf("no workspaces found\n  Use 'pharos init <name>' to create one")
+		return nil, fmt.Errorf("no workspaces found\n  Use 'pharos init' to create one")
 	case 1:
 		return s.Workspace(workspaces[0].Name)
 	default:
-		return nil, fmt.Errorf("multiple workspaces found — use --workspace to specify one")
+		return nil, fmt.Errorf("no current workspace set. You have %d workspaces:\n  Use 'pharos workspace use <name>' to set one, or pass -w to override", len(workspaces))
 	}
 }
 
