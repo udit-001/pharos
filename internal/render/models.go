@@ -93,21 +93,12 @@ type WorkspaceData struct {
 	Refs      []RefEntry
 }
 
-// LessonNav is a prev/next navigation entry for lesson pages.
-type LessonNav struct {
-	Seq   int
-	Title string
-	URL   string
-}
-
 // LessonData drives a lesson detail page (iframe).
 type LessonData struct {
 	Title  string
 	RawURL string
 	Seq    int
 	Total  int
-	Prev   *LessonNav
-	Next   *LessonNav
 }
 
 // RecordData drives a learning-record detail page (rendered markdown).

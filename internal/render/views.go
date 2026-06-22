@@ -189,13 +189,6 @@ func onboardingBlock(displayName, mission string) string {
 	</div>`, iconCompass(), missionLine, esc(displayName))
 }
 
-// biggerChevron swaps the 16x16 svg dimensions for 24x24 so the icon
-// scales with the larger tap target without redefining the path data.
-func biggerChevron(svg string) string {
-	s := strings.Replace(svg, `width="16" height="16"`, `width="24" height="24"`, 1)
-	return strings.Replace(s, `width="20" height="20"`, `width="24" height="24"`, 1)
-}
-
 // bigIcon returns an svg with its size attributes set to px×px, used for
 // empty-state illustrations where the default 16px is too small.
 func bigIcon(svg string, px int) string {
@@ -204,31 +197,15 @@ func bigIcon(svg string, px int) string {
 	return strings.Replace(s, `width="20" height="20"`, `width="`+size+`" height="`+size+`"`, 1)
 }
 
-// Lesson renders a lesson detail page body (iframe) flanked by inline
-// prev/next navigation buttons so they don't consume vertical reading space.
+// Lesson renders a lesson detail page body (iframe). Navigation happens
+// through the sidebar — prev/next buttons were removed because they
+// consumed horizontal space without adding value over the lesson list.
 func Lesson(d LessonData) string {
 	return fmt.Sprintf(`
-		<div class="flex-1 min-h-0 flex items-center gap-2">
-			%s
-			<iframe src="%s" class="flex-1 h-full border border-slate-200 rounded-lg bg-white" title="%s"></iframe>
-			%s
+		<div class="flex-1 min-h-0">
+			<iframe src="%s" class="w-full h-full" title="%s"></iframe>
 		</div>
-	`, lessonSideNav(d.Prev, false), esc(d.RawURL), esc(d.Title), lessonSideNav(d.Next, true))
-}
-
-// lessonSideNav renders a slim vertical nav button on the side of the
-// iframe. nil target = no nav on that side; emits an invisible spacer
-// to keep the iframe from shifting.
-func lessonSideNav(nav *LessonNav, isNext bool) string {
-	if nav == nil {
-		return `<div class="w-10 shrink-0"></div>`
-	}
-	icon := iconChevronLeft()
-	if isNext {
-		icon = iconChevronRight()
-	}
-	return fmt.Sprintf(`<a href="%s" title="%s" class="shrink-0 self-stretch flex items-center justify-center w-10 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors no-underline">%s</a>`,
-		esc(nav.URL), esc(nav.Title), biggerChevron(icon))
+	`, esc(d.RawURL), esc(d.Title))
 }
 
 // Record renders a learning-record detail page body (rendered markdown).
@@ -243,7 +220,7 @@ func Record(d RecordData) string {
 func Ref(d RefData) string {
 	return fmt.Sprintf(`
 		<div class="flex-1 min-h-0 flex flex-col">
-			<iframe src="%s" class="w-full flex-1 border border-slate-200 rounded-lg bg-white" title="%s"></iframe>
+			<iframe src="%s" class="w-full flex-1" title="%s"></iframe>
 		</div>
 	`, esc(d.RawURL), esc(d.Title))
 }

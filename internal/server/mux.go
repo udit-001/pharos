@@ -523,29 +523,11 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 			return
 		}
 
-		// Compute prev/next from sidebar lesson list (already loaded).
-		var prev, next *render.LessonNav
-		for i, l := range sd.Lessons {
-			if l.Seq == seq {
-				if i > 0 {
-					p := sd.Lessons[i-1]
-					prev = &render.LessonNav{Seq: p.Seq, Title: p.Title, URL: fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(name), p.Seq)}
-				}
-				if i+1 < len(sd.Lessons) {
-					n := sd.Lessons[i+1]
-					next = &render.LessonNav{Seq: n.Seq, Title: n.Title, URL: fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(name), n.Seq)}
-				}
-				break
-			}
-		}
-
 		data := render.LessonData{
 			Title:  current.Title,
 			RawURL: fmt.Sprintf("/api/lesson-html/%s/%s", urlPathEscape(name), urlPathEscape(current.Filename)),
 			Seq:    seq,
 			Total:  len(sd.Lessons),
-			Prev:   prev,
-			Next:   next,
 		}
 		wsStore.SetLastViewed("lesson", seq)
 		writePage(w, &sd, current.Title, name, "lesson", seq, "", render.Lesson(data))
