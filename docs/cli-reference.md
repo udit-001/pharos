@@ -3,11 +3,14 @@
 ## Workspaces
 
 ```bash
-pharos init "<name>"                               # Create a new workspace
-pharos init "<name>" --cwd                         # Create in current directory
-pharos init "<name>" --dir <path>                  # Create at custom path
-pharos init "<name>" --topic "<friendly title>"    # Override the display title
-pharos init "<name>" --force                       # Recreate DB if exists
+pharos init                                      # Create the database and offer the agent skill
+pharos init --no-skills                          # Create the database without the skill prompt
+pharos init --force                              # Recreate the database from scratch
+
+pharos workspace create "<name>"                  # Create a new workspace
+pharos workspace create "<name>" --cwd             # Create in current directory
+pharos workspace create "<name>" --dir <path>      # Create at custom path
+pharos workspace create "<name>" --topic "<title>"  # Override the display title
 
 pharos workspace list                              # List all workspaces
 pharos workspace open "<name>"                      # Show workspace details

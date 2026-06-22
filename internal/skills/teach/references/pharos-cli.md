@@ -6,69 +6,113 @@ mechanism; the teach skill decides _when_ and _why_ to run each.
 ## Workspace management
 
 ```bash
-pharos workspace list             # List all workspaces
-pharos workspace open "<name>"     # Open workspace, show path
-pharos workspace open "<name>" --open  # Open in file manager
-pharos workspace stats            # Show learning statistics
+pharos workspace create "<name>"              # Create workspace (auto-sets as current)
+pharos workspace create "<name>" --cwd        # Create in current directory
+pharos workspace create "<name>" --dir <path> # Create at a custom path
+pharos workspace create "<name>" --topic "<friendly title>"  # Override the display title
 
-pharos init "<name>"              # Create a new learning workspace
-pharos init "<name>" --cwd        # Create in current directory
-pharos init "<name>" --dir <path> # Create at a custom path
-pharos init "<name>" --topic "<friendly title>"  # Override the display title
+pharos workspace use "<name>"                  # Set current workspace
+pharos workspace current                       # Show current workspace
+pharos workspace list                          # List all workspaces (current marked with *)
+pharos workspace delete "<name>"               # Delete workspace + directory (prompts)
+pharos workspace delete "<name>" --force       # Delete without prompt
+pharos workspace stats                         # Show learning statistics
+
+pharos init                                    # Create the database
 ```
 
-Before running `pharos init`, check `pharos workspace list` for an existing
-workspace on the same topic. If one exists, open it and continue — don't
-duplicate.
+Before running `pharos workspace create`, check `pharos workspace list` for an existing
+workspace on the same topic. If one exists, use `pharos workspace use` to switch to it — don't duplicate.
 
-pharos mission   -w "<name>"                          # Show mission
-pharos mission   -w "<name>" --edit                   # Edit mission in $EDITOR
-pharos mission   -w "<name>" --body-file <path>       # Write mission from file (non-interactive)
-pharos resources -w "<name>"                          # Show resources
-pharos resources -w "<name>" --edit                   # Edit resources in $EDITOR
-pharos resources -w "<name>" --body-file <path>       # Write resources from file
-pharos glossary  -w "<name>"                          # Show glossary
-pharos glossary  -w "<name>" --edit                   # Edit glossary in $EDITOR
-pharos glossary  -w "<name>" --body-file <path>       # Write glossary from file
+## Current workspace
+
+Most commands accept `-w "<name>"` to specify a workspace. If omitted, the
+**current workspace** is used. Set it with:
+
+```bash
+pharos workspace use "<name>"
 ```
+
+`pharos workspace create` auto-sets the new workspace as current. If only one
+workspace exists, it is used automatically.
+
+## Singletons (one per workspace, flags not subcommands)
+
+```bash
+pharos mission    [--edit | --body-file <path>]
+pharos resources  [--edit | --body-file <path>]
+pharos glossary   [--edit | --body-file <path>]
+pharos notes      [--edit | --body-file <path>] [--append]
+```
+
+- `--edit`: open in `$EDITOR`
+- `--body-file <path>`: write content from a file
+- `--append` (notes only): append instead of overwrite
+- No flags: read and print
 
 ## Lessons
 
 ```bash
-pharos lesson create "<title>" -w "<name>" --body-file <path>  # Content from file (verbatim, no stub)
-pharos lesson list  -w "<name>"                          # List lessons
-pharos lesson list  -w "<name>" --search "<q>"           # Search lessons
+pharos lesson create "<title>" --body-file <path>  # Create a new lesson
+pharos lesson list                                  # List lessons
+pharos lesson list --search "<q>"                   # Search lessons
+pharos lesson revise <seq> --body-file <path>       # Revise an existing lesson
+pharos lesson show <seq>                            # Show in dashboard
+pharos lesson read <seq>                            # Read content + metadata
+pharos lesson read <seq> --meta-only                # Read metadata only
 ```
 
 Before creating, search for an existing lesson on the same topic. If one
-exists, **revise** it — overwrite the file at its current path with improved
-content — rather than create a duplicate under a new sequence number.
+exists, **revise** it with `pharos lesson revise` rather than create a duplicate.
 
-After creating or revising a lesson, **present** it in the dashboard:
+After creating or revising a lesson, **present** it:
 
 ```bash
-pharos start                                                      # Start dashboard (background, default :9090)
-open http://127.0.0.1:9090/workspace/<name>/lesson/<seq>           # Open the lesson page in browser
+pharos lesson show <seq>    # Starts dashboard if needed, opens in browser
 ```
 
 ## Learning records
 
 ```bash
-pharos record add "<title>" -w "<name>"                  # Add a learning record
-pharos record add "<title>" -w "<name>" --summary "..."  # With a summary
-pharos record add "<title>" -w "<name>" --body-file <path>  # Body from file (verbatim)
-pharos record list -w "<name>"                           # List records
-pharos record list -w "<name>" --search "<q>"            # Search records
+pharos record create "<title>" --body-file <path>   # Create a learning record
+pharos record create "<title>" --body-file <path> --summary "..."
+pharos record list                                   # List records
+pharos record list --search "<q>"                    # Search records
+pharos record supersede <seq> --title "<new>" --body-file <path>  # Supersede with new understanding
+pharos record show <seq>                             # Show in dashboard
+pharos record read <seq>                             # Read content + metadata
+pharos record read <seq> --meta-only                 # Read metadata only
 ```
+
+Records follow the ADR convention: don't edit them, **supersede** them.
+`pharos record supersede` atomically creates a new record AND marks the old one
+as superseded.
 
 ## References
 
 ```bash
-pharos reference create "<title>" -w "<name>"            # Create a reference doc scaffold
-pharos reference create "<title>" -w "<name>" --body-file <path>  # Content from file (verbatim)
-pharos reference list -w "<name>"                        # List references
-pharos reference list -w "<name>" --search "<q>"         # Search references
+pharos reference create "<title>" --body-file <path>  # Create a reference (slug-based filename)
+pharos reference list                                  # List references
+pharos reference list --search "<q>"                   # Search references
+pharos reference revise <slug> --body-file <path>      # Revise an existing reference
+pharos reference show <slug>                           # Show in dashboard
+pharos reference read <slug>                           # Read content + metadata
+pharos reference read <slug> --meta-only               # Read metadata only
 ```
+
+References are addressed by **slug** (descriptive name), not sequence number.
+The slug is derived from the title (e.g. "SQL Join Cheat Sheet" → `sql-join-cheat-sheet`).
+Two workspaces can each have a reference with the same slug.
+
+## Assets
+
+```bash
+pharos asset list                     # List assets with absolute paths
+pharos asset create <filename> --body-file <path>  # Create or overwrite an asset
+```
+
+Assets are raw files (CSS, JS, images) with no database tracking.
+Use `pharos asset create` for all mutations — don't write directly.
 
 ## Dashboard
 
@@ -78,19 +122,32 @@ pharos start --port 9090  # Custom port
 pharos start --no-open    # Don't auto-open the browser
 ```
 
+If already running, `pharos start` prints the URL and returns.
+The dashboard opens on the current workspace if one is set.
+
+## Skills
+
+```bash
+pharos skills install --agent <name>   # Install skills (non-interactive)
+pharos skills check                    # Check if installed skills are current
+```
+
+Supported agents: `opencode`, `claude-code`, `codex`, `pi.dev`.
+`--agent` implies non-interactive — no prompts, always overwrites.
+
 ## Links inside lesson HTML
 
 A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`,
 so two link types resolve differently:
 
 **Asset references** (stylesheets, scripts, images) resolve against the
-iframe's URL \u2014 use a **root-relative** path:
+iframe's URL — use a **root-relative** path:
 
 ```html
 <link rel="stylesheet" href="assets/style.css">
 ```
 
-Never use `../assets/style.css` \u2014 the `../` climbs above the iframe's
+Never use `../assets/style.css` — the `../` climbs above the iframe's
 document root and returns a 404.
 
 **Contextual links** (clicking to another lesson or reference) must escape
@@ -98,17 +155,17 @@ the iframe to update the dashboard. Use an absolute dashboard route with
 `target="_top"`:
 
 ```html
-<a href="/workspace/<name>/lesson/<seq>" target="_top">\u2026</a>
-<a href="/workspace/<name>/ref/<seq>" target="_top">\u2026</a>
+<a href="/workspace/<name>/lesson/<seq>" target="_top">…</a>
+<a href="/workspace/<name>/ref/<slug>" target="_top">…</a>
 ```
 
-`<seq>` is the sequence number (1, 2, 3\u2026), not the filename. A bare
-`lessons/0002.html` link would load inside the iframe and break the sidebar.
+For lessons, `<seq>` is the sequence number (1, 2, 3…), not the filename.
+For references, use the slug (e.g. `sql-syntax`), not a sequence number.
 
 ## Global flags
 
 ```bash
---json   # Machine-readable JSON output (most commands)
+--json   # Machine-readable JSON output (all data-returning commands)
 --db     # Custom database path (default: ~/.pharos/pharos.db)
 ```
 
@@ -116,9 +173,10 @@ the iframe to update the dashboard. Use an absolute dashboard route with
 
 - Lessons:    `0001-dash-case-name.html` (4-digit zero-padded sequence)
 - Records:    `0001-dash-case-title.md`
-- References: descriptive, e.g. `sql-syntax-reference.html`
+- References: `<slug>.html` (descriptive, e.g. `sql-syntax.html`)
+- Assets:     `<filename>` (you choose the name)
 
-The sequence numbers are assigned by the CLI on creation — don't hand-number.
+Sequence numbers are assigned by the CLI on creation — don't hand-number.
 
 ## Workspace layout
 

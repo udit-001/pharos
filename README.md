@@ -7,7 +7,8 @@ CLI tool to create and manage learning workspaces, with a read-only web dashboar
 go install github.com/udit-001/pharos/cmd/pharos@latest
 
 # Quick start
-pharos init "Topic Name"          # Creates ~/.pharos/workspaces/topic-name/
+pharos init                        # Create the database, offer the agent skill
+pharos workspace create "Topic Name"  # Creates ~/.pharos/workspaces/topic-name/
 pharos lesson create "Title" --body-file /tmp/lesson.html
 pharos record add "What I learned" --body-file /tmp/record.md
 pharos start
