@@ -131,8 +131,8 @@ func sidebarBody(f Frame) string {
 	if len(f.Sidebar.Refs) > 0 {
 		b.WriteString(`<div class="block px-4 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">References</div>`)
 		for _, ref := range f.Sidebar.Refs {
-			active := f.ActiveType == "ref" && f.ActiveSeq == ref.SequenceNumber
-			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/ref/%d", urlPathEscape(ws.Name), ref.SequenceNumber), iconBook(), ref.Title, active))
+			active := f.ActiveType == "ref" && f.ActiveSlug == ref.Slug
+			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(ws.Name), urlPathEscape(ref.Slug)), iconBook(), ref.Title, active))
 		}
 	}
 	return b.String()

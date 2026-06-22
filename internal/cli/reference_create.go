@@ -29,15 +29,20 @@ Examples:
 		}
 		ws := wsStore.Workspace()
 
-		// Get existing refs for sequence number
+		// Get existing refs to check for duplicate slug
 		refs, err := wsStore.GetRefs()
 		if err != nil {
 			return formatError("failed to get references", err)
 		}
-		seqNum := len(refs) + 1
 
-		slug := slugify(title)
-		filename := fmt.Sprintf("%04d-%s.html", seqNum, slug)
+		slug := db.Slugify(title)
+		for _, r := range refs {
+			if r.Slug == slug {
+				return fmt.Errorf("reference with slug %q already exists\n  Use 'pharos reference revise %s' to update it", slug, slug)
+			}
+		}
+
+		filename := slug + ".html"
 		refPath := filepath.Join(ws.Path, "reference", filename)
 
 		// Reference content comes from --body-file (required) — no stub template.
@@ -58,14 +63,14 @@ Examples:
 		// Save to database (WorkspaceID auto-set by the scoped store)
 		created, err := wsStore.AddRef(db.Reference{
 			Title:    title,
+			Slug:     slug,
 			Filename: filename,
-			Path:    filepath.Join("reference", filename),
+			Path:     filepath.Join("reference", filename),
 		})
 		if err != nil {
 			return formatError("failed to save reference", err)
 		}
 
-		_ = wsStore.Touch()
 
 		if jsonOut {
 			printJSON(created)

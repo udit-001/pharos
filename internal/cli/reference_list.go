@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/spf13/cobra"
 )
@@ -27,10 +25,10 @@ Examples:
 			errLabel:   "failed to list references",
 			emptyMsg:   "No references yet.",
 			createHint: `pharos reference create "Title" --workspace %q`,
-			headers:    []string{"#", "Title", "File"},
+			headers:    []string{"Slug", "Title", "File"},
 			buildRow: func(r db.Reference) []string {
 				return []string{
-					fmt.Sprintf("%d", r.SequenceNumber),
+					r.Slug,
 					truncate(r.Title, 40),
 					r.Filename,
 				}

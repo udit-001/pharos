@@ -9,7 +9,8 @@ type Frame struct {
 	Title      string // document <title> and topbar heading
 	ActiveWS   string // active workspace name (for breadcrumb + sidebar highlight)
 	ActiveType string // "", "lesson", "record", "ref" (sidebar highlight)
-	ActiveSeq  int    // active sequence number (sidebar highlight)
+	ActiveSeq  int    // active sequence number (sidebar highlight for lesson/record)
+	ActiveSlug string // active slug (sidebar highlight for ref)
 	Sidebar    Sidebar
 }
 
