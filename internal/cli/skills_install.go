@@ -68,17 +68,19 @@ func runSkillsInstall(cmd *cobra.Command, args []string) error {
 
 	baseDir := selected.installDir(project)
 
-	// Confirm overwrite if the primary skill dir already exists
-	primaryDir := filepath.Join(baseDir, skills.SkillName)
-	if _, err := os.Stat(primaryDir); err == nil {
-		fmt.Printf("  %s/ already exists.\n", primaryDir)
-		fmt.Print("  Overwrite? [y/N] ")
-		reader := bufio.NewReader(os.Stdin)
-		answer, _ := reader.ReadString('\n')
-		answer = strings.TrimSpace(strings.ToLower(answer))
-		if answer != "y" && answer != "yes" {
-			fmt.Println("  Skipped.")
-			return nil
+	// Skip overwrite confirmation when --agent is given (non-interactive)
+	if agent == "" {
+		primaryDir := filepath.Join(baseDir, skills.SkillName)
+		if _, err := os.Stat(primaryDir); err == nil {
+			fmt.Printf("  %s/ already exists.\n", primaryDir)
+			fmt.Print("  Overwrite? [y/N] ")
+			reader := bufio.NewReader(os.Stdin)
+			answer, _ := reader.ReadString('\n')
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if answer != "y" && answer != "yes" {
+				fmt.Println("  Skipped.")
+				return nil
+			}
 		}
 	}
 

@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/version"
-	"github.com/spf13/cobra"
 )
 
 func defaultDBPath() string {
@@ -58,8 +58,8 @@ Data is stored in a local SQLite database. Each workspace is a
 directory containing MISSION.md, lessons/, learning-records/,
 reference/, assets/, RESOURCES.md, GLOSSARY.md, and NOTES.md.
 
-Use 'pharos init' to create a workspace, then add lessons and
-learning records as you study.
+Use 'pharos init' to set up pharos, then 'pharos workspace create'
+to start a workspace.
 
 Most commands support --json for machine-readable output.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -72,7 +72,7 @@ Most commands support --json for machine-readable output.`,
 		}
 		s, err := db.Open(storePath)
 		if err != nil {
-			return fmt.Errorf("open database: %w\n\n  Run 'pharos init' to create one", err)
+			return fmt.Errorf("open database: %w\n\n  Run 'pharos init' to set up pharos", err)
 		}
 		ctx := context.WithValue(cmd.Context(), ctxStore{}, s)
 		cmd.SetContext(ctx)

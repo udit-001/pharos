@@ -104,7 +104,11 @@ func TestLessonListWithInjectedStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
-	if _, err := store.AddLesson(db.Lesson{WorkspaceID: ws.ID, Title: "Goroutines", Filename: "0001.html"}); err != nil {
+	wsStore, err := store.WorkspaceByID(ws.ID)
+	if err != nil {
+		t.Fatalf("get workspace store: %v", err)
+	}
+	if _, err := wsStore.AddLesson(db.Lesson{Title: "Goroutines", Filename: "0001.html"}); err != nil {
 		t.Fatalf("seed lesson: %v", err)
 	}
 
