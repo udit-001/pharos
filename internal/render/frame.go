@@ -21,7 +21,7 @@ func Page(f Frame, content string) string {
 <script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 </head>
 <body class="font-sans">
-<div class="flex h-screen overflow-hidden bg-slate-100 text-slate-800">
+<div class="flex h-screen overflow-hidden bg-white text-slate-800">
 
   %s
 
@@ -36,19 +36,19 @@ func Page(f Frame, content string) string {
       </div>
       %s
       <div class="flex items-center gap-2">
-        <button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Toggle theme">
-          <svg data-theme-icon="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        </button>
         <form action="/search" method="GET" class="flex items-center">
           <div class="flex items-center border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus-within:border-slate-400 transition-colors">
             <input type="text" name="q" placeholder="Search..." aria-label="Search" class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-all">
           </div>
         </form>
+        <button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Toggle theme">
+          <svg data-theme-icon="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
       </div>
     </header>
 
-    <div class="flex-1 p-6 overflow-y-auto">
+    <div class="flex-1 overflow-y-auto %s">
       <div class="%s mx-auto%s">
         %s
       </div>
@@ -92,6 +92,7 @@ function toggleTheme() {
 		breadcrumbs(f),
 		topbarTitle(f),
 		topbarCenterBranding(f),
+		contentPaddingClass(f.FrameContent()),
 		frameMaxWidthClass(f.FrameContent()),
 		frameContentClass(f.FrameContent()),
 		content,
@@ -300,12 +301,22 @@ func sidebarDashLink(f Frame) string {
 	return fmt.Sprintf(`<a href="/" class="flex items-center gap-2 px-4 py-2 text-sm no-underline cursor-pointer %s hover:bg-slate-200 hover:text-slate-900 transition-colors">%s<span>Dashboard</span></a>`, cls, iconHome())
 }
 
+// contentPaddingClass returns the padding class for the content wrapper.
+// Frame pages (lessons, references) use no padding so the iframe fills
+// the container edge-to-edge; other pages get standard reading padding.
+func contentPaddingClass(isFrame bool) string {
+	if isFrame {
+		return "p-0"
+	}
+	return "p-6"
+}
+
 // frameMaxWidthClass returns the max-width class for the content container.
 // Frame pages (lessons, references) get a wider column to give the iframe
 // more room; other pages use the standard reading width.
 func frameMaxWidthClass(isFrame bool) string {
 	if isFrame {
-		return "max-w-6xl"
+		return ""
 	}
 	return "max-w-4xl"
 }

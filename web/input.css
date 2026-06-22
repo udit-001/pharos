@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&[data-theme="dark"]);
+
 /* ── Nord-themed color tokens (matching Job-tracker / Waypoint) ── */
 :root {
   --color-white:  #ffffff;
@@ -21,6 +23,34 @@
   --color-amber-100: #fff4e0;
   --color-amber-500: #ebcb8b;   /* nord13 */
   --color-amber-600: #d08770;   /* nord12 */
+}
+
+[data-theme="dark"] {
+  --color-white:  #3b4252;
+  --color-slate-50:  #2e3440;
+  --color-slate-100: #353b4a;
+  --color-slate-200: #434c5e;
+  --color-slate-300: #4c566a;
+  --color-stone-50: #2e3440;
+  --color-slate-400: #81a1c1;
+  --color-slate-500: #94adcb;
+  --color-slate-600: #88c0d0;
+  --color-slate-700: #aebbcf;
+  --color-slate-800: #d8dee9;
+  --color-slate-900: #eceff4;
+  --color-slate-950: #dfe7ee;
+  --color-emerald-100: #2e3440;
+  --color-emerald-600: #a3be8c;
+  --color-emerald-700: #8fbcbb;
+  --color-amber-100: #434c5e;
+  --color-amber-200: #4c566a;
+  --color-amber-500: #ebcb8b;
+  --color-amber-600: #d08770;
+  --color-red-100: #4c566a;
+  --color-red-600: #bf616a;
+  --color-red-700: #d35f5f;
+  --color-blue-100: #4c566a;
+  --color-blue-700: #81a1c1;
 }
 
 /* ── Custom scrollbar ── */
@@ -226,4 +256,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── Dark theme overrides for hardcoded colors ── */
+[data-theme="dark"] .sidebar-section-label {
+  color: var(--color-slate-400, #81a1c1);
+}
+[data-theme="dark"] .sidebar-link {
+  color: var(--color-slate-400, #81a1c1);
+}
+[data-theme="dark"] .sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-slate-800, #d8dee9);
+}
+[data-theme="dark"] .sidebar-link-active {
+  color: var(--color-blue-700, #81a1c1);
+  background: rgba(129, 161, 193, 0.15);
+  border-left-color: var(--color-blue-700, #81a1c1);
 }
