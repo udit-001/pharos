@@ -27,6 +27,7 @@ type Lesson struct {
 	Path            string `db:"path" json:"path"`         // relative to workspace
 	Summary         string `db:"summary" json:"summary"`
 	CreatedAt       string `db:"created_at" json:"createdAt"`
+	UpdatedAt       string `db:"updated_at" json:"updatedAt"`
 }
 
 // LearningRecord represents an ADR-style learning record.
@@ -41,6 +42,7 @@ type LearningRecord struct {
 	SupersededBy    int64  `db:"superseded_by" json:"supersededBy,omitempty"`
 	Summary         string `db:"summary" json:"summary"`
 	CreatedAt       string `db:"created_at" json:"createdAt"`
+	UpdatedAt       string `db:"updated_at" json:"updatedAt"`
 }
 
 // Reference represents a reference document (cheat sheet).
@@ -48,11 +50,12 @@ type Reference struct {
 	ID              int64  `db:"id" json:"id"`
 	WorkspaceID     int64  `db:"workspace_id" json:"workspaceId"`
 	Title           string `db:"title" json:"title"`
-	SequenceNumber  int    `db:"sequence_number" json:"sequenceNumber"`
+	Slug            string `db:"slug" json:"slug"`
 	Filename        string `db:"filename" json:"filename"`
 	Path            string `db:"path" json:"path"`
 	Summary         string `db:"summary" json:"summary"`
 	CreatedAt       string `db:"created_at" json:"createdAt"`
+	UpdatedAt       string `db:"updated_at" json:"updatedAt"`
 }
 
 // DisplayName returns the user-friendly topic if set, else the directory name.
@@ -66,11 +69,12 @@ func (w Workspace) DisplayName() string {
 
 // Settings holds user preferences.
 type Settings struct {
-	ID             int64  `db:"id" json:"id"`
-	DefaultView    string `db:"default_view" json:"defaultView"`
-	ItemsPerPage   int    `db:"items_per_page" json:"itemsPerPage"`
-	LessonsDir     string `db:"lessons_dir" json:"lessonsDir"`         // lessons directory name
-	RecordsDir     string `db:"records_dir" json:"recordsDir"`         // learning records dir name
-	ReferenceDir   string `db:"reference_dir" json:"referenceDir"`     // reference docs dir name
-	AssetsDir      string `db:"assets_dir" json:"assetsDir"`           // assets dir name
+	ID                  int64  `db:"id" json:"id"`
+	DefaultView         string `db:"default_view" json:"defaultView"`
+	ItemsPerPage        int    `db:"items_per_page" json:"itemsPerPage"`
+	LessonsDir          string `db:"lessons_dir" json:"lessonsDir"`
+	RecordsDir          string `db:"records_dir" json:"recordsDir"`
+	ReferenceDir        string `db:"reference_dir" json:"referenceDir"`
+	AssetsDir           string `db:"assets_dir" json:"assetsDir"`
+	LastActiveWorkspace string `db:"last_active_workspace" json:"lastActiveWorkspace"`
 }
