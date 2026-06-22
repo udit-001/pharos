@@ -17,10 +17,10 @@ type Frame struct {
 // Sidebar is the workspace tree shown in the left rail. When Workspace is
 // nil, an empty-state prompt is shown instead.
 type Sidebar struct {
-	Workspace *db.Workspace
-	Lessons   []db.Lesson
-	Records   []db.LearningRecord
-	Refs      []db.Reference
+	Workspace  *db.Workspace
+	Lessons    []db.Lesson
+	Records    []db.LearningRecord
+	Refs       []db.Reference
 }
 
 // FrameContent reports whether the page body should fill the viewport as an
@@ -62,12 +62,24 @@ type WorkspaceData struct {
 	Mission   string
 	Lessons   []db.Lesson
 	Records   []db.LearningRecord
+	Refs      []db.Reference
+}
+
+// LessonNav is a prev/next navigation entry for lesson pages.
+type LessonNav struct {
+	Seq   int
+	Title string
+	URL   string
 }
 
 // LessonData drives a lesson detail page (iframe).
 type LessonData struct {
 	Title  string
 	RawURL string
+	Seq    int
+	Total  int
+	Prev   *LessonNav
+	Next   *LessonNav
 }
 
 // RecordData drives a learning-record detail page (rendered markdown).
@@ -81,6 +93,14 @@ type RecordData struct {
 type RefData struct {
 	Title  string
 	RawURL string
+}
+
+// DocumentData drives workspace document pages (Mission, Resources, Glossary, Notes).
+type DocumentData struct {
+	Kind     string // "mission", "resources", "glossary", "notes"
+	Title    string
+	BodyHTML string
+	Empty    bool
 }
 
 // SearchResult is one row on the search page.

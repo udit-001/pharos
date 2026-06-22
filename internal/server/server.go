@@ -33,6 +33,7 @@ type Config struct {
 	DB     *db.Store
 	NoOpen bool
 	Silent bool
+	DevCSS bool // serve CSS from disk (no embed, no-cache) for `pharos dev`
 }
 
 // ── Start ──
@@ -40,9 +41,21 @@ type Config struct {
 func Start(cfg Config) error {
 	mux := http.NewServeMux()
 
-	// Serve embedded Tailwind CSS
+	// Serve Tailwind CSS. In dev mode (DevCSS) read web/app.css from disk
+	// on each request so styling changes are live without a Go rebuild;
+	// disable caching so the browser always fetches the freshest file.
 	mux.HandleFunc("GET /css/app.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		if cfg.DevCSS {
+			data, err := os.ReadFile("web/app.css")
+			if err != nil {
+				http.Error(w, "app.css not built — run `pharos dev` from the project root", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Write(data)
+			return
+		}
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		w.Write(web.CSS)
 	})
@@ -59,6 +72,10 @@ func Start(cfg Config) error {
 	// App pages (rendered with sidebar)
 	mux.HandleFunc("GET /", handleAppShell(cfg.DB))
 	mux.HandleFunc("GET /workspace/{name}", handleWorkspacePage(cfg.DB))
+	mux.HandleFunc("GET /workspace/{name}/mission", handleDocPage(cfg.DB, "mission"))
+	mux.HandleFunc("GET /workspace/{name}/resources", handleDocPage(cfg.DB, "resources"))
+	mux.HandleFunc("GET /workspace/{name}/glossary", handleDocPage(cfg.DB, "glossary"))
+	mux.HandleFunc("GET /workspace/{name}/notes", handleDocPage(cfg.DB, "notes"))
 	mux.HandleFunc("GET /workspace/{name}/lesson/{seq}", handleLessonPage(cfg.DB))
 	mux.HandleFunc("GET /workspace/{name}/record/{seq}", handleRecordPage(cfg.DB))
 	mux.HandleFunc("GET /workspace/{name}/ref/{slug}", handleRefPage(cfg.DB))
@@ -103,7 +120,13 @@ func Start(cfg Config) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() { <-quit; srv.Close() }()
-	return srv.Serve(listener)
+	// http.ErrServerClosed is the expected return from a graceful SIGINT/SIGTERM
+	// shutdown (srv.Close above) — treat it as a clean exit, not an error,
+	// so `pharos start`/`pharos dev` don't print a spurious error on stop.
+	if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
 }
 
 // ── helpers ──
@@ -406,11 +429,105 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		}
 		ws := wsStore.Workspace()
 
+		if ws.LastLessonSeq != nil {
+			http.Redirect(w, r, fmt.Sprintf("/workspace/%s/lesson/%d", name, *ws.LastLessonSeq), http.StatusFound)
+			return
+		}
+
 		lessons, _ := wsStore.GetLessons()
 		records, _ := wsStore.GetRecords()
+		refs, _ := wsStore.GetRefs()
 
-		data := render.WorkspaceData{Workspace: ws, Mission: ws.MissionWhy, Lessons: lessons, Records: records}
+		// Read mission from disk — the file is the source of truth,
+		// not the DB column (which can go stale when the CLI writes
+		// via --body-file or --edit without syncing back).
+		// A mission with unresolved placeholders ({...}) counts as empty
+		// — the workspace create command pre-populates the template.
+		mission := ""
+		if missionData, err := os.ReadFile(wsStore.Layout().MissionPath()); err == nil {
+			if trimmed := strings.TrimSpace(string(missionData)); trimmed != "" && !strings.Contains(trimmed, "{") {
+				mission = trimmed
+			}
+		}
+
+		// Render mission markdown → HTML (same pattern as learning records)
+		var missionHTML bytes.Buffer
+		if mission != "" {
+			if err := md.Convert([]byte(mission), &missionHTML); err != nil {
+				missionHTML.WriteString("<p>Mission unavailable</p>")
+			}
+		}
+
+		data := render.WorkspaceData{Workspace: ws, Mission: missionHTML.String(), Lessons: lessons, Records: records, Refs: refs}
 		writePage(w, store, ws.DisplayName(), ws.Name, "", 0, "", render.Workspace(data))
+	}
+}
+
+// ── Workspace Document Page (Mission, Resources, Glossary, Notes) ──
+
+// docKind describes one workspace document readable from disk.
+type docKind struct {
+	title string
+	path  func(db.Layout) string
+}
+
+var docKinds = map[string]docKind{
+	"mission":   {title: "Mission", path: db.Layout.MissionPath},
+	"resources": {title: "Resources", path: db.Layout.ResourcesPath},
+	"glossary":  {title: "Glossary", path: db.Layout.GlossaryPath},
+	"notes":     {title: "Notes", path: db.Layout.NotesPath},
+}
+
+func handleDocPage(store *db.Store, kind string) http.HandlerFunc {
+	dk, ok := docKinds[kind]
+	if !ok {
+		panic("unknown doc kind: " + kind)
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		data := render.DocumentData{Title: dk.title, Kind: kind}
+
+		raw, err := os.ReadFile(dk.path(wsStore.Layout()))
+		if err == nil {
+			trimmed := strings.TrimSpace(string(raw))
+			// Workspace documents are seeded with placeholder templates on
+			// create ({...} markers, or default prose for Notes). Treat an
+			// unfilled template as empty so the learner gets guidance.
+		hasPlaceholder := strings.Contains(trimmed, "{")
+		_, isDefaultNotes := strings.CutPrefix(trimmed, "# Notes\n\nPreferences and working notes for this workspace.")
+		isDefaultNotes = isDefaultNotes && kind == "notes"
+			if trimmed != "" && !hasPlaceholder && !isDefaultNotes {
+				// Strip a leading "# ..." H1 that duplicates the navbar title —
+				// all document FORMAT templates start with one.
+				if strings.HasPrefix(trimmed, "# ") {
+					if nl := strings.IndexByte(trimmed, '\n'); nl >= 0 {
+						trimmed = strings.TrimSpace(trimmed[nl+1:])
+					} else {
+						trimmed = ""
+					}
+				}
+				if trimmed != "" {
+					var buf bytes.Buffer
+					if err := md.Convert([]byte(trimmed), &buf); err == nil {
+						data.BodyHTML = buf.String()
+					} else {
+						data.BodyHTML = "<p>Document unavailable.</p>"
+					}
+				}
+			}
+		}
+		wsStore.Touch()
+		if data.BodyHTML == "" {
+			data.Empty = true
+		}
+
+		writePage(w, store, dk.title, name, kind, 0, "", render.Document(data))
 	}
 }
 
@@ -433,9 +550,30 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 			return
 		}
 
+		// Compute prev/next lesson in sequence order for in-content navigation.
+		lessons, _ := wsStore.GetLessons()
+		var prev, next *render.LessonNav
+		for i, l := range lessons {
+			if l.SequenceNumber == seq {
+				if i > 0 {
+					p := lessons[i-1]
+					prev = &render.LessonNav{Seq: p.SequenceNumber, Title: p.Title, URL: fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(name), p.SequenceNumber)}
+				}
+				if i+1 < len(lessons) {
+					n := lessons[i+1]
+					next = &render.LessonNav{Seq: n.SequenceNumber, Title: n.Title, URL: fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(name), n.SequenceNumber)}
+				}
+				break
+			}
+		}
+
 		data := render.LessonData{
 			Title:  current.Title,
 			RawURL: fmt.Sprintf("/api/lesson-html/%s/%s", urlPathEscape(name), urlPathEscape(current.Filename)),
+			Seq:    seq,
+			Total:  len(lessons),
+			Prev:   prev,
+			Next:   next,
 		}
 		wsStore.SetLastViewed("lesson", seq)
 		writePage(w, store, current.Title, name, "lesson", seq, "", render.Lesson(data))
@@ -561,11 +699,11 @@ func handleLessonHTML(store *db.Store) http.HandlerFunc {
 		file := r.PathValue("file")
 		wsStore, err := store.Workspace(name)
 		if err != nil {
-			http.NotFound(w, r)
+			iframeNotFound(w, "workspace", name)
 			return
 		}
 		ws := wsStore.Workspace()
-		http.ServeFile(w, r, filepath.Join(ws.Path, "lessons", file))
+		serveFileOr404(w, r, filepath.Join(ws.Path, "lessons", file), "lesson", file)
 	}
 }
 
@@ -575,12 +713,98 @@ func handleRefHTML(store *db.Store) http.HandlerFunc {
 		file := r.PathValue("file")
 		wsStore, err := store.Workspace(name)
 		if err != nil {
-			http.NotFound(w, r)
+			iframeNotFound(w, "workspace", name)
 			return
 		}
 		ws := wsStore.Workspace()
-		http.ServeFile(w, r, filepath.Join(ws.Path, "reference", file))
+		serveFileOr404(w, r, filepath.Join(ws.Path, "reference", file), "reference", file)
 	}
+}
+
+// serveFileOr404 serves a file from disk, or a styled 404 page if the file
+// is missing. Renders inside the lesson/reference iframe — styles are inlined
+// so it renders correctly regardless of the iframe's document root.
+func serveFileOr404(w http.ResponseWriter, r *http.Request, path, kind, file string) {
+	if _, err := os.Stat(path); err == nil {
+		http.ServeFile(w, r, path)
+		return
+	}
+	iframeNotFound(w, kind, file)
+}
+
+// iframeNotFound writes a styled 404 page sized to render inside an iframe.
+func iframeNotFound(w http.ResponseWriter, kind, ident string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+	fmt.Fprint(w, fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Not found</title>
+<style>
+  :root {
+    --bg: #eceff4;
+    --card: #ffffff;
+    --border: #e5e9f0;
+    --muted: #6b7689;
+    --text: #2e3440;
+    --link: #5e81ac;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    max-width: 26rem;
+    text-align: center;
+  }
+  .icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    color: var(--muted);
+    opacity: 0.5;
+  }
+  h1 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.5rem; }
+  p { font-size: 0.9rem; line-height: 1.6; color: var(--muted); margin: 0; }
+  code {
+    display: inline-block;
+    margin-top: 1rem;
+    background: var(--bg);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-family: ui-monospace, 'SF Mono', monospace;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+      <path d="M10 17l5-5-5-5"/>
+      <path d="M15 12H3"/>
+    </svg>
+    <h1>This %s isn&rsquo;t on disk</h1>
+    <p>The workspace tracks this %s, but the file is missing. It may have been moved or deleted outside pharos. Re-revise it from your agent to restore the content.</p>
+    <code>%s</code>
+  </div>
+</body>
+</html>`, kind, kind, ident))
 }
 
 func handleAssetFile(store *db.Store) http.HandlerFunc {

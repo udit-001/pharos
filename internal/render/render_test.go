@@ -18,14 +18,14 @@ func TestDashboardRendersStatsAndWorkspaces(t *testing.T) {
 	out := Dashboard(d)
 
 	for _, want := range []string{
-		"Dashboard",
+		"workspaces",
 		">2<", // workspaces count
 		">5<", // lessons count
 		">3<", // records count
 		">1<", // refs count
 		"sql-basics",
 		"golang",
-		"3 lessons · 1 records · 1 refs",
+		"3 lessons",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected output to contain %q, got:\n%s", want, out)
@@ -38,8 +38,8 @@ func TestDashboardEmptyState(t *testing.T) {
 	if !strings.Contains(out, "No workspaces yet") {
 		t.Errorf("expected empty state, got:\n%s", out)
 	}
-	if !strings.Contains(out, `pharos init "topic"`) {
-		t.Errorf("expected init hint, got:\n%s", out)
+	if !strings.Contains(out, `pharos workspace create "topic"`) {
+		t.Errorf("expected workspace create hint, got:\n%s", out)
 	}
 }
 
@@ -48,7 +48,7 @@ func TestDashboardContinueCard(t *testing.T) {
 		Continue: &ContinueItem{URL: "/workspace/sql-basics/lesson/2", Label: "sql-basics — Lesson: JOINs"},
 	}
 	out := Dashboard(d)
-	if !strings.Contains(out, "Continue where you left off") {
+	if !strings.Contains(out, "Continue:") {
 		t.Errorf("expected continue label, got:\n%s", out)
 	}
 	if !strings.Contains(out, "/workspace/sql-basics/lesson/2") {
@@ -90,11 +90,14 @@ func TestPageWrapsContentInFrame(t *testing.T) {
 	}
 }
 
-func TestPageSidebarEmptyState(t *testing.T) {
+func TestPageDashboardNoSidebar(t *testing.T) {
 	f := Frame{Title: "Dashboard", ActiveWS: ""}
 	out := Page(f, "x")
-	if !strings.Contains(out, "Select a workspace") {
-		t.Errorf("expected sidebar empty state, got:\n%s", out)
+	if strings.Contains(out, "<aside") {
+		t.Errorf("expected no sidebar on dashboard, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Pharos") {
+		t.Errorf("expected branding in topbar, got:\n%s", out)
 	}
 }
 
