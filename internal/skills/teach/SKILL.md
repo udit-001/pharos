@@ -65,7 +65,7 @@ A lesson is the main thing you produce — the unit in which knowledge and skill
 
 Before creating a lesson, search for an existing one on the same topic: `pharos lesson list --search "<topic>"`. Same principle — if a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate under a new number. The sequence stays tight; the learner isn't served two lessons on the same thing.
 
-A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte.
+A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`) — see [Assets](#assets) for the path rules.
 
 The lesson should be short, and completable very quickly. Learners' working memory is very small, and we need to stay within it. But each lesson should give the user a single tangible win that they can build on. It should be directly tied to the mission, and should be in the user's zone of proximal development.
 
@@ -88,7 +88,7 @@ A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`, 
 
 Reuse is the default, not the exception. Before authoring a lesson, check what assets already exist: `pharos asset list`. Build from the components already there. When a lesson needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future lesson would duplicate.
 
-A shared stylesheet is the first component every workspace earns: every lesson links it, so the lessons look like one consistent course rather than a pile of one-offs. As the workspace grows, so should the component library.
+A shared stylesheet is the first component every workspace earns: every lesson links it, so the lessons look like one consistent course rather than a pile of one-offs. See [LESSON-THEME.md](./LESSON-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
 
 ## The Mission
 
