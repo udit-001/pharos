@@ -36,9 +36,9 @@ These are the shared variables every lesson must use — never hardcoded color v
 | `--slate-50` | `#f8fafc` | Subtle highlight |
 | `--white` | `#ffffff` | Page background |
 | `--blue-700` | `#5e81ac` | Links / accent |
-| `--emerald-600` | `#a3be8c` | Success / correct |
+| `--emerald-600` | `#4a7a2e` | Success / correct |
 | `--emerald-100` | `#e6f0e6` | Success background |
-| `--red-600` | `#bf616a` | Error / incorrect |
+| `--red-600` | `#bf4e5a` | Error / incorrect |
 | `--red-100` | `#fce4e4` | Error background |
 | `--amber-600` | `#d08770` | Warning / attention |
 
@@ -58,9 +58,9 @@ Reverse the luminance: backgrounds become dark, text becomes light, keeping Nord
 | `--slate-50` | `#2e3440` | Subtle background |
 | `--white` | `#3b4252` | Page background |
 | `--blue-700` | `#81a1c1` | Links / accent |
-| `--emerald-600` | `#a3be8c` | Success / correct |
+| `--emerald-600` | `#95c088` | Success / correct |
 | `--emerald-100` | `#2e3440` | Success background |
-| `--red-600` | `#bf616a` | Error / incorrect |
+| `--red-600` | `#e8a0a0` | Error / incorrect |
 | `--red-100` | `#4c566a` | Error background |
 | `--amber-600` | `#d08770` | Warning / attention |
 
