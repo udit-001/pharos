@@ -16,7 +16,11 @@ import (
 	"github.com/yuin/goldmark"
 )
 
-var md = goldmark.New()
+var md = goldmark.New(
+	goldmark.WithExtensions(
+		&externalLinkExtender{},
+	),
+)
 
 // NewMux builds the HTTP mux for the Pharos dashboard: CSS serving, JSON API,
 // page handlers, and raw file serving. This is the testable internal seam —
