@@ -75,6 +75,8 @@ The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/
 
 Each lesson should recommend a primary source for the user to read or watch. This should be the most high-quality, high-trust resource you found on the topic.
 
+Every external link in a lesson must use `target="_blank" rel="noopener noreferrer"` so it opens in a new tab without exposing the page to `window.opener` abuse.
+
 
 ## Assets
 
