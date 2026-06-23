@@ -92,19 +92,21 @@ func iconChevronRight() string {
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="m9 18 6-6-6-6"/></svg>`
 }
 
-// logoSVG returns the Pharos logo.
+// logoSVG returns the Pharos logo — a constellation node network.
 func logoSVG() string {
 	return `<svg class="shrink-0" viewBox="0 0 100 100" width="28" height="28" aria-hidden="true">
-		<g fill="none" stroke="currentColor" stroke-linecap="round">
-			<circle cx="50" cy="50" r="32" stroke-width="4"/>
-			<circle cx="50" cy="50" r="16" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.4"/>
-			<circle cx="50" cy="18" r="4" fill="currentColor" stroke="none"/>
-			<circle cx="82" cy="50" r="4" fill="currentColor" stroke="none"/>
-			<circle cx="50" cy="82" r="4" fill="currentColor" stroke="none"/>
-			<circle cx="18" cy="50" r="4" fill="currentColor" stroke="none"/>
-			<polygon points="50,40 60,50 50,60 40,50" fill="currentColor" stroke="none"/>
-			<path d="M 50 18 A 32 32 0 0 1 82 50" stroke-width="2.5" opacity="0.5"/>
-			<circle cx="50" cy="50" r="2" fill="currentColor" stroke="none"/>
+		<g stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none">
+			<line x1="50" y1="50" x2="28" y2="28"/>
+			<line x1="50" y1="50" x2="74" y2="30"/>
+			<line x1="50" y1="50" x2="26" y2="70"/>
+			<line x1="50" y1="50" x2="74" y2="72"/>
 		</g>
+		<g fill="currentColor">
+			<circle cx="28" cy="28" r="4"/>
+			<circle cx="74" cy="30" r="4"/>
+			<circle cx="26" cy="70" r="4"/>
+			<circle cx="74" cy="72" r="4"/>
+		</g>
+		<circle cx="50" cy="50" r="8" fill="currentColor"/>
 	</svg>`
 }
