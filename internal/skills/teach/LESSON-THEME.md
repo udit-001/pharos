@@ -168,13 +168,7 @@ Used for quiz options and any clickable action. Rounded, filled, hover feedback.
 
 ## Contextual Links (Iframe Escape)
 
-Links that navigate outside the lesson (to other lessons, references, or external sites) must use `target="_top"` and absolute paths:
-
-```html
-<a href="/workspace/<name>/lesson/<seq>" target="_top">Previous lesson</a>
-```
-
-Never use relative links — they would load inside the iframe and lose the dashboard chrome.
+Links that navigate outside the lesson (to any dashboard page) must use `target="_top"` with an absolute route. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table — never guess a URL pattern. Relative links like `../lesson/0002.html` load inside the iframe and lose the dashboard chrome.
 
 ---
 

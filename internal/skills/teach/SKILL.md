@@ -84,7 +84,7 @@ Lessons are built from reusable **components**, stored in `./assets/`: styleshee
 A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`, so two link types resolve differently from inside it:
 
 - **Asset references** (a stylesheet, script, or image the lesson loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
-- **Contextual links** (clicking to another lesson or reference) must escape the iframe to update the dashboard — use an absolute dashboard route with `target="_top"`: `<a href="/workspace/<name>/lesson/<seq>" target="_top">` for lessons, `/workspace/<name>/ref/<slug>` for references. For lessons, `<seq>` is the sequence number (1, 2, 3…), not the filename. For references, use the slug (e.g. `sql-syntax`), not a number. A bare `lessons/0002.html` link would load inside the iframe and break the sidebar.
+- **Contextual links** (clicking to another dashboard page) must escape the iframe with an absolute route and `target="_top"`. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table covering mission, glossary, resources, notes, lessons, records, and references — never guess a URL pattern. A bare `lessons/0002.html` link would load inside the iframe and break the sidebar.
 
 Reuse is the default, not the exception. Before authoring a lesson, check what assets already exist: `pharos asset list`. Build from the components already there. When a lesson needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future lesson would duplicate.
 

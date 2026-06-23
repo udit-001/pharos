@@ -135,7 +135,7 @@ pharos skills check                    # Check if installed skills are current
 Supported agents: `opencode`, `claude-code`, `codex`, `pi.dev`.
 `--agent` implies non-interactive — no prompts, always overwrites.
 
-## Links inside lesson HTML
+## Links inside lesson HTML (iframe escape)
 
 A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`,
 so two link types resolve differently:
@@ -150,17 +150,32 @@ iframe's URL — use a **root-relative** path:
 Never use `../assets/style.css` — the `../` climbs above the iframe's
 document root and returns a 404.
 
-**Contextual links** (clicking to another lesson or reference) must escape
-the iframe to update the dashboard. Use an absolute dashboard route with
-`target="_top"`:
+**Contextual links** (clicking to another dashboard page) must escape
+the iframe to update the dashboard. Use an absolute route with
+`target="_top"`. These are the exact dashboard URL patterns:
+
+| Page | Route | Example |
+|------|-------|---------|
+| Workspace | `/workspace/{name}` | `/workspace/sql` |
+| Mission | `/workspace/{name}/mission` | `/workspace/sql/mission` |
+| Glossary | `/workspace/{name}/glossary` | `/workspace/sql/glossary` |
+| Resources | `/workspace/{name}/resources` | `/workspace/sql/resources` |
+| Notes | `/workspace/{name}/notes` | `/workspace/sql/notes` |
+| Lesson | `/workspace/{name}/lesson/{seq}` | `/workspace/sql/lesson/1` |
+| Learning Record | `/workspace/{name}/record/{seq}` | `/workspace/sql/record/2` |
+| Reference | `/workspace/{name}/ref/{slug}` | `/workspace/sql/ref/join-syntax` |
 
 ```html
-<a href="/workspace/<name>/lesson/<seq>" target="_top">…</a>
-<a href="/workspace/<name>/ref/<slug>" target="_top">…</a>
+<a href="/workspace/sql/glossary" target="_top">Review the glossary</a>
+<a href="/workspace/sql/lesson/3" target="_top">Next lesson</a>
+<a href="/workspace/sql/ref/join-syntax" target="_top">SQL join cheat sheet</a>
 ```
 
-For lessons, `<seq>` is the sequence number (1, 2, 3…), not the filename.
-For references, use the slug (e.g. `sql-syntax`), not a sequence number.
+Key rules:
+- `{name}` is the workspace name (URL-encoded — spaces become `%20`)
+- `{seq}` is the sequence number (1, 2, 3…), not the filename
+- `{slug}` is the hyphenated reference slug (e.g. `sql-syntax`), not a number
+- Never use relative links like `lessons/0002.html` — they load inside the iframe and lose the dashboard chrome
 
 ## Global flags
 
