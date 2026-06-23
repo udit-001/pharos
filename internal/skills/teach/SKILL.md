@@ -75,7 +75,7 @@ The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/
 
 Each lesson should recommend a primary source for the user to read or watch. This should be the most high-quality, high-trust resource you found on the topic.
 
-Each lesson should contain a reminder to ask followup questions to the agent. The agent is their teacher, and can assist with anything that's unclear.
+Each lesson ends with a single, terse call to ask for more: `Ask a followup question.` — nothing else. No "Feel free to ask!", "Have a question about...?", "Want to dive deeper...?", or any variation. The lesson is pocket-sized: the followup prompt must be equally pocket-sized.
 
 ## Assets
 
