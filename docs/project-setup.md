@@ -3,7 +3,6 @@
 ## Prerequisites
 
 - [Go](https://go.dev/dl/) 1.25 or later
-- [Tailwind CSS v4 CLI](https://github.com/tailwindlabs/tailwindcss) (standalone binary — no Node.js required)
 
 ## Building
 
@@ -13,15 +12,11 @@ git clone <repo-url>
 cd pharos
 
 # Download the Tailwind CLI binary (one-time)
-mkdir -p .local/bin
-curl -L -o .local/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64
-chmod +x .local/bin/tailwindcss
-```
+pharos tailwind download
 
-> Use the appropriate binary for your platform:
-> - macOS (ARM): `tailwindcss-macos-arm64`
-> - macOS (Intel): `tailwindcss-macos-x64`
-> - Windows: `tailwindcss-windows-x64.exe`
+# Build the binary (rebuilds CSS + compiles Go)
+make build
+```
 
 ```bash
 # Build the binary (rebuilds CSS + compiles Go)

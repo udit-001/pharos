@@ -56,7 +56,7 @@ func init() {
 // manages a child `pharos start --foreground --dev-css` process.
 func runDev() error {
 	root := mustProjectRoot()
-	tailwindBin := filepath.Join(root, ".local", "bin", "tailwindcss")
+	tailwindBin := filepath.Join(root, ".bin", "tailwindcss")
 	devBin := filepath.Join(root, "tmp", "pharos-dev")
 	tmpBin := devBin + ".next"
 
@@ -72,9 +72,9 @@ func runDev() error {
 	// and this child gets /dev/null stdin. Without =always it builds once
 	// then dies, so no CSS rebuilds ever happen.
 	tw := execCommand(tailwindBin,
-		"--input", "web/input.css",
-		"--output", "web/app.css",
-		"--content", "**/*.go",
+		"--input", tailwindInput,
+		"--output", tailwindOutput,
+		"--content", tailwindContent,
 		"--watch=always")
 	tw.Dir = root
 	tw.Stdout = os.Stdout

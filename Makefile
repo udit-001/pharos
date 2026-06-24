@@ -6,7 +6,7 @@ build: css
 
 # Build Tailwind CSS from source (scans Go files for classes directly)
 css:
-	./.local/bin/tailwindcss --input web/input.css --output web/app.css --content "**/*.go" --minify
+	./.bin/tailwindcss --input web/input.css --output web/app.css --content "**/*.go" --minify
 	cp web/app.css internal/web/app.css
 
 # Install to GOPATH/bin

@@ -3,7 +3,7 @@ pharos
 pharos.exe
 
 # Tailwind CSS standalone binary
-.local/
+.bin/
 
 # Tailwind CSS source (rebuilt via `make css`)
 # internal/web/app.css is committed so //go:embed resolves in CI.

@@ -4,13 +4,15 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 ## Commands
 
+- `pharos tailwind download` — download the Tailwind CLI binary to `.bin/tailwindcss`
+- `pharos build` — rebuild CSS + compile Go binary (use `--no-css` for Go-only builds)
 - `make test` — `go test ./...` (real SQLite temp files, no mocks)
-- `make build` — builds binary (runs `make css` first)
+
 
 ## Conventions
 
 - HTML is rendered via `fmt.Sprintf` in `internal/render/` — no templates.
-- Tailwind v4 standalone CLI: edit `web/input.css`, then `make css`. CSS is `//go:embed`'d and committed.
+- Tailwind v4 standalone CLI: edit `web/input.css`, then `pharos build`. CSS is `//go:embed`'d and committed.
 - Each Cobra command lives in its own file under `internal/cli/`.
 - Version lives in `internal/version/Version` as a `var`, overridable via ldflags or auto-detected from `debug.BuildInfo`.
 - Repo: `github.com/udit-001/pharos`
@@ -24,8 +26,8 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 ### Build workflow
 
-- **Run `make css` after editing `web/input.css`**, then rebuild the binary. Tailwind v4 scans `.go` files for classes; stale `app.css` is the #1 cause of missing styles. CSS is embedded via `//go:embed web/app.css` — binary must be rebuilt.
-- **Run `pharos stop && make build && pharos start`** after any rebuild. `pharos start` detects a running server via HTTP GET and skips starting — the old binary keeps serving.
+- **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs CSS + Go (`--no-css` for Go-only). `pharos start` detects a running server via HTTP GET and skips starting.
+- **Run `pharos tailwind download`** to get the Tailwind CLI — no need to manually download or install it.
 
 ### Edit discipline
 
