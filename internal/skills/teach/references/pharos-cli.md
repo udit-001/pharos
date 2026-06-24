@@ -24,6 +24,18 @@ pharos init                                    # Create the database
 Before running `pharos workspace create`, check `pharos workspace list` for an existing
 workspace on the same topic. If one exists, use `pharos workspace use` to switch to it — don't duplicate.
 
+## Search
+
+```bash
+pharos search "<query>"                    # Cross-entity search across all workspaces
+pharos search "<query>" --workspace <name> # Scope to one workspace
+pharos search "<query>" --json             # Machine-readable output
+pharos search index                        # Rebuild search index for current workspace
+pharos search index --all                  # Rebuild for all workspaces
+```
+
+Searches lessons, learning records, and references by full-text match across title, summary, and body content. Results show type badges (Lesson/Record/Reference), workspace name, and a snippet when no summary is set. Use this before creating any entity to avoid duplicates.
+
 ## Current workspace
 
 Most commands accept `-w "<name>"` to specify a workspace. If omitted, the

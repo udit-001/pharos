@@ -63,7 +63,7 @@ Fluency can give the user an illusory sense of mastery, but storage strength is 
 
 A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and titled `0001-<dash-case-name>.html` where the number increments each time.
 
-Before creating a lesson, search for an existing one on the same topic: `pharos lesson list --search "<topic>"`. Same principle — if a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate under a new number. The sequence stays tight; the learner isn't served two lessons on the same thing.
+Before creating a lesson, search for an existing one on the same topic: `pharos search "<topic>"`. Same principle — if a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate under a new number. The sequence stays tight; the learner isn't served two lessons on the same thing.
 
 A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`) — see [Assets](#assets) for the path rules.
 
