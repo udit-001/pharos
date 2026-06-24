@@ -16,6 +16,23 @@ import (
 	"github.com/udit-001/pharos/internal/server"
 )
 
+func startDaemon(port int) (*exec.Cmd, error) {
+	args := []string{
+		os.Args[0], "start",
+		"--port", strconv.Itoa(port),
+		"--no-open",
+		"--daemon",
+	}
+	c := exec.Command(args[0], args[1:]...)
+	c.Stdin = nil
+	c.Stdout = nil
+	c.Stderr = nil
+	if err := c.Start(); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 const defaultPort = 9090
 
 var startFlags struct {
@@ -62,17 +79,8 @@ Examples:
 
 		background := startFlags.background && !startFlags.foreground
 		if background && !startFlags.daemon {
-			args := []string{
-				os.Args[0], "start",
-				"--port", strconv.Itoa(startFlags.port),
-				"--no-open",
-				"--daemon",
-			}
-			c := exec.Command(args[0], args[1:]...)
-			c.Stdin = nil
-			c.Stdout = nil
-			c.Stderr = nil
-			if err := c.Start(); err != nil {
+			c, err := startDaemon(startFlags.port)
+			if err != nil {
 				return fmt.Errorf("failed to start background server: %w", err)
 			}
 
