@@ -1,10 +1,10 @@
 package db
 
-const refColumns = `id, workspace_id, title, slug, filename, path, summary, created_at, updated_at`
+const refColumns = `id, workspace_id, title, slug, filename, path, summary, COALESCE(body_text, ''), created_at, updated_at`
 
 func scanRef(row interface{ Scan(...any) error }) (Reference, error) {
 	var r Reference
-	err := row.Scan(&r.ID, &r.WorkspaceID, &r.Title, &r.Slug, &r.Filename, &r.Path, &r.Summary, &r.CreatedAt, &r.UpdatedAt)
+	err := row.Scan(&r.ID, &r.WorkspaceID, &r.Title, &r.Slug, &r.Filename, &r.Path, &r.Summary, &r.BodyText, &r.CreatedAt, &r.UpdatedAt)
 	return r, err
 }
 

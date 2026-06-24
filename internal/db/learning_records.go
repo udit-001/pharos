@@ -1,11 +1,11 @@
 package db
 
-const recordColumns = `id, workspace_id, title, sequence_number, filename, path, status, superseded_by, summary, created_at, updated_at`
+const recordColumns = `id, workspace_id, title, sequence_number, filename, path, status, superseded_by, summary, body_text, created_at, updated_at`
 
 func scanRecord(row interface{ Scan(...any) error }) (LearningRecord, error) {
 	var r LearningRecord
 	var supersededBy *int64
-	err := row.Scan(&r.ID, &r.WorkspaceID, &r.Title, &r.SequenceNumber, &r.Filename, &r.Path, &r.Status, &supersededBy, &r.Summary, &r.CreatedAt, &r.UpdatedAt)
+	err := row.Scan(&r.ID, &r.WorkspaceID, &r.Title, &r.SequenceNumber, &r.Filename, &r.Path, &r.Status, &supersededBy, &r.Summary, &r.BodyText, &r.CreatedAt, &r.UpdatedAt)
 	if supersededBy != nil {
 		r.SupersededBy = *supersededBy
 	}

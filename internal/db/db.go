@@ -93,6 +93,56 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+// IndexSearch rebuilds the search index for all entity types across all
+// workspaces by reading on-disk files and extracting plain text. Idempotent:
+// already-indexed items are skipped.
+func (s *Store) IndexSearch() (int, error) {
+	wsList, err := s.GetWorkspaces()
+	if err != nil {
+		return 0, fmt.Errorf("list workspaces: %w", err)
+	}
+	var total int
+	for _, w := range wsList {
+		wsStore, err := s.Workspace(w.Name)
+		if err != nil {
+			continue
+		}
+		n, _ := wsStore.IndexLessons()
+		total += n
+		n, _ = wsStore.IndexRefs()
+		total += n
+		n, _ = wsStore.IndexRecords()
+		total += n
+	}
+	return total, nil
+}
+
+// Search performs full-text search across all workspaces and all entity types
+// (lessons, learning records, references). Returns flat results ordered by
+// workspace (most recently studied first), then by type, then by sequence.
+func (s *Store) Search(query string) ([]SearchResult, error) {
+	wsList, err := s.GetWorkspaces()
+	if err != nil {
+		return nil, fmt.Errorf("list workspaces: %w", err)
+	}
+	var results []SearchResult
+	for _, w := range wsList {
+		wsStore, err := s.Workspace(w.Name)
+		if err != nil {
+			continue
+		}
+		scoped, err := wsStore.Search(query)
+		if err != nil {
+			continue
+		}
+		results = append(results, scoped...)
+	}
+	if results == nil {
+		return []SearchResult{}, nil
+	}
+	return results, nil
+}
+
 func (s *Store) RebuildFTS() error {
 	_, _ = s.db.Exec("INSERT INTO lessons_fts(lessons_fts) VALUES('rebuild')")
 	_, _ = s.db.Exec("INSERT INTO records_fts(records_fts) VALUES('rebuild')")

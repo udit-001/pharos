@@ -26,6 +26,7 @@ type Lesson struct {
 	Filename        string `db:"filename" json:"filename"` // e.g. 0003-joins.html
 	Path            string `db:"path" json:"path"`         // relative to workspace
 	Summary         string `db:"summary" json:"summary"`
+	BodyText        string `db:"body_text" json:"bodyText,omitempty"`
 	CreatedAt       string `db:"created_at" json:"createdAt"`
 	UpdatedAt       string `db:"updated_at" json:"updatedAt"`
 }
@@ -41,6 +42,7 @@ type LearningRecord struct {
 	Status          string `db:"status" json:"status"`     // active | superseded
 	SupersededBy    int64  `db:"superseded_by" json:"supersededBy,omitempty"`
 	Summary         string `db:"summary" json:"summary"`
+	BodyText        string `db:"body_text" json:"bodyText,omitempty"`
 	CreatedAt       string `db:"created_at" json:"createdAt"`
 	UpdatedAt       string `db:"updated_at" json:"updatedAt"`
 }
@@ -54,6 +56,7 @@ type Reference struct {
 	Filename        string `db:"filename" json:"filename"`
 	Path            string `db:"path" json:"path"`
 	Summary         string `db:"summary" json:"summary"`
+	BodyText        string `db:"body_text" json:"bodyText,omitempty"`
 	CreatedAt       string `db:"created_at" json:"createdAt"`
 	UpdatedAt       string `db:"updated_at" json:"updatedAt"`
 }
@@ -65,6 +68,20 @@ func (w Workspace) DisplayName() string {
 		return w.Topic
 	}
 	return w.Name
+}
+
+// SearchResult is one result from a cross-entity, cross-workspace search.
+// URLs are a presentation concern and are constructed by the caller from the
+// fields here.
+type SearchResult struct {
+	Type           string `json:"type"`           // "lesson" | "record" | "ref"
+	Title          string `json:"title"`
+	Summary        string `json:"summary"`
+	Snippet        string `json:"snippet,omitempty"` // body content preview when summary is empty
+	WorkspaceName  string `json:"workspaceName"`
+	WorkspaceID    int64  `json:"-"`
+	SequenceNumber int    `json:"sequenceNumber,omitempty"` // lessons and records
+	Slug           string `json:"slug,omitempty"`           // refs only
 }
 
 // Settings holds user preferences.

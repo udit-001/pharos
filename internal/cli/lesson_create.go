@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/spf13/cobra"
@@ -36,21 +35,6 @@ Examples:
 		}
 		ws := wsStore.Workspace()
 
-		// Determine next sequence number
-		lessons, err := wsStore.GetLessons()
-		if err != nil {
-			return formatError("failed to get lessons", err)
-		}
-		seqNum := len(lessons) + 1
-
-		// Create filename
-		slug := db.Slugify(title)
-		filename := fmt.Sprintf("%04d-%s.html", seqNum, slug)
-		lessonPath := filepath.Join(ws.Path, "lessons", filename)
-
-		// Lesson content comes from --body-file (required) — no stub template.
-		// The teach skill writes the HTML to a temp file and passes it here, so
-		// multiline content lands verbatim without shell-escaping.
 		bodyFile, _ := cmd.Flags().GetString("body-file")
 		if bodyFile == "" {
 			return fmt.Errorf("--body-file is required\n  Write the lesson HTML to a file, then: pharos lesson create %q --workspace %q --body-file <path>", title, ws.Name)
@@ -59,22 +43,11 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("read body file: %w", err)
 		}
-		html := string(data)
 
-		if err := os.WriteFile(lessonPath, []byte(html), 0644); err != nil {
-			return fmt.Errorf("write lesson file: %w", err)
-		}
-
-		// Save to database
-		created, err := wsStore.AddLesson(db.Lesson{
-			Title:    title,
-			Filename: filename,
-			Path:     filepath.Join("lessons", filename),
-		})
+		created, err := wsStore.CreateLesson(title, string(data))
 		if err != nil {
-			return formatError("failed to save lesson", err)
+			return formatError("failed to create lesson", err)
 		}
-
 
 		if jsonOut {
 			printJSON(created)
@@ -83,7 +56,7 @@ Examples:
 
 		fmt.Println()
 		fmt.Printf("  ✓ Lesson created: %s\n", title)
-		fmt.Printf("    File: %s\n", lessonPath)
+		fmt.Printf("    File: %s/%s\n", ws.Path, created.Path)
 		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 
