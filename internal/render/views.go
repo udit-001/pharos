@@ -294,44 +294,49 @@ func docHint(kind string) string {
 
 // Search renders the search page body.
 func Search(d SearchData) string {
-	body := fmt.Sprintf(`
-		<h1 class="text-xl font-semibold text-slate-800 tracking-tight">Search</h1>
-		<p class="text-sm text-slate-400 mt-0.5 mb-5">Search across all lessons and learning records</p>
-		<form action="/search" method="GET" class="mb-5">
-			<input type="text" name="q" value="%s" placeholder="Search..." class="w-full py-2 px-3 border border-slate-200 rounded-lg text-sm focus:border-slate-400 focus:outline-none transition-colors">
-		</form>`, esc(d.Query))
-
 	if d.Query == "" {
-		return body
+		return `<h1 class="text-xl font-semibold text-slate-800 tracking-tight mb-4">Search</h1>`
 	}
 
 	if len(d.Results) == 0 {
-		body += fmt.Sprintf(`<div class="text-center py-12 text-slate-400">
-			<div class="text-4xl mb-4 opacity-50">%s</div>
-			<p class="text-sm">No results for &ldquo;%s&rdquo;</p>
-		</div>`, iconSearch(), esc(d.Query))
-		return body
+		return fmt.Sprintf(`
+		<h1 class="text-xl font-semibold text-slate-800 tracking-tight mb-2">No results for &ldquo;%s&rdquo;</h1>
+		<p class="text-sm text-slate-400">Try different keywords or check your spelling</p>`, esc(d.Query))
 	}
+
+	body := fmt.Sprintf(`<h1 class="text-xl font-semibold text-slate-800 tracking-tight mb-4">%d %s for &ldquo;%s&rdquo;</h1>`, len(d.Results), pluralResults(len(d.Results)), esc(d.Query))
 
 	var results []string
 	for _, r := range d.Results {
-		ico := iconBook()
-		typeLabel := "Lesson"
+		typeBadge := `<span class="badge-lesson inline-flex items-center text-xs font-medium px-2 py-0.5 rounded">Lesson</span>`
 		switch r.Type {
 		case "record":
-			ico = iconNote()
-			typeLabel = "Record"
+			typeBadge = `<span class="badge-record inline-flex items-center text-xs font-medium px-2 py-0.5 rounded">Record</span>`
 		case "ref":
-			ico = iconBookmark()
-			typeLabel = "Reference"
+			typeBadge = `<span class="badge-ref inline-flex items-center text-xs font-medium px-2 py-0.5 rounded">Reference</span>`
 		}
-		results = append(results, fmt.Sprintf(`<div class="py-3 border-b border-slate-100 last:border-0">
-			<a href="%s" class="font-medium text-blue-700 hover:text-blue-900 no-underline flex items-center gap-2">%s %s</a>
-			<div class="text-sm text-slate-400 mt-0.5">%s in <strong class="text-slate-500">%s</strong>%s</div>
-		</div>`, esc(r.URL), ico, esc(r.Title), typeLabel, esc(r.Workspace), withSummary(r.Summary)))
+		meta := fmt.Sprintf(`%s <span class="text-slate-300">&middot;</span> %s`, typeBadge, esc(r.Workspace))
+		snippetBlock := ""
+		if r.Summary != "" {
+			snippetBlock = `<div class="text-sm text-slate-400 mt-1.5 leading-relaxed">` + esc(r.Summary) + `</div>`
+		} else if r.Snippet != "" {
+			snippetBlock = `<div class="text-sm text-slate-400 mt-1.5 leading-relaxed line-clamp-2">` + esc(r.Snippet) + `</div>`
+		}
+		results = append(results, fmt.Sprintf(`<a href="%s" class="search-result block rounded-lg border border-slate-100 px-5 py-4 no-underline hover:border-slate-200 transition-colors">
+			<div class="flex items-center gap-2 text-xs text-slate-400 mb-1.5">%s</div>
+			<div class="font-medium text-blue-700 hover:text-blue-900">%s</div>
+			%s
+		</a>`, esc(r.URL), meta, esc(r.Title), snippetBlock))
 	}
-	body += `<div class="bg-white rounded-lg border border-slate-200 p-4">` + strings.Join(results, "") + `</div>`
-	return body
+	body += `<div class="flex flex-col gap-3">` + strings.Join(results, "") + `</div>`
+	return `<div class="max-w-2xl mx-auto">` + body + `</div>`
+}
+
+func pluralResults(n int) string {
+	if n == 1 {
+		return "result"
+	}
+	return "results"
 }
 
 // statusTag renders an active/superseded badge.

@@ -51,6 +51,7 @@
   --color-red-700: #d35f5f;
   --color-blue-100: #4c566a;
   --color-blue-700: #81a1c1;
+  --color-blue-900: #88c0d0;
 }
 
 /* ── Custom scrollbar ── */
@@ -273,6 +274,50 @@
   color: var(--color-blue-700, #81a1c1);
   background: rgba(129, 161, 193, 0.15);
   border-left-color: var(--color-blue-700, #81a1c1);
+}
+
+/* ── Empty state icon ── */
+.empty-state-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+/* ── Search type badges ── */
+.badge-lesson {
+  background: var(--color-blue-100);
+  color: var(--color-blue-700);
+}
+.badge-record {
+  background: var(--color-emerald-100);
+  color: var(--color-emerald-600);
+}
+.badge-ref {
+  background: var(--color-amber-100);
+  color: var(--color-amber-600);
+}
+[data-theme="dark"] .badge-lesson {
+  background: rgba(129, 161, 193, 0.35);
+  color: #81a1c1;
+}
+[data-theme="dark"] .badge-record {
+  background: rgba(163, 190, 140, 0.25);
+  color: #a3be8c;
+}
+[data-theme="dark"] .badge-ref {
+  background: rgba(208, 135, 112, 0.25);
+  color: #d08770;
+}
+
+/* ── Search result cards ── */
+.search-result {
+  background: var(--color-white);
+}
+[data-theme="dark"] .search-result {
+  background: var(--color-slate-50);
+  border-color: var(--color-slate-200);
+}
+[data-theme="dark"] .search-result:hover {
+  border-color: var(--color-slate-300);
 }
 
 /* ── Dark theme: Continue link contrast ── */

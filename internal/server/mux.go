@@ -160,14 +160,15 @@ func toRenderRefs(refs []db.SidebarRef) []render.RefEntry {
 // writePage renders a full page and writes it to the response. If sd is
 // non-nil, it's used for the sidebar; nil gives an empty sidebar (dashboard,
 // search).
-func writePage(w http.ResponseWriter, sd *db.SidebarData, title, activeWS, activeType string, activeSeq int, activeSlug string, content string) {
+func writePage(w http.ResponseWriter, sd *db.SidebarData, title, activeWS, activeType string, activeSeq int, activeSlug string, searchQuery string, content string) {
 	f := render.Frame{
-		Title:      title,
-		ActiveWS:   activeWS,
-		ActiveType: activeType,
-		ActiveSeq:  activeSeq,
-		ActiveSlug: activeSlug,
-		Sidebar:    toRenderSidebar(sd),
+		Title:       title,
+		ActiveWS:    activeWS,
+		ActiveType:  activeType,
+		ActiveSeq:   activeSeq,
+		ActiveSlug:  activeSlug,
+		SearchQuery: searchQuery,
+		Sidebar:     toRenderSidebar(sd),
 	}
 	fmt.Fprint(w, render.Page(f, content))
 }
@@ -263,48 +264,31 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 			jsonError(w, "missing q", 400)
 			return
 		}
-		type result struct {
+
+		dbResults, _ := store.Search(q)
+		type apiResult struct {
 			Type      string `json:"type"`
 			Title     string `json:"title"`
 			URL       string `json:"url"`
 			Summary   string `json:"summary"`
+			Snippet   string `json:"snippet,omitempty"`
 			Workspace string `json:"workspace"`
 		}
-		var results []result
-
-		wsList, _ := store.GetWorkspaces()
-		for _, w := range wsList {
-			wsStore, err := store.Workspace(w.Name)
-			if err != nil {
-				continue
+		results := make([]apiResult, 0, len(dbResults))
+		for _, r := range dbResults {
+			var url string
+			switch r.Type {
+			case "lesson":
+				url = fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(r.WorkspaceName), r.SequenceNumber)
+			case "record":
+				url = fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(r.WorkspaceName), r.SequenceNumber)
+			case "ref":
+				url = fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(r.WorkspaceName), urlPathEscape(r.Slug))
 			}
-			lessons, _ := wsStore.SearchLessons(q)
-			for _, l := range lessons {
-				results = append(results, result{
-					Type: "lesson", Title: l.Title,
-					URL:     fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(w.Name), l.SequenceNumber),
-					Summary: l.Summary, Workspace: w.Name,
-				})
-			}
-			recs, _ := wsStore.SearchRecords(q)
-			for _, rec := range recs {
-				results = append(results, result{
-					Type: "record", Title: rec.Title,
-					URL:     fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(w.Name), rec.SequenceNumber),
-					Summary: rec.Summary, Workspace: w.Name,
-				})
-			}
-			refs, _ := wsStore.SearchRefs(q)
-			for _, ref := range refs {
-				results = append(results, result{
-					Type: "ref", Title: ref.Title,
-					URL:     fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(w.Name), urlPathEscape(ref.Slug)),
-					Summary: ref.Summary, Workspace: w.Name,
-				})
-			}
-		}
-		if results == nil {
-			results = []result{}
+			results = append(results, apiResult{
+				Type: r.Type, Title: r.Title,
+				URL: url, Summary: r.Summary, Snippet: r.Snippet, Workspace: r.WorkspaceName,
+			})
 		}
 		jsonResponse(w, results)
 	}
@@ -319,7 +303,7 @@ func urlPathEscape(s string) string {
 
 func handleAboutPage(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		writePage(w, nil, "About — Pharos", "", "", 0, "", render.About())
+		writePage(w, nil, "About — Pharos", "", "", 0, "", "", render.About())
 	}
 }
 
@@ -382,7 +366,7 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 			})
 		}
 
-		writePage(w, nil, "Dashboard", "", "", 0, "", render.Dashboard(data))
+		writePage(w, nil, "Dashboard", "", "", 0, "", "", render.Dashboard(data))
 	}
 }
 
@@ -436,7 +420,7 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 			Records:   toRenderRecords(sd.Records),
 			Refs:      toRenderRefs(sd.Refs),
 		}
-		writePage(w, &sd, ws.DisplayName(), ws.Name, "", 0, "", render.WorkspacePage(data))
+		writePage(w, &sd, ws.DisplayName(), ws.Name, "", 0, "", "", render.WorkspacePage(data))
 	}
 }
 
@@ -505,7 +489,7 @@ func handleDocPage(store *db.Store, kind string) http.HandlerFunc {
 		}
 
 		sd, _ := wsStore.GetSidebarData()
-		writePage(w, &sd, dk.title, name, kind, 0, "", render.Document(data))
+		writePage(w, &sd, dk.title, name, kind, 0, "", "", render.Document(data))
 	}
 }
 
@@ -541,7 +525,7 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 			Total:  len(sd.Lessons),
 		}
 		wsStore.SetLastViewed("lesson", seq)
-		writePage(w, &sd, current.Title, name, "lesson", seq, "", render.Lesson(data))
+		writePage(w, &sd, current.Title, name, "lesson", seq, "", "", render.Lesson(data))
 	}
 }
 
@@ -580,7 +564,7 @@ func handleRecordPage(store *db.Store) http.HandlerFunc {
 		data := render.RecordData{Title: current.Title, Status: current.Status, BodyHTML: buf.String()}
 		wsStore.SetLastViewed("record", seq)
 		sd, _ := wsStore.GetSidebarData()
-		writePage(w, &sd, current.Title, name, "record", seq, "", render.Record(data))
+		writePage(w, &sd, current.Title, name, "record", seq, "", "", render.Record(data))
 	}
 }
 
@@ -609,7 +593,7 @@ func handleRefPage(store *db.Store) http.HandlerFunc {
 		}
 		wsStore.SetLastViewed("ref", 0)
 		sd, _ := wsStore.GetSidebarData()
-		writePage(w, &sd, current.Title, name, "ref", 0, slug, render.Ref(data))
+		writePage(w, &sd, current.Title, name, "ref", 0, slug, "", render.Ref(data))
 	}
 }
 
@@ -621,40 +605,26 @@ func handleSearchPage(store *db.Store) http.HandlerFunc {
 		data := render.SearchData{Query: q}
 
 		if q != "" {
-			wsList, _ := store.GetWorkspaces()
-			for _, w := range wsList {
-				wsStore, err := store.Workspace(w.Name)
-				if err != nil {
-					continue
+			dbResults, _ := store.Search(q)
+			for _, res := range dbResults {
+				var url string
+				switch res.Type {
+				case "lesson":
+					url = fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(res.WorkspaceName), res.SequenceNumber)
+				case "record":
+					url = fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(res.WorkspaceName), res.SequenceNumber)
+				case "ref":
+					url = fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(res.WorkspaceName), urlPathEscape(res.Slug))
 				}
-				lessons, _ := wsStore.SearchLessons(q)
-				for _, l := range lessons {
-					data.Results = append(data.Results, render.SearchResult{
-						Type: "lesson", Title: l.Title,
-						URL:       fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(w.Name), l.SequenceNumber),
-						Workspace: w.Name, Summary: l.Summary,
-					})
-				}
-				recs, _ := wsStore.SearchRecords(q)
-				for _, rec := range recs {
-					data.Results = append(data.Results, render.SearchResult{
-						Type: "record", Title: rec.Title,
-						URL:       fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(w.Name), rec.SequenceNumber),
-						Workspace: w.Name, Summary: rec.Summary,
-					})
-				}
-				refs, _ := wsStore.SearchRefs(q)
-				for _, ref := range refs {
-					data.Results = append(data.Results, render.SearchResult{
-						Type: "ref", Title: ref.Title,
-						URL:       fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(w.Name), urlPathEscape(ref.Slug)),
-						Workspace: w.Name, Summary: ref.Summary,
-					})
-				}
+				data.Results = append(data.Results, render.SearchResult{
+					Type: res.Type, Title: res.Title,
+					URL: url, Workspace: res.WorkspaceName,
+					Summary: res.Summary, Snippet: res.Snippet,
+				})
 			}
 		}
 
-		writePage(w, nil, "Search", "", "", 0, "", render.Search(data))
+		writePage(w, nil, "Search", "", "", 0, "", q, render.Search(data))
 	}
 }
 

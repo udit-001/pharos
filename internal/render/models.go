@@ -4,12 +4,13 @@ package render
 // sidebar, and document wrapper. Handlers build a Frame plus page-specific
 // content data, then call Page(frame, content).
 type Frame struct {
-	Title      string // document <title> and topbar heading
-	ActiveWS   string // active workspace name (for breadcrumb + sidebar highlight)
-	ActiveType string // "", "lesson", "record", "ref" (sidebar highlight)
-	ActiveSeq  int    // active sequence number (sidebar highlight for lesson/record)
-	ActiveSlug string // active slug (sidebar highlight for ref)
-	Sidebar    Sidebar
+	Title       string // document <title> and topbar heading
+	ActiveWS    string // active workspace name (for breadcrumb + sidebar highlight)
+	ActiveType  string // "", "lesson", "record", "ref" (sidebar highlight)
+	ActiveSeq   int    // active sequence number (sidebar highlight for lesson/record)
+	ActiveSlug  string // active slug (sidebar highlight for ref)
+	SearchQuery string // current search query for search page
+	Sidebar     Sidebar
 }
 
 // Workspace is the render-owned projection of a workspace. It carries only
@@ -129,6 +130,7 @@ type SearchResult struct {
 	URL         string
 	Workspace   string
 	Summary     string
+	Snippet     string // body content preview when summary is empty
 }
 
 // SearchData drives the search page.

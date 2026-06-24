@@ -38,7 +38,7 @@ func Page(f Frame, content string) string {
       <div class="flex items-center gap-2">
         <form action="/search" method="GET" class="flex items-center">
           <div class="flex items-center border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus-within:border-slate-400 transition-colors">
-            <input type="text" name="q" placeholder="Search..." aria-label="Search" class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-all">
+            <input type="text" name="q" placeholder="Search..." aria-label="Search" value="%s" class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-all">
           </div>
         </form>
         <a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" title="About Pharos">` + iconHelp() + `</a>
@@ -93,6 +93,7 @@ function toggleTheme() {
 		breadcrumbs(f),
 		topbarTitle(f),
 		topbarCenterBranding(f),
+		esc(f.SearchQuery),
 		contentPaddingClass(f.FrameContent()),
 		frameMaxWidthClass(f.FrameContent()),
 		frameContentClass(f.FrameContent()),
@@ -105,7 +106,7 @@ func sidebarOverlay() string {
 }
 
 func sidebarHeader(f Frame) string {
-	return `<div class="flex items-center gap-2.5 px-5 py-2 border-b border-slate-200">
+	return `<div class="flex items-center gap-2.5 px-5 py-3 border-b border-slate-200">
       <a href="/" class="flex items-center gap-2 text-sm font-semibold text-slate-800 hover:text-slate-600 no-underline">
         ` + logoSVG() + `
         Pharos
