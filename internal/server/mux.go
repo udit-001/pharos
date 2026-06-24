@@ -69,6 +69,7 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /workspace/{name}/lesson/{seq}", handleLessonPage(store))
 	mux.HandleFunc("GET /workspace/{name}/record/{seq}", handleRecordPage(store))
 	mux.HandleFunc("GET /workspace/{name}/ref/{slug}", handleRefPage(store))
+	mux.HandleFunc("GET /about", handleAboutPage(store))
 	mux.HandleFunc("GET /search", handleSearchPage(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/{file}", handleLessonHTML(store))
 	mux.HandleFunc("GET /api/ref-html/{name}/{file}", handleRefHTML(store))
@@ -315,6 +316,12 @@ func urlPathEscape(s string) string {
 }
 
 // ── Dashboard ──
+
+func handleAboutPage(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writePage(w, nil, "About — Pharos", "", "", 0, "", render.About())
+	}
+}
 
 func handleAppShell(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
