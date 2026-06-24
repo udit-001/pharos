@@ -15,15 +15,13 @@ cd pharos
 pharos tailwind download
 
 # Build the binary (rebuilds CSS + compiles Go)
-make build
-```
+pharos build
 
-```bash
-# Build the binary (rebuilds CSS + compiles Go)
-make build
+# Go-only build (skip CSS rebuild)
+pharos build --no-css
 
-# Or install directly
-go install ./cmd/pharos
+# Or install directly to GOPATH/bin
+make install
 ```
 
 ## Development
