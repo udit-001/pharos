@@ -30,7 +30,6 @@ pharos start --dev-css                   # Serve CSS from disk (dev mode)
 
 ```bash
 pharos workspace create "<name>"         # Create a new workspace
-pharos workspace create "<name>" --cwd   # Create in current directory
 pharos workspace create "<name>" --dir <path>    # Create at custom path
 pharos workspace create "<name>" --topic "<title>"  # Override display title
 

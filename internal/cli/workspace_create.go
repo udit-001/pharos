@@ -24,13 +24,11 @@ The workspace is a directory under ~/.pharos/workspaces/ containing:
   reference/          — Cheat sheets and reference docs
   assets/             — Reusable components (stylesheets, quizzes)
 
-Use '--dir <path>' to place the workspace elsewhere, or work
-inside the current directory with '--cwd'.
+Use '--dir <path>' to place the workspace elsewhere.
 
 Examples:
   pharos workspace create "SQL for Research"
-  pharos workspace create "Jump Start a Car" --dir ./my-workspace
-  pharos workspace create "Yoga for Beginners" --cwd`,
+  pharos workspace create "Jump Start a Car" --dir ./my-workspace`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -39,17 +37,12 @@ Examples:
 		slug := db.Slugify(displayName)
 
 		// Determine workspace path
-		useCWD, _ := cmd.Flags().GetBool("cwd")
 		customDir, _ := cmd.Flags().GetString("dir")
 
 		var wsPath string
-		switch {
-		case customDir != "":
+		if customDir != "" {
 			wsPath = customDir
-		case useCWD:
-			cwd, _ := os.Getwd()
-			wsPath = filepath.Join(cwd, slug)
-		default:
+		} else {
 			wsPath = filepath.Join(defaultWorkspacesDir(), slug)
 		}
 
@@ -178,7 +171,6 @@ Definition. _Avoid_: Synonyms to avoid.
 
 func init() {
 	workspaceCmd.AddCommand(workspaceCreateCmd)
-	workspaceCreateCmd.Flags().Bool("cwd", false, "Create workspace in current directory")
 	workspaceCreateCmd.Flags().String("dir", "", "Create workspace at a custom path")
 	workspaceCreateCmd.Flags().String("topic", "", "Friendly display title for the workspace (default: the name you passed)")
 }

@@ -7,7 +7,6 @@ mechanism; the teach skill decides _when_ and _why_ to run each.
 
 ```bash
 pharos workspace create "<name>"              # Create workspace (auto-sets as current)
-pharos workspace create "<name>" --cwd        # Create in current directory
 pharos workspace create "<name>" --dir <path> # Create at a custom path
 pharos workspace create "<name>" --topic "<friendly title>"  # Override the display title
 
