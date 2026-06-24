@@ -393,7 +393,7 @@ func TestGetWorkspacesCountsCorrect(t *testing.T) {
 	}
 
 	cases := []struct {
-		name               string
+		name                  string
 		wantL, wantR, wantRef int
 	}{
 		{"alpha", 2, 1, 1},

@@ -28,6 +28,9 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Gofmt
+        run: test -z "$(gofmt -l .)"
+
       - name: Vet
         run: go vet ./...
 

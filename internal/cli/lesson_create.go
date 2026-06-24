@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/udit-001/pharos/internal/db"
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/db"
 )
 
 var lessonCreateCmd = &cobra.Command{

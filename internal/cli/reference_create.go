@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/udit-001/pharos/internal/db"
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/db"
 )
 
 var refCreateCmd = &cobra.Command{
@@ -70,7 +70,6 @@ Examples:
 		if err != nil {
 			return formatError("failed to save reference", err)
 		}
-
 
 		if jsonOut {
 			printJSON(created)

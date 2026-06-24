@@ -1,4 +1,4 @@
-.PHONY: build install clean run test css tidy dev
+.PHONY: build install clean run test css tidy dev fmt check
 
 # Build the pharos CLI binary (includes embedded CSS)
 build: css
@@ -24,6 +24,16 @@ run: css
 
 # Test
 test:
+	go test ./...
+
+# Format Go code
+fmt:
+	gofmt -s -w .
+
+# Check formatting, vet, and test
+check:
+	test -z "$(gofmt -l .)"
+	go vet ./...
 	go test ./...
 
 # Tidy dependencies

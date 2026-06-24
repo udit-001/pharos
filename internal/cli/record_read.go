@@ -52,15 +52,15 @@ Examples:
 
 		if jsonOut {
 			result := map[string]any{
-				"id":              current.ID,
-				"sequenceNumber":  current.SequenceNumber,
-				"title":           current.Title,
-				"filename":        current.Filename,
-				"status":          current.Status,
-				"summary":         current.Summary,
-				"createdAt":       current.CreatedAt,
-				"updatedAt":       current.UpdatedAt,
-				"workspace":       ws.Name,
+				"id":             current.ID,
+				"sequenceNumber": current.SequenceNumber,
+				"title":          current.Title,
+				"filename":       current.Filename,
+				"status":         current.Status,
+				"summary":        current.Summary,
+				"createdAt":      current.CreatedAt,
+				"updatedAt":      current.UpdatedAt,
+				"workspace":      ws.Name,
 			}
 			if !metaOnly {
 				data, err := os.ReadFile(wsStore.Layout().RecordPath(current.Filename))

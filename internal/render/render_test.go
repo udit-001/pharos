@@ -9,7 +9,7 @@ import (
 // a pure function of its view model — the seam created in LEARN-10.
 func TestDashboardRendersStatsAndWorkspaces(t *testing.T) {
 	d := DashboardData{
-		Stats:      Stats{Workspaces: 2, Lessons: 5, Records: 3, Refs: 1},
+		Stats: Stats{Workspaces: 2, Lessons: 5, Records: 3, Refs: 1},
 		Workspaces: []WorkspaceCard{
 			{Name: "sql-basics", LessonCount: 3, RecordCount: 1, RefCount: 1, LastStudied: "2026-06-21"},
 			{Name: "golang", LessonCount: 2, RecordCount: 2, RefCount: 0, LastStudied: "2026-06-20"},

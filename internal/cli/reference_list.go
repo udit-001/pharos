@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/udit-001/pharos/internal/db"
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/db"
 )
 
 var refListCmd = &cobra.Command{

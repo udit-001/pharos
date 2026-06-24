@@ -17,8 +17,8 @@ type Frame struct {
 // the fields render needs (name, topic, counts) — the server adapter copies
 // from db.Workspace so render never imports db.
 type Workspace struct {
-	Name                            string
-	Topic                           string
+	Name                               string
+	Topic                              string
 	LessonCount, RecordCount, RefCount int
 }
 
@@ -72,10 +72,10 @@ type ContinueItem struct {
 
 // WorkspaceCard is one tile in the dashboard workspace grid.
 type WorkspaceCard struct {
-	Name                                 string
-	Topic                                string // friendly display title; empty falls back to Name
-	LessonCount, RecordCount, RefCount   int
-	LastStudied                          string
+	Name                               string
+	Topic                              string // friendly display title; empty falls back to Name
+	LessonCount, RecordCount, RefCount int
+	LastStudied                        string
 }
 
 // DashboardData drives the dashboard page.
@@ -104,8 +104,8 @@ type LessonData struct {
 
 // RecordData drives a learning-record detail page (rendered markdown).
 type RecordData struct {
-	Title   string
-	Status  string // "active" | "superseded"
+	Title    string
+	Status   string // "active" | "superseded"
 	BodyHTML string
 }
 
@@ -125,12 +125,12 @@ type DocumentData struct {
 
 // SearchResult is one row on the search page.
 type SearchResult struct {
-	Type        string // "lesson" | "record" | "ref"
-	Title       string
-	URL         string
-	Workspace   string
-	Summary     string
-	Snippet     string // body content preview when summary is empty
+	Type      string // "lesson" | "record" | "ref"
+	Title     string
+	URL       string
+	Workspace string
+	Summary   string
+	Snippet   string // body content preview when summary is empty
 }
 
 // SearchData drives the search page.

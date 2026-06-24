@@ -125,11 +125,11 @@ func toRenderSidebar(sd *db.SidebarData) render.Sidebar {
 
 func toRenderWorkspace(ws db.Workspace, lessonCount, recordCount, refCount int) render.Workspace {
 	return render.Workspace{
-		Name:         ws.Name,
-		Topic:        ws.Topic,
-		LessonCount:  lessonCount,
-		RecordCount:  recordCount,
-		RefCount:     refCount,
+		Name:        ws.Name,
+		Topic:       ws.Topic,
+		LessonCount: lessonCount,
+		RecordCount: recordCount,
+		RefCount:    refCount,
 	}
 }
 

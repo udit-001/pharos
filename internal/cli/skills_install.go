@@ -10,14 +10,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/udit-001/pharos/internal/skills"
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/skills"
 )
 
 type agentTarget struct {
-	name    string
-	subdir  string // relative path under the install root, e.g. ".opencode/skills"
-	detect  func() bool
+	name   string
+	subdir string // relative path under the install root, e.g. ".opencode/skills"
+	detect func() bool
 }
 
 func (a agentTarget) globalDir() string {

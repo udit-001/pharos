@@ -55,7 +55,7 @@ Examples:
 
 		if jsonOut {
 			printJSON(map[string]any{
-				"created":   created,
+				"created":    created,
 				"superseded": old,
 			})
 			return nil
