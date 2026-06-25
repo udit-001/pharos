@@ -65,7 +65,7 @@ snapshot:
   version_template: '{{ incpatch .Version }}-next'
 
 changelog:
-  use: github
+  use: git
   sort: asc
   filters:
     exclude:
@@ -75,8 +75,6 @@ changelog:
       - '^ci:'
       - 'Merge pull request'
       - 'Merge branch'
-      - '@udit-001'
-      - '@udit'
 
 release:
   github:
