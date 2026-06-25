@@ -75,6 +75,8 @@ changelog:
       - '^ci:'
       - 'Merge pull request'
       - 'Merge branch'
+      - '@udit-001'
+      - '@udit'
 
 release:
   github:
