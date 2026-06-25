@@ -52,12 +52,14 @@ workspace exists, it is used automatically.
 ```bash
 pharos mission    [--edit | --body-file <path>]
 pharos resources  [--edit | --body-file <path>]
-pharos glossary   [--edit | --body-file <path>]
+pharos glossary                                    # Display glossary terms
+pharos glossary add "<term>" "<definition>"        # Add or update a term
+pharos glossary delete "<term>"                    # Remove a term
 pharos notes      [--edit | --body-file <path>] [--append]
 ```
 
-- `--edit`: open in `$EDITOR`
-- `--body-file <path>`: write content from a file
+- `--edit`: open in `$EDITOR` (mission, resources, notes only)
+- `--body-file <path>`: write content from a file (mission, resources, notes only)
 - `--append` (notes only): append instead of overwrite
 - No flags: read and print
 
@@ -210,7 +212,6 @@ Sequence numbers are assigned by the CLI on creation — don't hand-number.
 <name>/
 ├── MISSION.md            # Why — reason the user is learning
 ├── RESOURCES.md          # Curated knowledge sources and communities
-├── GLOSSARY.md           # Canonical terminology (built over time)
 ├── NOTES.md              # User preferences and working notes
 ├── lessons/              # Self-contained lesson HTML files
 ├── learning-records/     # ADR-style records of what was learned

@@ -257,6 +257,35 @@ func Document(d DocumentData) string {
 		</div>
 	`, hint, bigIcon(iconBookOpen(), 48), hint, esc(cmd))
 	}
+
+	if d.Kind == "glossary" && len(d.GlossaryTerms) > 0 {
+		var b strings.Builder
+		b.WriteString(`<div class="prose mt-4">`)
+		prevCat := "__init__"
+		for _, t := range d.GlossaryTerms {
+			cat := t.Category
+			if cat != prevCat {
+				if cat == "" {
+					b.WriteString(`<h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mt-8 first:mt-0" style="margin-bottom:0.75rem">Other</h2>`)
+				} else {
+					b.WriteString(fmt.Sprintf(`<h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mt-8 first:mt-0" style="margin-bottom:0.75rem">%s</h2>`, esc(cat)))
+				}
+				prevCat = cat
+			}
+			avoid := ""
+			if t.Avoid != "" {
+				avoid = fmt.Sprintf(`<div class="text-sm text-slate-400 mt-1.5"><span class="italic">Avoid:</span> %s</div>`, esc(t.Avoid))
+			}
+			b.WriteString(fmt.Sprintf(`<div class="pt-1 pb-4 mb-4 border-b border-slate-100 last:border-0 last:mb-0 last:pb-0 last:pt-0">
+				<div class="font-semibold" style="color:var(--color-slate-800)">%s</div>
+				<div class="mt-2">%s</div>
+				%s
+			</div>`, esc(t.Term), esc(t.Definition), avoid))
+		}
+		b.WriteString(`</div>`)
+		return b.String()
+	}
+
 	return fmt.Sprintf(`
 		<div class="prose mt-4">%s</div>
 	`, d.BodyHTML)
@@ -270,7 +299,7 @@ func docCommand(kind string) string {
 	case "resources":
 		return "pharos resources --edit"
 	case "glossary":
-		return "pharos glossary --edit"
+		return "pharos glossary add \"<term>\" \"<definition>\""
 	case "notes":
 		return "# edit NOTES.md directly"
 	}

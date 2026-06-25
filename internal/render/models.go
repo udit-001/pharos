@@ -115,12 +115,21 @@ type RefData struct {
 	RawURL string
 }
 
+// GlossaryTermRow is one term in the glossary page.
+type GlossaryTermRow struct {
+	Term       string
+	Definition string
+	Category   string
+	Avoid      string
+}
+
 // DocumentData drives workspace document pages (Mission, Resources, Glossary, Notes).
 type DocumentData struct {
-	Kind     string // "mission", "resources", "glossary", "notes"
-	Title    string
-	BodyHTML string
-	Empty    bool
+	Kind          string // "mission", "resources", "glossary", "notes"
+	Title         string
+	BodyHTML      string
+	Empty         bool
+	GlossaryTerms []GlossaryTermRow // set for kind=glossary
 }
 
 // SearchResult is one row on the search page.

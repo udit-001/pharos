@@ -56,7 +56,7 @@ var rootCmd = &cobra.Command{
 
 Data is stored in a local SQLite database. Each workspace is a
 directory containing MISSION.md, lessons/, learning-records/,
-reference/, assets/, RESOURCES.md, GLOSSARY.md, and NOTES.md.
+reference/, assets/, RESOURCES.md, and NOTES.md.
 
 Use 'pharos init' to set up pharos, then 'pharos workspace create'
 to start a workspace.

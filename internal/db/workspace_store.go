@@ -536,6 +536,73 @@ func (w *WorkspaceStore) ReviseRef(slug, bodyHTML string, title *string, summary
 	return err
 }
 
+// ── Glossary Terms ──
+
+// GetGlossaryTerms returns all glossary terms in this workspace, ordered by
+// category (uncategorised last) then term alphabetically.
+func (w *WorkspaceStore) GetGlossaryTerms() ([]GlossaryTerm, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf(`SELECT %s FROM glossary_terms WHERE workspace_id = ?
+			ORDER BY CASE WHEN category IS NULL OR category = '' THEN 1 ELSE 0 END,
+			category COLLATE NOCASE ASC, term COLLATE NOCASE ASC`, glossaryTermColumns),
+		w.ws.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanGlossaryTerms(rows)
+}
+
+// AddGlossaryTerm inserts or updates a single glossary term for the workspace.
+// If a term with the same name (case-insensitive) already exists, it is updated.
+// Empty category/avoid strings are treated as "leave unchanged" on update —
+// to clear a category or avoid, delete the term and re-add it.
+func (w *WorkspaceStore) AddGlossaryTerm(term, definition, category, avoid string) error {
+	term = strings.TrimSpace(term)
+	definition = strings.TrimSpace(definition)
+	category = strings.TrimSpace(category)
+	avoid = strings.TrimSpace(avoid)
+	if term == "" {
+		return fmt.Errorf("term must not be empty")
+	}
+	if definition == "" {
+		return fmt.Errorf("definition must not be empty")
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := w.db().Exec(
+		`INSERT INTO glossary_terms (workspace_id, term, definition, category, avoid, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(workspace_id, term) DO UPDATE SET
+			definition = excluded.definition,
+			category = COALESCE(NULLIF(excluded.category, ''), glossary_terms.category),
+			avoid = COALESCE(NULLIF(excluded.avoid, ''), glossary_terms.avoid),
+			updated_at = excluded.updated_at`,
+		w.ws.ID, term, definition, category, avoid, now, now,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert term %q: %w", term, err)
+	}
+	return nil
+}
+
+// DeleteGlossaryTerm removes a glossary term by name (case-insensitive).
+// Returns nil if the term doesn't exist — delete is idempotent.
+func (w *WorkspaceStore) DeleteGlossaryTerm(term string) error {
+	term = strings.TrimSpace(term)
+	if term == "" {
+		return fmt.Errorf("term must not be empty")
+	}
+	_, err := w.db().Exec(
+		"DELETE FROM glossary_terms WHERE workspace_id = ? AND term = ? COLLATE NOCASE",
+		w.ws.ID, term,
+	)
+	if err != nil {
+		return fmt.Errorf("delete term %q: %w", term, err)
+	}
+	return nil
+}
+
 // CreateAsset writes a file to the workspace's assets directory.
 func (w *WorkspaceStore) CreateAsset(filename, content string) error {
 	return writeToFile(w.Layout().AssetPath(filename), content)

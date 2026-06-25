@@ -56,6 +56,8 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /api/workspaces/{id}/lessons", jsonHandler(handleListLessons(store)))
 	mux.HandleFunc("GET /api/workspaces/{id}/records", jsonHandler(handleListRecords(store)))
 	mux.HandleFunc("GET /api/workspaces/{id}/refs", jsonHandler(handleListRefs(store)))
+	mux.HandleFunc("GET /api/workspaces/{id}/glossary-terms", jsonHandler(handleGetGlossaryTerms(store)))
+	mux.HandleFunc("GET /api/workspaces/name/{name}/glossary-terms", jsonHandler(handleGetGlossaryTermsByName(store)))
 	mux.HandleFunc("GET /api/stats", jsonHandler(handleStats(store)))
 	mux.HandleFunc("GET /api/search", jsonHandler(handleSearch(store)))
 
@@ -64,7 +66,7 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /workspace/{name}", handleWorkspacePage(store))
 	mux.HandleFunc("GET /workspace/{name}/mission", handleDocPage(store, "mission"))
 	mux.HandleFunc("GET /workspace/{name}/resources", handleDocPage(store, "resources"))
-	mux.HandleFunc("GET /workspace/{name}/glossary", handleDocPage(store, "glossary"))
+	mux.HandleFunc("GET /workspace/{name}/glossary", handleGlossaryPage(store))
 	mux.HandleFunc("GET /workspace/{name}/notes", handleDocPage(store, "notes"))
 	mux.HandleFunc("GET /workspace/{name}/lesson/{seq}", handleLessonPage(store))
 	mux.HandleFunc("GET /workspace/{name}/record/{seq}", handleRecordPage(store))
@@ -239,6 +241,37 @@ func handleListRefs(store *db.Store) http.HandlerFunc {
 			refs = []db.Reference{}
 		}
 		jsonResponse(w, refs)
+	}
+}
+
+func handleGetGlossaryTerms(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		wsStore, err := workspaceByID(store, r)
+		if err != nil {
+			jsonError(w, "not found", 404)
+			return
+		}
+		terms, _ := wsStore.GetGlossaryTerms()
+		if terms == nil {
+			terms = []db.GlossaryTerm{}
+		}
+		jsonResponse(w, terms)
+	}
+}
+
+func handleGetGlossaryTermsByName(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			jsonError(w, "not found", 404)
+			return
+		}
+		terms, _ := wsStore.GetGlossaryTerms()
+		if terms == nil {
+			terms = []db.GlossaryTerm{}
+		}
+		jsonResponse(w, terms)
 	}
 }
 
@@ -435,7 +468,6 @@ type docKind struct {
 var docKinds = map[string]docKind{
 	"mission":   {title: "Mission", path: db.Layout.MissionPath},
 	"resources": {title: "Resources", path: db.Layout.ResourcesPath},
-	"glossary":  {title: "Glossary", path: db.Layout.GlossaryPath},
 	"notes":     {title: "Notes", path: db.Layout.NotesPath},
 }
 
@@ -490,6 +522,36 @@ func handleDocPage(store *db.Store, kind string) http.HandlerFunc {
 
 		sd, _ := wsStore.GetSidebarData()
 		writePage(w, &sd, dk.title, name, kind, 0, "", "", render.Document(data))
+	}
+}
+
+// ── Glossary Page (rendered from DB, not from file) ──
+
+func handleGlossaryPage(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		data := render.DocumentData{Title: "Glossary", Kind: "glossary"}
+		terms, err := wsStore.GetGlossaryTerms()
+		if err == nil && len(terms) > 0 {
+			gt := make([]render.GlossaryTermRow, len(terms))
+			for i, t := range terms {
+				gt[i] = render.GlossaryTermRow{Term: t.Term, Definition: t.Definition, Category: t.Category, Avoid: t.Avoid}
+			}
+			data.GlossaryTerms = gt
+		}
+		if len(data.GlossaryTerms) == 0 {
+			data.Empty = true
+		}
+
+		wsStore.Touch()
+		sd, _ := wsStore.GetSidebarData()
+		writePage(w, &sd, "Glossary", name, "glossary", 0, "", "", render.Document(data))
 	}
 }
 

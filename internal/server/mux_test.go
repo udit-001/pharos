@@ -56,7 +56,6 @@ func newTestEnv(t *testing.T) *testEnv {
 	// Workspace documents — mission with real content, resources with placeholder
 	os.WriteFile(filepath.Join(wsDir, "MISSION.md"), []byte("# Mission\n\nReal mission content"), 0644)
 	os.WriteFile(filepath.Join(wsDir, "RESOURCES.md"), []byte("{some placeholder}"), 0644)
-	os.WriteFile(filepath.Join(wsDir, "GLOSSARY.md"), []byte("# Glossary\n\nReal glossary"), 0644)
 	os.WriteFile(filepath.Join(wsDir, "NOTES.md"), []byte("# Notes\n\nReal notes"), 0644)
 
 	return &testEnv{store: store, mux: NewMux(store, false), wsDir: wsDir}
@@ -99,6 +98,8 @@ func TestSmokeAPIRoutes(t *testing.T) {
 		{"records", "/api/workspaces/" + id + "/records", "application/json"},
 		{"refs", "/api/workspaces/" + id + "/refs", "application/json"},
 		{"stats", "/api/stats", "application/json"},
+		{"glossary-terms", "/api/workspaces/" + id + "/glossary-terms", "application/json"},
+		{"glossary-terms-by-name", "/api/workspaces/name/alpha/glossary-terms", "application/json"},
 		{"search", "/api/search?q=Lesson", "application/json"},
 	}
 
@@ -289,6 +290,40 @@ func TestWorkspaceNotFound(t *testing.T) {
 	env := newTestEnv(t)
 
 	rec := env.get(t, "/workspace/nonexistent")
+	if rec.Code != 404 {
+		t.Errorf("nonexistent workspace should 404; got %d", rec.Code)
+	}
+}
+
+func TestGlossaryTermsByNameAPI(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Seed some glossary terms
+	if err := wsStore.AddGlossaryTerm("Hypertrophy", "Muscle growth from tension and stress", "", ""); err != nil {
+		t.Fatalf("seed glossary term: %v", err)
+	}
+	if err := wsStore.AddGlossaryTerm("Progressive Overload", "Systematically increasing demand", "", ""); err != nil {
+		t.Fatalf("seed glossary term: %v", err)
+	}
+
+	// Test name-based endpoint
+	rec := env.get(t, "/api/workspaces/name/alpha/glossary-terms")
+	if rec.Code != 200 {
+		t.Errorf("status = %d, want 200", rec.Code)
+	}
+
+	var terms []db.GlossaryTerm
+	json.Unmarshal(rec.Body.Bytes(), &terms)
+	if len(terms) != 2 {
+		t.Errorf("got %d terms, want 2", len(terms))
+	}
+	if terms[0].Term != "Hypertrophy" {
+		t.Errorf("first term = %q, want Hypertrophy", terms[0].Term)
+	}
+
+	// Test unknown workspace 404s
+	rec = env.get(t, "/api/workspaces/name/nonexistent/glossary-terms")
 	if rec.Code != 404 {
 		t.Errorf("nonexistent workspace should 404; got %d", rec.Code)
 	}

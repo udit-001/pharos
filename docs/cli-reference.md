@@ -95,9 +95,7 @@ pharos resources -w "<workspace>"                  # Show resources
 pharos resources -w "<workspace>" --edit / -e      # Edit resources
 pharos resources -w "<workspace>" --body-file <path>
 
-pharos glossary -w "<workspace>"                   # Show glossary
-pharos glossary -w "<workspace>" --edit / -e        # Edit glossary
-pharos glossary -w "<workspace>" --body-file <path>
+pharos glossary -w "<workspace>"                   # Show glossary (read-only, managed via API)
 
 pharos notes -w "<workspace>"                      # Show notes (scratchpad)
 pharos notes -w "<workspace>" --edit / -e           # Edit notes

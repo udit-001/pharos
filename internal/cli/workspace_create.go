@@ -17,7 +17,6 @@ var workspaceCreateCmd = &cobra.Command{
 The workspace is a directory under ~/.pharos/workspaces/ containing:
   MISSION.md          — Why you're learning this topic
   RESOURCES.md        — Curated sources and communities
-  GLOSSARY.md         — Canonical terminology
   NOTES.md            — Preferences and working notes
   lessons/            — Self-contained lesson HTML files
   learning-records/   — ADR-style learning records
@@ -66,6 +65,14 @@ Examples:
 			}
 		}
 
+		// Create default assets/glossary-tooltip.js if not present
+		glossaryJSFile := filepath.Join(wsPath, "assets", "glossary-tooltip.js")
+		if _, err := os.Stat(glossaryJSFile); os.IsNotExist(err) {
+			if err := os.WriteFile(glossaryJSFile, []byte(defaultGlossaryTooltipJS), 0644); err != nil {
+				return fmt.Errorf("write assets/glossary-tooltip.js: %w", err)
+			}
+		}
+
 		// Create MISSION.md template
 		missionFile := filepath.Join(wsPath, "MISSION.md")
 		if _, err := os.Stat(missionFile); os.IsNotExist(err) {
@@ -109,23 +116,6 @@ Examples:
 `, displayName)
 			if err := os.WriteFile(resourcesFile, []byte(resourcesContent), 0644); err != nil {
 				return fmt.Errorf("write RESOURCES.md: %w", err)
-			}
-		}
-
-		// Create GLOSSARY.md template
-		glossaryFile := filepath.Join(wsPath, "GLOSSARY.md")
-		if _, err := os.Stat(glossaryFile); os.IsNotExist(err) {
-			glossaryContent := fmt.Sprintf(`# %s Glossary
-
-{One or two sentence description of the topic.}
-
-## Terms
-
-**Term**:
-Definition. _Avoid_: Synonyms to avoid.
-`, displayName)
-			if err := os.WriteFile(glossaryFile, []byte(glossaryContent), 0644); err != nil {
-				return fmt.Errorf("write GLOSSARY.md: %w", err)
 			}
 		}
 
@@ -295,4 +285,58 @@ button, .btn {
   font-size: 0.875rem;
 }
 button:hover, .btn:hover { opacity: 0.9; }
+
+/* Glossary tooltips */
+.glossary-term { cursor: help; border-bottom: 1px dashed currentColor; position: relative; }
+.glossary-tooltip { position: fixed; background: var(--slate-900); color: var(--slate-50); padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5; max-width: 320px; white-space: normal; box-shadow: 0 8px 24px rgba(0,0,0,0.2); pointer-events: none; opacity: 0; transition: opacity 0.15s ease; z-index: 9999; }
+.glossary-tooltip.visible { opacity: 1; }
+.glossary-tooltip::after { content: ''; position: absolute; left: 50%; margin-left: -6px; border: 6px solid transparent; }
+/* Arrow points down (below tooltip) when tooltip is above the term */
+.glossary-tooltip::after { top: 100%; border-top-color: var(--slate-900); }
+/* Arrow points up (above tooltip) when tooltip is below the term — toggled by JS */
+.glossary-tooltip.tooltip-below::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--slate-900); }
 `
+
+// defaultGlossaryTooltipJS is the runtime script that fetches glossary
+// terms from the API and shows tooltips on hover over .glossary-term spans.
+// Seeded into assets/glossary-tooltip.js for every new workspace.
+const defaultGlossaryTooltipJS = `(function() {
+  var m = window.location.pathname.match(/\/api\/lesson-html\/([^/]+)\//);
+  if (!m) return;
+  var wsName = m[1];
+  var tip = document.createElement('div');
+  tip.className = 'glossary-tooltip';
+  document.body.appendChild(tip);
+  var els = document.querySelectorAll('.glossary-term');
+  if (!els.length) return;
+  var defs = null;
+  fetch('/api/workspaces/name/' + encodeURIComponent(wsName) + '/glossary-terms')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      defs = {};
+      data.forEach(function(t) { defs[t.term] = t.definition; });
+    })
+    .catch(function() {});
+  els.forEach(function(el) {
+    el.addEventListener('mouseenter', function(e) {
+      if (!defs) return;
+      var term = el.getAttribute('data-term') || el.textContent.trim();
+      var def = defs[term];
+      if (!def) return;
+      tip.textContent = def;
+      var r = tip.getBoundingClientRect();
+      var x = Math.min(e.clientX - r.width / 2, window.innerWidth - r.width - 10);
+      var yAbove = e.clientY - r.height - 12;
+      var yBelow = e.clientY + 12;
+      var useAbove = yAbove >= 0;
+      var y = useAbove ? yAbove : yBelow;
+      tip.classList.toggle('tooltip-below', !useAbove);
+      tip.style.left = Math.max(10, x) + 'px';
+      tip.style.top = y + 'px';
+      tip.classList.add('visible');
+    });
+    el.addEventListener('mouseleave', function() {
+      tip.classList.remove('visible');
+    });
+  });
+})();`

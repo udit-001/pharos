@@ -121,7 +121,7 @@ Reverse the luminance: backgrounds become dark, text becomes light, keeping Nord
 
 Key rules:
 - **No `data-theme` on `<html>`** — the blocking script sets it dynamically
-- **Three scripts in order**: (1) FOUC prevention in `<head>`, (2) quiz logic before `</body>`, (3) postMessage listener before `</body>`
+- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic, optional glossary tooltip (`<script src="assets/glossary-tooltip.js">`), and postMessage listener
 - **CSS links are root-relative** — no `../`, the iframe serves from `/api/lesson-html/<workspace>/<file>`
 
 ---
@@ -172,10 +172,33 @@ Links that navigate outside the lesson (to any dashboard page) must use `target=
 
 ---
 
+## Glossary Tooltips
+
+When the workspace has glossary terms, wrap each occurrence of a term in lesson prose with a `<span class="glossary-term" data-term="TermName">TermName</span>` so the reader gets a hoverable definition preview.
+
+**Convention:**
+
+```html
+The <span class="glossary-term" data-term="Hypertrophy">Hypertrophy</span>
+response drives muscle growth.
+```
+
+**Tooltip CSS + JS** — both are seeded in `assets/` at workspace creation and linked automatically by lessons that already include `<link rel="stylesheet" href="assets/style.css">`. The only addition needed is the script reference before `</body>` (before the postMessage listener):
+
+```html
+<script src="assets/glossary-tooltip.js"></script>
+```
+
+The JS fetches definitions from `GET /api/workspaces/name/{name}/glossary-terms` at runtime — no definitions are baked into the lesson HTML. The workspace name is extracted from the iframe URL automatically.
+
+**Don't wrap every occurrence.** Use judgement: wrap the first occurrence in a section, or where re-reading the definition aids understanding. Over-wrapping makes text noisy and trains readers to ignore tooltips.
+
+---
+
 ## Principles
 
 1. **Everything uses CSS variables**, never hardcoded hex values
 2. **Dark mode is free** — switching `data-theme` toggles all variable values; using variables makes it work automatically
 3. **No dashboard chrome in lessons** — the dashboard owns navigation
 4. **Reusable components live in `assets/`** — extract shared CSS with `pharos asset create`
-5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css` and `assets/quiz.css` should be purely presentational
+5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css`, `assets/quiz.css`, and `assets/glossary-tooltip.js` should be purely presentational/behavioural, not theme-detection

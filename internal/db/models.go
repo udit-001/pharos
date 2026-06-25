@@ -70,6 +70,18 @@ func (w Workspace) DisplayName() string {
 	return w.Name
 }
 
+// GlossaryTerm is a single term in a workspace's glossary.
+type GlossaryTerm struct {
+	ID          int64  `db:"id" json:"id"`
+	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
+	Term        string `db:"term" json:"term"`
+	Definition  string `db:"definition" json:"definition"`
+	Category    string `db:"category" json:"category"`
+	Avoid       string `db:"avoid" json:"avoid"`
+	CreatedAt   string `db:"created_at" json:"createdAt"`
+	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
+}
+
 // SearchResult is one result from a cross-entity, cross-workspace search.
 // URLs are a presentation concern and are constructed by the caller from the
 // fields here.
