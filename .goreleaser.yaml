@@ -80,7 +80,6 @@ release:
   github:
     owner: udit-001
     name: pharos
-  draft: true
   prerelease: auto
   name_template: 'v{{ .Version }}'
 
