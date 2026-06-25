@@ -62,9 +62,13 @@ func (w *WorkspaceStore) GetLessonBySeq(seq int) (*Lesson, error) {
 
 // SearchLessons performs full-text search within this workspace.
 func (w *WorkspaceStore) SearchLessons(query string) ([]Lesson, error) {
+	q := buildFTSQuery(query)
+	if q == "" {
+		return []Lesson{}, nil
+	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM lessons WHERE id IN (SELECT rowid FROM lessons_fts WHERE lessons_fts MATCH ?) AND workspace_id = ? ORDER BY sequence_number ASC", lessonColumns),
-		query, w.ws.ID,
+		fmt.Sprintf("SELECT %s FROM lessons_fts JOIN lessons ON lessons.id = lessons_fts.rowid WHERE lessons_fts MATCH ? AND lessons.workspace_id = ? ORDER BY bm25(lessons_fts, 10.0, 5.0, 1.0), lessons.sequence_number ASC", lessonColumnsQualified),
+		q, w.ws.ID,
 	)
 	if err != nil {
 		return nil, err
@@ -77,7 +81,10 @@ func (w *WorkspaceStore) SearchLessons(query string) ([]Lesson, error) {
 func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 	var results []SearchResult
 
-	lessons, _ := w.SearchLessons(query)
+	lessons, err := w.SearchLessons(query)
+	if err != nil {
+		return nil, fmt.Errorf("search lessons: %w", err)
+	}
 	for _, l := range lessons {
 		sr := SearchResult{
 			Type: "lesson", Title: l.Title, Summary: l.Summary,
@@ -90,7 +97,10 @@ func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 		results = append(results, sr)
 	}
 
-	recs, _ := w.SearchRecords(query)
+	recs, err := w.SearchRecords(query)
+	if err != nil {
+		return nil, fmt.Errorf("search records: %w", err)
+	}
 	for _, rec := range recs {
 		sr := SearchResult{
 			Type: "record", Title: rec.Title, Summary: rec.Summary,
@@ -103,7 +113,10 @@ func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 		results = append(results, sr)
 	}
 
-	refs, _ := w.SearchRefs(query)
+	refs, err := w.SearchRefs(query)
+	if err != nil {
+		return nil, fmt.Errorf("search refs: %w", err)
+	}
 	for _, ref := range refs {
 		slug := ref.Slug
 		if slug == "" {
@@ -185,9 +198,13 @@ func (w *WorkspaceStore) GetRecordBySeq(seq int) (*LearningRecord, error) {
 
 // SearchRecords performs full-text search within this workspace.
 func (w *WorkspaceStore) SearchRecords(query string) ([]LearningRecord, error) {
+	q := buildFTSQuery(query)
+	if q == "" {
+		return []LearningRecord{}, nil
+	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM learning_records WHERE id IN (SELECT rowid FROM records_fts WHERE records_fts MATCH ?) AND workspace_id = ? ORDER BY sequence_number ASC", recordColumns),
-		query, w.ws.ID,
+		fmt.Sprintf("SELECT %s FROM records_fts JOIN learning_records ON learning_records.id = records_fts.rowid WHERE records_fts MATCH ? AND learning_records.workspace_id = ? ORDER BY bm25(records_fts, 10.0, 5.0, 1.0), learning_records.sequence_number ASC", recordColumnsQualified),
+		q, w.ws.ID,
 	)
 	if err != nil {
 		return nil, err
@@ -260,9 +277,13 @@ func (w *WorkspaceStore) GetRefBySlug(slug string) (*Reference, error) {
 
 // SearchRefs performs full-text search within this workspace.
 func (w *WorkspaceStore) SearchRefs(query string) ([]Reference, error) {
+	q := buildFTSQuery(query)
+	if q == "" {
+		return []Reference{}, nil
+	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM references_t WHERE id IN (SELECT rowid FROM refs_fts WHERE refs_fts MATCH ?) AND workspace_id = ? ORDER BY title ASC", refColumns),
-		query, w.ws.ID,
+		fmt.Sprintf("SELECT %s FROM refs_fts JOIN references_t ON references_t.id = refs_fts.rowid WHERE refs_fts MATCH ? AND references_t.workspace_id = ? ORDER BY bm25(refs_fts, 10.0, 5.0, 1.0), references_t.title ASC", refColumnsQualified),
+		q, w.ws.ID,
 	)
 	if err != nil {
 		return nil, err

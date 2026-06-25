@@ -869,3 +869,72 @@ func TestSearchResultRecordSnippet(t *testing.T) {
 		t.Errorf("snippet should contain matched term, got %q", results[0].Snippet)
 	}
 }
+
+func TestSearchPrefixAndPorter(t *testing.T) {
+	store := newTestStore(t)
+	dir := t.TempDir()
+
+	_, err := store.AddWorkspace(Workspace{Name: "test", Path: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ws, err := store.Workspace("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lessonsDir := filepath.Join(dir, "lessons")
+	if err := os.MkdirAll(lessonsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	html1 := `<html><body><h1>Brain Disorders</h1><p>The neurotic patient exhibited neurological deficits.</p></body></html>`
+	if err := os.WriteFile(filepath.Join(lessonsDir, "0001-neuro.html"), []byte(html1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	html2 := `<html><body><h1>Database Joins</h1><p>We are joining tables. The joined results were surprising.</p></body></html>`
+	if err := os.WriteFile(filepath.Join(lessonsDir, "0002-joins.html"), []byte(html2), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ws.AddLesson(Lesson{Title: "Brain Disorders", Filename: "0001-neuro.html"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.AddLesson(Lesson{Title: "Database Joins", Filename: "0002-joins.html"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.IndexLessons(); err != nil {
+		t.Fatalf("IndexLessons: %v", err)
+	}
+
+	neuroResults, err := ws.SearchLessons("neuro")
+	if err != nil {
+		t.Fatalf("search neuro: %v", err)
+	}
+	if len(neuroResults) == 0 {
+		t.Error("prefix search for 'neuro' returned no results; expected to match neurotic/neurological")
+	}
+
+	joinResults, err := ws.SearchLessons("joins")
+	if err != nil {
+		t.Fatalf("search joins: %v", err)
+	}
+	if len(joinResults) == 0 {
+		t.Error("porter search for 'joins' returned no results; expected to match joining/joined")
+	}
+
+	emptyResults, err := ws.SearchLessons("")
+	if err != nil {
+		t.Fatalf("search empty: %v", err)
+	}
+	if len(emptyResults) != 0 {
+		t.Errorf("empty query returned %d results, expected 0", len(emptyResults))
+	}
+
+	noResults, err := ws.SearchLessons("xyzzy")
+	if err != nil {
+		t.Fatalf("search xyzzy: %v", err)
+	}
+	if len(noResults) != 0 {
+		t.Errorf("search for 'xyzzy' returned %d results, expected 0", len(noResults))
+	}
+}
