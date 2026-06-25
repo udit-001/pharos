@@ -65,7 +65,7 @@ A lesson is the main thing you produce — the unit in which knowledge and skill
 
 Before creating a lesson, search for an existing one on the same topic: `pharos search "<topic>"`. Same principle — if a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate under a new number. The sequence stays tight; the learner isn't served two lessons on the same thing.
 
-A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`) — see [Assets](#assets) for the path rules.
+A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`) — see [Assets](#assets) for the path rules.
 
 The lesson should be short, and completable very quickly. Learners' working memory is very small, and we need to stay within it. But each lesson should give the user a single tangible win that they can build on. It should be directly tied to the mission, and should be in the user's zone of proximal development.
 
