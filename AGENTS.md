@@ -34,13 +34,17 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 ### Build workflow
 
-- **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs CSS + Go (`--no-css` for Go-only). `pharos start` detects a running server via HTTP GET and skips starting.
+- **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs `templ generate` + CSS + Go (`--no-css` for Go-only). `pharos start` detects a running server via HTTP GET and skips starting.
 - **Run `pharos tailwind download`** to get the Tailwind CLI — no need to manually download or install it.
 
 ### Edit discipline
 
 - **Check for duplicate matches before editing.** When inserting a new section, the `oldString` may match text that was just inserted by a prior edit in the same turn. Verify the file state after each edit.
 - **Read the file after editing** to confirm the result is correct, especially when inserting near existing similar content.
+
+### Browser verification
+
+- **Playwright MCP screenshots and snapshot YAML land in `.playwright-mcp/`** (gitignored). Never commit these — they're throwaway debugging artifacts. Use them to inspect rendered output visually; discard after.
 
 ### Code patterns
 
