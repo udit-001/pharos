@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 // Page renders the full HTML document: the frame (sidebar + topbar + wrapper)
@@ -46,7 +48,7 @@ func sidebarBody(f Frame) string {
 		b.WriteString(`<div class="sidebar-section-label">Lessons</div>`)
 		for _, l := range f.Sidebar.Lessons {
 			active := f.ActiveType == "lesson" && f.ActiveSeq == l.Seq
-			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(ws.Name), l.Seq), iconBook(), l.Title, active))
+			b.WriteString(sidebarLink(urls.Lesson(ws.Name, l.Seq), iconBook(), l.Title, active))
 		}
 	}
 	if len(f.Sidebar.Records) > 0 {
@@ -57,14 +59,14 @@ func sidebarBody(f Frame) string {
 			if r.Status == "superseded" {
 				ico = iconArchive()
 			}
-			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(ws.Name), r.Seq), ico, r.Title, active))
+			b.WriteString(sidebarLink(urls.Record(ws.Name, r.Seq), ico, r.Title, active))
 		}
 	}
 	if len(f.Sidebar.Refs) > 0 {
 		b.WriteString(`<div class="sidebar-section-label">References</div>`)
 		for _, ref := range f.Sidebar.Refs {
 			active := f.ActiveType == "ref" && f.ActiveSlug == ref.Slug
-			b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(ws.Name), urlPathEscape(ref.Slug)), iconBookmark(), ref.Title, active))
+			b.WriteString(sidebarLink(urls.Ref(ws.Name, ref.Slug), iconBookmark(), ref.Title, active))
 		}
 	}
 
@@ -78,7 +80,7 @@ func sidebarBody(f Frame) string {
 	b.WriteString(`<div class="sidebar-section-label">Workspace</div>`)
 	for _, doc := range docs {
 		active := f.ActiveType == doc.kind
-		b.WriteString(sidebarLink(fmt.Sprintf("/workspace/%s/%s", urlPathEscape(ws.Name), doc.kind), doc.icon, doc.label, active))
+		b.WriteString(sidebarLink(urls.Doc(ws.Name, doc.kind), doc.icon, doc.label, active))
 	}
 
 	return b.String()
@@ -113,7 +115,7 @@ func breadcrumbs(f Frame) string {
 	if f.Sidebar.Workspace != nil {
 		wsLabel = displayName(f.Sidebar.Workspace.Name, f.Sidebar.Workspace.Topic)
 	}
-	wsURL := fmt.Sprintf("/workspace/%s", urlPathEscape(f.ActiveWS))
+	wsURL := urls.Workspace(f.ActiveWS)
 
 	// Build trail: Workspace / Item (Dashboard is reachable via the
 	// sidebar logo, so it doesn't earn a crumb).

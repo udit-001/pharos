@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 var lessonShowCmd = &cobra.Command{
@@ -30,7 +31,7 @@ Examples:
 		ws := wsStore.Workspace()
 
 		// TODO: start dashboard if needed (PID file logic)
-		url := fmt.Sprintf("http://127.0.0.1:9090/workspace/%s/lesson/%d", urlPathEscapeCLI(ws.Name), seq)
+		url := "http://127.0.0.1:9090" + urls.Lesson(ws.Name, seq)
 
 		if jsonOut {
 			printJSON(map[string]string{"url": url})

@@ -1,8 +1,7 @@
 package render
 
 import (
-	"fmt"
-
+	"github.com/udit-001/pharos/internal/urls"
 	"github.com/udit-001/pharos/internal/version"
 )
 
@@ -30,7 +29,7 @@ templ dashboard(d DashboardData) {
 	if len(d.Workspaces) > 0 {
 		<div class="divide-y divide-slate-100">
 			for _, w := range d.Workspaces {
-				<a href={ "/workspace/" + urlPathEscape(w.Name) } class="group block py-3 px-3 -mx-3 no-underline rounded-md hover:bg-slate-100 transition-colors">
+				<a href={ urls.Workspace(w.Name) } class="group block py-3 px-3 -mx-3 no-underline rounded-md hover:bg-slate-100 transition-colors">
 					<div class="flex items-center justify-between">
 						<div class="font-medium text-slate-800 group-hover:text-blue-700 transition-colors">{ displayName(w.Name, w.Topic) }</div>
 						<span class="text-slate-300 group-hover:text-blue-700 transition-colors text-sm">›</span>
@@ -89,7 +88,7 @@ templ workspacePage(d WorkspaceData) {
 		} else {
 			for _, l := range d.Lessons {
 				<div class="py-2 border-b border-slate-100 last:border-0">
-					<a href={ fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(ws.Name), l.Seq) } class="no-underline text-slate-800 flex justify-between items-center group">
+					<a href={ urls.Lesson(ws.Name, l.Seq) } class="no-underline text-slate-800 flex justify-between items-center group">
 						<span class="font-medium text-sm group-hover:text-blue-700 transition-colors">{ l.Seq }. { l.Title }</span>
 						<span class="text-xs text-slate-400 tabular-nums">L{ l.Seq }</span>
 					</a>
@@ -102,7 +101,7 @@ templ workspacePage(d WorkspaceData) {
 		} else {
 			for _, rec := range d.Records {
 				<div class="py-2 border-b border-slate-100 last:border-0">
-					<a href={ fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(ws.Name), rec.Seq) } class="no-underline text-slate-800 block group">
+					<a href={ urls.Record(ws.Name, rec.Seq) } class="no-underline text-slate-800 block group">
 						<div class="flex items-center justify-between">
 							<span class="font-medium text-sm group-hover:text-blue-700 transition-colors">{ rec.Seq }. { rec.Title }</span>
 							@templ.Raw(statusTag(rec.Status))
@@ -118,7 +117,7 @@ templ workspacePage(d WorkspaceData) {
 		} else {
 			for _, ref := range d.Refs {
 				<div class="py-2 border-b border-slate-100 last:border-0">
-					<a href={ fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(ws.Name), urlPathEscape(ref.Slug)) } class="no-underline text-slate-800 flex items-center gap-2 group">
+					<a href={ urls.Ref(ws.Name, ref.Slug) } class="no-underline text-slate-800 flex items-center gap-2 group">
 						<span class="shrink-0 text-slate-300">@templ.Raw(iconBookmark())</span>
 						<span class="font-medium text-sm group-hover:text-blue-700 transition-colors">{ ref.Title }</span>
 					</a>

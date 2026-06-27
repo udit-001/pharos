@@ -12,6 +12,7 @@ import (
 
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/render"
+	"github.com/udit-001/pharos/internal/urls"
 	"github.com/udit-001/pharos/internal/web"
 	"github.com/yuin/goldmark"
 )
@@ -320,11 +321,11 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 			var url string
 			switch r.Type {
 			case "lesson":
-				url = fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(r.WorkspaceName), r.SequenceNumber)
+				url = urls.Lesson(r.WorkspaceName, r.SequenceNumber)
 			case "record":
-				url = fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(r.WorkspaceName), r.SequenceNumber)
+				url = urls.Record(r.WorkspaceName, r.SequenceNumber)
 			case "ref":
-				url = fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(r.WorkspaceName), urlPathEscape(r.Slug))
+				url = urls.Ref(r.WorkspaceName, r.Slug)
 			}
 			results = append(results, apiResult{
 				Type: r.Type, Title: r.Title,
@@ -333,11 +334,6 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 		}
 		jsonResponse(w, results)
 	}
-}
-
-// urlPathEscape replaces spaces for URL path segments.
-func urlPathEscape(s string) string {
-	return strings.ReplaceAll(s, " ", "%20")
 }
 
 // ── Dashboard ──
@@ -376,7 +372,7 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 					lessons, _ := wsStore.GetLessons()
 					for _, l := range lessons {
 						if l.SequenceNumber == *w.LastLessonSeq {
-							continueURL = fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(w.Name), l.SequenceNumber)
+							continueURL = urls.Lesson(w.Name, l.SequenceNumber)
 							continueLabel = fmt.Sprintf("%s — Lesson: %s", w.Name, l.Title)
 							break
 						}
@@ -388,7 +384,7 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 					refs, _ := wsStore.GetRefs()
 					if len(refs) > 0 {
 						ref := refs[0]
-						continueURL = fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(w.Name), urlPathEscape(ref.Slug))
+						continueURL = urls.Ref(w.Name, ref.Slug)
 						continueLabel = fmt.Sprintf("%s — Reference: %s", w.Name, ref.Title)
 					}
 				}
@@ -424,7 +420,7 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		ws := wsStore.Workspace()
 
 		if ws.LastLessonSeq != nil {
-			http.Redirect(w, r, fmt.Sprintf("/workspace/%s/lesson/%d", name, *ws.LastLessonSeq), http.StatusFound)
+			http.Redirect(w, r, urls.Lesson(name, *ws.LastLessonSeq), http.StatusFound)
 			return
 		}
 
@@ -591,7 +587,7 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 
 		data := render.LessonData{
 			Title:  current.Title,
-			RawURL: fmt.Sprintf("/api/lesson-html/%s/%s", urlPathEscape(name), urlPathEscape(current.Filename)),
+			RawURL: fmt.Sprintf("/api/lesson-html/%s/%s", urls.PathEscape(name), urls.PathEscape(current.Filename)),
 			Seq:    seq,
 			Total:  len(sd.Lessons),
 		}
@@ -663,7 +659,7 @@ func handleRefPage(store *db.Store) http.HandlerFunc {
 
 		data := render.RefData{
 			Title:  current.Title,
-			RawURL: fmt.Sprintf("/api/ref-html/%s/%s", urlPathEscape(name), urlPathEscape(current.Filename)),
+			RawURL: fmt.Sprintf("/api/ref-html/%s/%s", urls.PathEscape(name), urls.PathEscape(current.Filename)),
 		}
 		wsStore.SetLastViewed("ref", 0)
 		sd, _ := wsStore.GetSidebarData()
@@ -684,11 +680,11 @@ func handleSearchPage(store *db.Store) http.HandlerFunc {
 				var url string
 				switch res.Type {
 				case "lesson":
-					url = fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(res.WorkspaceName), res.SequenceNumber)
+					url = urls.Lesson(res.WorkspaceName, res.SequenceNumber)
 				case "record":
-					url = fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(res.WorkspaceName), res.SequenceNumber)
+					url = urls.Record(res.WorkspaceName, res.SequenceNumber)
 				case "ref":
-					url = fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(res.WorkspaceName), urlPathEscape(res.Slug))
+					url = urls.Ref(res.WorkspaceName, res.Slug)
 				}
 				data.Results = append(data.Results, render.SearchResult{
 					Type: res.Type, Title: res.Title,
