@@ -2,15 +2,16 @@ package urls
 
 import (
 	"fmt"
-	"strings"
+	"net/url"
 )
 
-// PathEscape replaces spaces for URL path segments. This preserves the
-// historical behaviour of the three former urlPathEscape helpers exactly —
-// it is intentionally space-only. Path-escape correctness for the full
-// reserved set is tracked separately (see LEARN-51).
+// PathEscape escapes a string for use as a URL path segment. It delegates
+// to the stdlib url.PathEscape, which encodes the full reserved set (/ ? # %
+// etc.) so a workspace name or slug containing those characters produces a
+// valid, routeable URL. Go's ServeMux does not unescape %2F during route
+// matching, so escaped slashes stay within a single {name} segment.
 func PathEscape(s string) string {
-	return strings.ReplaceAll(s, " ", "%20")
+	return url.PathEscape(s)
 }
 
 // Workspace returns the workspace page URL: /workspace/{name}.

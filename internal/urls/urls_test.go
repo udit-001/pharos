@@ -13,7 +13,11 @@ func TestPathEscape(t *testing.T) {
 		{name: "multiple spaces", input: "a b c", want: "a%20b%20c"},
 		{name: "leading space", input: " lead", want: "%20lead"},
 		{name: "empty", input: "", want: ""},
-		{name: "non-space chars untouched", input: "C++/Rust", want: "C++/Rust"},
+		{name: "slash escaped", input: "bad/name", want: "bad%2Fname"},
+		{name: "question mark escaped", input: "bad?name", want: "bad%3Fname"},
+		{name: "hash escaped", input: "bad#name", want: "bad%23name"},
+		{name: "percent escaped", input: "bad%name", want: "bad%25name"},
+		{name: "plus is valid in paths (not escaped)", input: "C++", want: "C++"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
