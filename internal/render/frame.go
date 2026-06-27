@@ -120,7 +120,7 @@ func breadcrumbs(f Frame) string {
 	// Build trail: Workspace / Item (Dashboard is reachable via the
 	// sidebar logo, so it doesn't earn a crumb).
 	sep := `<span class="text-slate-300 mx-1 shrink-0">/</span>`
-	wsLink := fmt.Sprintf(`<a href="%s" class="text-slate-400 hover:text-slate-600 no-underline text-sm">%s</a>`, wsURL, esc(wsLabel))
+	wsLink := fmt.Sprintf(`<a href="%s" class="text-slate-400 hover:text-slate-600 no-underline text-sm truncate max-w-[40vw] block">%s</a>`, wsURL, esc(wsLabel))
 
 	// If there's a page-level item, add it as the third crumb
 	var pageCrumb string
@@ -136,7 +136,7 @@ func breadcrumbs(f Frame) string {
 		if title == "" {
 			title = fmt.Sprintf("Lesson %d", f.ActiveSeq)
 		}
-		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium">%s</span>`, esc(title))
+		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, esc(title))
 	case "record":
 		title := ""
 		for _, r := range f.Sidebar.Records {
@@ -148,7 +148,7 @@ func breadcrumbs(f Frame) string {
 		if title == "" {
 			title = fmt.Sprintf("Record %d", f.ActiveSeq)
 		}
-		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium">%s</span>`, esc(title))
+		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, esc(title))
 	case "ref":
 		title := ""
 		for _, ref := range f.Sidebar.Refs {
@@ -160,11 +160,11 @@ func breadcrumbs(f Frame) string {
 		if title == "" {
 			title = f.ActiveSlug
 		}
-		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium">%s</span>`, esc(title))
+		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, esc(title))
 	case "mission", "resources", "glossary", "notes":
 		docLabels := map[string]string{"mission": "Mission", "resources": "Resources", "glossary": "Glossary", "notes": "Notes"}
 		if label, ok := docLabels[f.ActiveType]; ok {
-			pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium">%s</span>`, label)
+			pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, label)
 		}
 	}
 
