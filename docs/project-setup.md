@@ -39,27 +39,38 @@ The generated CSS is embedded into the Go binary via `//go:embed` in `internal/w
 
 ### Architecture
 
-The codebase is structured in three layers:
+The codebase is structured in layers:
 
 ```
 internal/
-├── db/             # Data access layer — SQLite via sqlx, typed query methods
-│   ├── models.go         # Domain structs (Workspace, Lesson, etc.)
-│   ├── workspaces.go     # Workspace CRUD + N+1-free batch counts
-│   ├── workspace_store.go # Scoped store bound to one workspace
-│   ├── scan.go           # Generic row scanner (deduplicated loop)
-│   ├── seal_test.go      # Encapsulation guarantee (no raw SQL escape)
-│   └── *_test.go         # Integration tests with temp SQLite DBs
-├── render/         # HTML rendering — view models + pure functions
-│   └── render_test.go    # 8 tests proving HTML output as VM function
-├── server/         # HTTP server — thin handlers, no HTML strings
-│   └── server.go         # 545 lines (was 913), 0 HTML class= attributes
 ├── cli/            # Cobra commands — injected store, testable seams
 │   ├── root.go           # mustStore() context injection
 │   ├── list.go           # runList[T] generic list helper
 │   ├── inject_test.go    # CLI tested against in-memory SQLite
 │   └── *_create.go       # --body-file for safe multiline content creation
-├── web/            # Embedded CSS (generated from input.css)
+├── config/         # pharos.toml config (data_dir, etc.)
+├── db/             # Data access layer — SQLite via sqlx, typed query methods
+│   ├── models.go         # Domain structs (Workspace, Lesson, etc.)
+│   ├── workspace_store.go # Scoped store bound to one workspace
+│   ├── scan.go           # Generic row scanner (deduplicated loop)
+│   ├── fts_query.go      # Centralised FTS5 query builder
+│   ├── seal_test.go      # Encapsulation guarantee (no raw SQL escape)
+│   └── *_test.go         # Integration tests with temp SQLite DBs
+├── docs/           # Markdown generation (CLI reference, etc.)
+├── extract/        # HTML→plaintext text extraction (goquery-based)
+├── markdown/       # Markdown→HTML rendering (goldmark)
+├── migrate/        # Embedded SQL migrations (12 files)
+├── render/         # HTML rendering — templ components + view models
+│   ├── frame.go / frame.templ    # Page shell (sidebar, topbar, tooltips)
+│   ├── views.templ               # Dashboard, about, workspace, search views
+│   ├── icons.go                  # SVG icon helpers
+│   └── render_test.go            # 8 tests proving HTML output as VM function
+├── server/         # HTTP server — thin handlers, no HTML strings
+│   ├── mux.go             # Route handlers + JSON API (712 lines)
+│   └── server.go          # Server lifecycle (start/stop/PID)
+├── urls/           # URL scheme — one owner for workspace/lesson/record/ref paths
+├── version/        # Version detection (ldflags or debug.BuildInfo + VCS)
+├── web/            # Embedded CSS + favicon (generated, committed)
 └── skills/         # Bundled teach skill (installed via pharos skills install)
     └── teach/            # SKILL.md + FORMAT docs + pharos CLI reference
 ```
@@ -68,6 +79,7 @@ internal/
 
 - **Singleton CLI binary** — everything in one binary (including CSS and skills), no runtime dependencies
 - **Tailwind via standalone CLI** — no Node.js in the build chain
-- **Testable seams** at every layer: CLI (`mustStore`), rendering (`render.Page`), data access (`WorkspaceStore`)
+- **Testable seams** at every layer: CLI (`mustStore`), rendering (`render.Page`), data access (`WorkspaceStore`), HTTP (`NewMux`)
 - **Workspace scoping enforced by types** — `WorkspaceStore` has private `*Store` field, callers cannot bypass the workspace boundary or call raw SQL
 - **No stub templates** — lesson/record/reference content is always passed via `--body-file` from a temp file, never shell-escaped inline
+- **Embedded assets** — CSS and favicons are `//go:embed`'d into the binary; no external file dependencies at runtime
