@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -71,11 +72,11 @@ Examples:
 
 var searchIndexCmd = &cobra.Command{
 	Use:   "index",
-	Short: "Build the search index from lesson files on disk",
-	Long: `Read all lesson HTML files from disk and index their body content for full-text search.
+	Short: "Build the search index from files on disk",
+	Long: `Read all lesson, record, and reference files from disk and index their body content for full-text search.
 
 Run this once after upgrading to a version with body_text indexing to pick
-up existing lessons. Idempotent — already-indexed lessons are skipped.
+up existing content. Idempotent — already-indexed items are skipped.
 
 Examples:
   pharos search index
@@ -102,11 +103,26 @@ Examples:
 				return err
 			}
 			ws := wsStore.Workspace()
+
+			var errs []error
 			n, err := wsStore.IndexLessons()
+			total = n
 			if err != nil {
+				errs = append(errs, err)
+			}
+			n, err = wsStore.IndexRefs()
+			total += n
+			if err != nil {
+				errs = append(errs, err)
+			}
+			n, err = wsStore.IndexRecords()
+			total += n
+			if err != nil {
+				errs = append(errs, err)
+			}
+			if err := errors.Join(errs...); err != nil {
 				return formatError("index failed", err)
 			}
-			total = n
 
 			if jsonOut {
 				printJSON(map[string]any{
@@ -117,9 +133,9 @@ Examples:
 			}
 
 			if total == 0 {
-				fmt.Printf("  ✓ All lessons in %s already indexed.\n", ws.DisplayName())
+				fmt.Printf("  ✓ All items in %s already indexed.\n", ws.DisplayName())
 			} else {
-				fmt.Printf("  ✓ %s: %d lessons indexed\n", ws.DisplayName(), total)
+				fmt.Printf("  ✓ %s: %d items indexed\n", ws.DisplayName(), total)
 			}
 			fmt.Println()
 			return nil
@@ -132,10 +148,10 @@ Examples:
 
 		if total == 0 {
 			fmt.Println()
-			fmt.Println("  All lessons already indexed.")
+			fmt.Println("  All items already indexed.")
 			fmt.Println()
 		} else {
-			fmt.Printf("  Total: %d lessons indexed\n", total)
+			fmt.Printf("  Total: %d items indexed\n", total)
 		}
 		return nil
 	},

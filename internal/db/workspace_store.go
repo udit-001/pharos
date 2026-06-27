@@ -68,7 +68,7 @@ func (w *WorkspaceStore) SearchLessons(query string) ([]Lesson, error) {
 		return []Lesson{}, nil
 	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM lessons_fts JOIN lessons ON lessons.id = lessons_fts.rowid WHERE lessons_fts MATCH ? AND lessons.workspace_id = ? ORDER BY bm25(lessons_fts, 10.0, 5.0, 1.0), lessons.sequence_number ASC", lessonColumnsQualified),
+		fmt.Sprintf("SELECT %s FROM lessons_fts JOIN lessons ON lessons.id = lessons_fts.rowid WHERE lessons_fts MATCH ? AND lessons.workspace_id = ? ORDER BY bm25(lessons_fts, %s), lessons.sequence_number ASC", lessonColumnsQualified, bm25Weights),
 		q, w.ws.ID,
 	)
 	if err != nil {
@@ -204,7 +204,7 @@ func (w *WorkspaceStore) SearchRecords(query string) ([]LearningRecord, error) {
 		return []LearningRecord{}, nil
 	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM records_fts JOIN learning_records ON learning_records.id = records_fts.rowid WHERE records_fts MATCH ? AND learning_records.workspace_id = ? ORDER BY bm25(records_fts, 10.0, 5.0, 1.0), learning_records.sequence_number ASC", recordColumnsQualified),
+		fmt.Sprintf("SELECT %s FROM records_fts JOIN learning_records ON learning_records.id = records_fts.rowid WHERE records_fts MATCH ? AND learning_records.workspace_id = ? ORDER BY bm25(records_fts, %s), learning_records.sequence_number ASC", recordColumnsQualified, bm25Weights),
 		q, w.ws.ID,
 	)
 	if err != nil {
@@ -283,7 +283,7 @@ func (w *WorkspaceStore) SearchRefs(query string) ([]Reference, error) {
 		return []Reference{}, nil
 	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM refs_fts JOIN references_t ON references_t.id = refs_fts.rowid WHERE refs_fts MATCH ? AND references_t.workspace_id = ? ORDER BY bm25(refs_fts, 10.0, 5.0, 1.0), references_t.title ASC", refColumnsQualified),
+		fmt.Sprintf("SELECT %s FROM refs_fts JOIN references_t ON references_t.id = refs_fts.rowid WHERE refs_fts MATCH ? AND references_t.workspace_id = ? ORDER BY bm25(refs_fts, %s), references_t.title ASC", refColumnsQualified, bm25Weights),
 		q, w.ws.ID,
 	)
 	if err != nil {
@@ -714,33 +714,22 @@ func (w *WorkspaceStore) IndexLessons() (int, error) {
 		return 0, fmt.Errorf("scan lessons: %w", err)
 	}
 
-	if len(lessons) == 0 {
-		return 0, nil
-	}
-
-	var updated int
-	var errs []string
-	for _, l := range lessons {
-		path := w.Layout().LessonPath(l.Filename)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("lesson %d (%s): read file: %v", l.SequenceNumber, l.Filename, err))
-			continue
-		}
-
-		bodyText := extract.FromHTML(string(data))
-		if _, err := w.db().Exec("UPDATE lessons SET body_text = ? WHERE id = ?", bodyText, l.ID); err != nil {
-			errs = append(errs, fmt.Sprintf("lesson %d (%s): update: %v", l.SequenceNumber, l.Filename, err))
-			continue
-		}
-		updated++
-	}
-
-	if len(errs) > 0 {
-		return updated, fmt.Errorf("index: %d error(s): %s", len(errs), strings.Join(errs, "; "))
-	}
-
-	return updated, nil
+	layout := w.Layout()
+	return indexItems(lessons,
+		func(l Lesson) error {
+			data, err := os.ReadFile(layout.LessonPath(l.Filename))
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			bodyText := extract.FromHTML(string(data))
+			if _, err := w.db().Exec("UPDATE lessons SET body_text = ? WHERE id = ?", bodyText, l.ID); err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			return nil
+		},
+		func(l Lesson) string { return fmt.Sprintf("%d (%s)", l.SequenceNumber, l.Filename) },
+		"lesson",
+	)
 }
 
 // IndexRefs reads all references with empty body_text, extracts plain text
@@ -762,33 +751,22 @@ func (w *WorkspaceStore) IndexRefs() (int, error) {
 		return 0, fmt.Errorf("scan references: %w", err)
 	}
 
-	if len(refs) == 0 {
-		return 0, nil
-	}
-
-	var updated int
-	var errs []string
-	for _, r := range refs {
-		path := w.Layout().RefPath(r.Filename)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("ref %s (%s): read file: %v", r.Slug, r.Filename, err))
-			continue
-		}
-
-		bodyText := extract.FromHTML(string(data))
-		if _, err := w.db().Exec("UPDATE references_t SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
-			errs = append(errs, fmt.Sprintf("ref %s (%s): update: %v", r.Slug, r.Filename, err))
-			continue
-		}
-		updated++
-	}
-
-	if len(errs) > 0 {
-		return updated, fmt.Errorf("index refs: %d error(s): %s", len(errs), strings.Join(errs, "; "))
-	}
-
-	return updated, nil
+	layout := w.Layout()
+	return indexItems(refs,
+		func(r Reference) error {
+			data, err := os.ReadFile(layout.RefPath(r.Filename))
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			bodyText := extract.FromHTML(string(data))
+			if _, err := w.db().Exec("UPDATE references_t SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			return nil
+		},
+		func(r Reference) string { return fmt.Sprintf("%s (%s)", r.Slug, r.Filename) },
+		"ref",
+	)
 }
 
 // IndexRecords reads all learning records with empty body_text, extracts plain
@@ -810,31 +788,20 @@ func (w *WorkspaceStore) IndexRecords() (int, error) {
 		return 0, fmt.Errorf("scan records: %w", err)
 	}
 
-	if len(recs) == 0 {
-		return 0, nil
-	}
-
-	var updated int
-	var errs []string
-	for _, r := range recs {
-		path := w.Layout().RecordPath(r.Filename)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("record %d (%s): read file: %v", r.SequenceNumber, r.Filename, err))
-			continue
-		}
-
-		bodyText := extract.FromMarkdown(string(data))
-		if _, err := w.db().Exec("UPDATE learning_records SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
-			errs = append(errs, fmt.Sprintf("record %d (%s): update: %v", r.SequenceNumber, r.Filename, err))
-			continue
-		}
-		updated++
-	}
-
-	if len(errs) > 0 {
-		return updated, fmt.Errorf("index records: %d error(s): %s", len(errs), strings.Join(errs, "; "))
-	}
-
-	return updated, nil
+	layout := w.Layout()
+	return indexItems(recs,
+		func(r LearningRecord) error {
+			data, err := os.ReadFile(layout.RecordPath(r.Filename))
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			bodyText := extract.FromMarkdown(string(data))
+			if _, err := w.db().Exec("UPDATE learning_records SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			return nil
+		},
+		func(r LearningRecord) string { return fmt.Sprintf("%d (%s)", r.SequenceNumber, r.Filename) },
+		"record",
+	)
 }

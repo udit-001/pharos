@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -102,19 +103,29 @@ func (s *Store) IndexSearch() (int, error) {
 		return 0, fmt.Errorf("list workspaces: %w", err)
 	}
 	var total int
+	var errs []error
 	for _, w := range wsList {
 		wsStore, err := s.Workspace(w.Name)
 		if err != nil {
 			continue
 		}
-		n, _ := wsStore.IndexLessons()
-		total += n
-		n, _ = wsStore.IndexRefs()
-		total += n
-		n, _ = wsStore.IndexRecords()
-		total += n
+		if n, err := wsStore.IndexLessons(); err != nil {
+			errs = append(errs, fmt.Errorf("workspace %q: %w", w.Name, err))
+		} else {
+			total += n
+		}
+		if n, err := wsStore.IndexRefs(); err != nil {
+			errs = append(errs, fmt.Errorf("workspace %q: %w", w.Name, err))
+		} else {
+			total += n
+		}
+		if n, err := wsStore.IndexRecords(); err != nil {
+			errs = append(errs, fmt.Errorf("workspace %q: %w", w.Name, err))
+		} else {
+			total += n
+		}
 	}
-	return total, nil
+	return total, errors.Join(errs...)
 }
 
 // Search performs full-text search across all workspaces and all entity types
