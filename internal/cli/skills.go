@@ -7,11 +7,11 @@ import (
 var skillsCmd = &cobra.Command{
 	Use:   "skills",
 	Short: "Manage agent skills for this project",
-	Long: `Install the pharos skill into your AI coding agent so it
+	Long: `Install or uninstall the pharos skill into your AI coding agent so it
 knows how to use the CLI to manage learning workspaces.
 
-Installs globally by default (~/.agent/skills/). Use --project
-to install at the project level (./.agent/skills/) instead.
+Installs globally by default (~/.<agent>/skills/). Use --project
+to install at the project level (./.<agent>/skills/) instead.
 
 Supported: opencode, claude-code, codex, pi.dev`,
 }
@@ -32,6 +32,8 @@ Default is global install (home directory). Interactive mode prompts
 for the install location. Use --project with --agent for
 non-interactive project-level install.
 
+Use --all to install for all detected agents at once.
+
 Run without flags for interactive mode, or pass --agent to skip prompts.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -42,6 +44,11 @@ Run without flags for interactive mode, or pass --agent to skip prompts.`,
 func init() {
 	rootCmd.AddCommand(skillsCmd)
 	skillsCmd.AddCommand(skillsInstallCmd)
-	skillsInstallCmd.Flags().String("agent", "", "Agent to install for (opencode, claude-code, codex, pi)")
+	skillsCmd.AddCommand(skillsUninstallCmd)
+	skillsInstallCmd.Flags().String("agent", "", "Agent to install for (opencode, claude-code, codex, pi.dev)")
 	skillsInstallCmd.Flags().Bool("project", false, "Install at project level instead of globally")
+	skillsInstallCmd.Flags().Bool("all", false, "Install for all detected agents")
+	skillsUninstallCmd.Flags().String("agent", "", "Agent to uninstall from (opencode, claude-code, codex, pi.dev)")
+	skillsUninstallCmd.Flags().Bool("project", false, "Uninstall from project level instead of globally")
+	skillsUninstallCmd.Flags().Bool("all", false, "Uninstall for all detected agents")
 }

@@ -72,13 +72,10 @@ Examples:
 		}
 
 		fmt.Println()
+		offerSkillInstall()
+		fmt.Println()
 		fmt.Println("  Next steps:")
 		fmt.Println("    pharos workspace create \"Your topic\"")
-		fmt.Println()
-		fmt.Println("  Install the teaching skill for your AI agent:")
-		fmt.Println("    pharos skills install --agent <name>")
-		fmt.Println()
-		fmt.Println("  Supported agents: opencode, claude-code, codex, pi.dev")
 		fmt.Println()
 
 		return nil

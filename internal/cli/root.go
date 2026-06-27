@@ -64,7 +64,7 @@ Most commands support --json for machine-readable output.`,
 			return nil
 		}
 		// Migrate and tailwind subcommands also handle their own DB
-		if cmd.Parent() != nil && (cmd.Parent().Name() == "migrate" || cmd.Parent().Name() == "tailwind") {
+		if cmd.Parent() != nil && (cmd.Parent().Name() == "migrate" || cmd.Parent().Name() == "tailwind" || cmd.Parent().Name() == "skills") {
 			return nil
 		}
 		// Load config with auto-migration for existing users

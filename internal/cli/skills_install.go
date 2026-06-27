@@ -2,12 +2,12 @@ package cli
 
 import (
 	"bufio"
-	"embed"
 	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -15,9 +15,10 @@ import (
 )
 
 type agentTarget struct {
-	name   string
-	subdir string // relative path under the install root, e.g. ".opencode/skills"
-	detect func() bool
+	name    string
+	subdir  string // relative path under the install root, e.g. ".opencode/skills"
+	aliases []string
+	detect  func() bool
 }
 
 func (a agentTarget) globalDir() string {
@@ -43,58 +44,115 @@ var agents = []agentTarget{
 	{name: "opencode", subdir: ".opencode/skills", detect: func() bool { return hasBinary("opencode") || hasDir(".opencode") }},
 	{name: "claude-code", subdir: ".claude/skills", detect: func() bool { return hasBinary("claude") || hasDir(".claude") }},
 	{name: "codex", subdir: ".codex/skills", detect: func() bool { return hasBinary("codex") || hasDir(".codex") }},
-	{name: "pi.dev", subdir: ".pi/skills", detect: func() bool { return hasBinary("pi") || hasDir(".pi") }},
+	{name: "pi.dev", subdir: ".pi/skills", aliases: []string{"pi"}, detect: func() bool { return hasBinary("pi") || hasDir(".pi") }},
+}
+
+type installTarget struct {
+	agent   agentTarget
+	project bool
 }
 
 func runSkillsInstall(cmd *cobra.Command, args []string) error {
-	agent, _ := cmd.Flags().GetString("agent")
-	project, _ := cmd.Flags().GetBool("project")
-
-	var selected agentTarget
-	if agent != "" {
-		for _, a := range agents {
-			if a.name == agent {
-				selected = a
-				break
-			}
-		}
-		if selected.name == "" {
-			return fmt.Errorf("unknown agent %q\n  Supported: opencode, claude-code, codex, pi.dev", agent)
-		}
-	} else {
-		selected = pickAgent()
-		project = promptScope()
-	}
-
-	baseDir := selected.installDir(project)
-
-	// Skip overwrite confirmation when --agent is given (non-interactive)
-	if agent == "" {
-		primaryDir := filepath.Join(baseDir, skills.SkillName)
-		if _, err := os.Stat(primaryDir); err == nil {
-			fmt.Printf("  %s/ already exists.\n", primaryDir)
-			fmt.Print("  Overwrite? [y/N] ")
-			reader := bufio.NewReader(os.Stdin)
-			answer, _ := reader.ReadString('\n')
-			answer = strings.TrimSpace(strings.ToLower(answer))
-			if answer != "y" && answer != "yes" {
-				fmt.Println("  Skipped.")
-				return nil
-			}
-		}
-	}
-
-	n, err := installAllSkills(baseDir)
+	targets, err := resolveTargets(cmd, "Install", true)
 	if err != nil {
 		return err
 	}
+	if len(targets) == 0 {
+		return nil
+	}
 
-	fmt.Println()
-	fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), baseDir, n)
+	var errors []string
+	for _, t := range targets {
+		baseDir := t.agent.installDir(t.project)
+		n, err := installAllSkills(baseDir)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("%s: %v", t.agent.name, err))
+			continue
+		}
+		fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), baseDir, n)
+	}
 	fmt.Println()
 	printNextSteps()
+	if len(errors) > 0 {
+		fmt.Println("  Errors:")
+		for _, e := range errors {
+			fmt.Printf("    • %s\n", e)
+		}
+	}
 	fmt.Println()
 	return nil
+}
+
+// resolveTargets resolves --agent, --all, and interactive modes into a list
+// of install targets. Callers provide a verb ("Install" or "Uninstall") for
+// prompt text and allDefault for the --all prompt's default answer.
+func resolveTargets(cmd *cobra.Command, verb string, allDefault bool) ([]installTarget, error) {
+	agent, _ := cmd.Flags().GetString("agent")
+	all, _ := cmd.Flags().GetBool("all")
+
+	if agent != "" && all {
+		return nil, fmt.Errorf("--agent and --all are mutually exclusive")
+	}
+
+	var project bool
+	if all {
+		project, _ = cmd.Flags().GetBool("project")
+		detected := detectAgents()
+		if len(detected) == 0 {
+			fmt.Println("  No AI coding agents detected.")
+			return nil, nil
+		}
+		fmt.Printf("  %s pharos skills for all detected agents? ", verb)
+		if allDefault {
+			fmt.Print("[Y/n] ")
+			if !promptDefaultYes() {
+				fmt.Println("  Skipped.")
+				return nil, nil
+			}
+		} else {
+			fmt.Print("[y/N] ")
+			if !promptYes() {
+				fmt.Println("  Skipped.")
+				return nil, nil
+			}
+		}
+		targets := make([]installTarget, len(detected))
+		for i, a := range detected {
+			targets[i] = installTarget{a, project}
+		}
+		return targets, nil
+	}
+
+	if agent != "" {
+		project, _ = cmd.Flags().GetBool("project")
+		selected, err := resolveAgent(agent)
+		if err != nil {
+			return nil, err
+		}
+		return []installTarget{{selected, project}}, nil
+	}
+
+	selected := pickAgent()
+	project = promptScope()
+	return []installTarget{{selected, project}}, nil
+}
+
+func resolveAgent(name string) (agentTarget, error) {
+	for _, a := range agents {
+		if a.name == name {
+			return a, nil
+		}
+		for _, alias := range a.aliases {
+			if alias == name {
+				return a, nil
+			}
+		}
+	}
+	var supported []string
+	for _, a := range agents {
+		supported = append(supported, a.name)
+	}
+	return agentTarget{}, fmt.Errorf("unknown agent %q\n  Supported: %s\n  If %q is a new AI coding agent, open an issue at https://github.com/udit-001/pharos/issues/new", name, strings.Join(supported, ", "), name)
 }
 
 // promptScope asks the user whether to install globally or at project level.
@@ -116,56 +174,57 @@ func promptScope() bool {
 	return false // global (default)
 }
 
-// installAllSkills installs every embedded skill (learn, teach, ...) into
-// baseDir/<skillName>. Returns the total file count across all skills.
+// installAllSkills installs every embedded skill (teach, ...) into
+// baseDir/<skillName>, then writes a manifest for change detection.
+// Returns the total file count across all skills.
 func installAllSkills(baseDir string) (int, error) {
 	total := 0
 	for _, skill := range skills.All {
-		n, err := installSkillDir(skills.Files, skill, filepath.Join(baseDir, skill))
+		skillDir := filepath.Join(baseDir, skill)
+		files, err := skillFilesMap(skill)
+		if err != nil {
+			return total, fmt.Errorf("read %s skill files: %w", skill, err)
+		}
+		n, err := writeSkillFiles(files, skillDir)
 		if err != nil {
 			return total, fmt.Errorf("install %s skill: %w", skill, err)
 		}
 		total += n
+
+		// Write manifest for change detection and uninstall
+		hash := skills.ManifestHash(files)
+		relPaths := make([]string, 0, len(files))
+		for p := range files {
+			relPaths = append(relPaths, p)
+		}
+		sort.Strings(relPaths)
+		if err := skills.WriteManifest(skillDir, relPaths, hash); err != nil {
+			return total, fmt.Errorf("write manifest for %s: %w", skill, err)
+		}
 	}
 	return total, nil
 }
 
-// installSkillDir walks the embedded srcDir and writes every file under destDir.
-func installSkillDir(fsys embed.FS, srcDir, destDir string) (int, error) {
+// writeSkillFiles writes every entry in files under destDir.
+func writeSkillFiles(files map[string][]byte, destDir string) (int, error) {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return 0, fmt.Errorf("create directories: %w", err)
 	}
-
-	count := 0
-	err := fs.WalkDir(fsys, srcDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		rel, err := filepath.Rel(srcDir, path)
-		if err != nil {
-			return err
-		}
-		data, err := fsys.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read %s: %w", path, err)
-		}
+	paths := make([]string, 0, len(files))
+	for p := range files {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	for _, rel := range paths {
 		out := filepath.Join(destDir, rel)
 		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
-			return err
+			return 0, err
 		}
-		if err := os.WriteFile(out, data, 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", out, err)
+		if err := os.WriteFile(out, files[rel], 0o644); err != nil {
+			return 0, fmt.Errorf("write %s: %w", out, err)
 		}
-		count++
-		return nil
-	})
-	if err != nil {
-		return count, fmt.Errorf("install skill: %w", err)
 	}
-	return count, nil
+	return len(files), nil
 }
 
 func pickAgent() agentTarget {
@@ -250,41 +309,70 @@ func printNextSteps() {
 	fmt.Println("  Next steps:")
 	fmt.Printf("  - Skills are auto-discovered at session start\n")
 	fmt.Printf("  - Ask your agent to manage learning with pharos CLI\n")
+	fmt.Printf("  - Run 'pharos skills uninstall' to remove installed skills\n")
 }
 
 func offerSkillInstall() {
 	detected := detectAgents()
-
-	install := func(a agentTarget, project bool) {
-		baseDir := a.installDir(project)
-		n, err := installAllSkills(baseDir)
-		if err != nil {
-			fmt.Printf("  Warning: skill install failed: %v\n", err)
-			return
-		}
-		fmt.Println()
-		fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), baseDir, n)
-		printNextSteps()
-	}
-
-	switch len(detected) {
-	case 1:
-		fmt.Println()
-		fmt.Printf("  Detected %s — installing pharos skills...\n", detected[0].name)
-		install(detected[0], false) // install globally during init
-	case 0:
+	if len(detected) == 0 {
 		fmt.Println()
 		fmt.Print("  No AI coding agent detected. Install the pharos skills anyway? [y/N] ")
 		if promptYes() {
-			install(pickAgent(), false)
+			installForAgent(pickAgent(), false)
 		}
-	default:
-		fmt.Println()
-		fmt.Print("  Install the pharos skills for an AI coding agent? [Y/n] ")
-		if promptDefaultYes() {
-			install(pickAgent(), false)
+		return
+	}
+
+	// Fast-path: skip if all detected agents already have current skills.
+	if allCurrent := skillsCurrent(detected); allCurrent {
+		return
+	}
+
+	fmt.Println()
+	if len(detected) == 1 {
+		fmt.Printf("  Detected %s — install the pharos teaching skill? [Y/n] ", detected[0].name)
+	} else {
+		fmt.Print("  Install the pharos teaching skill for your AI coding agent? [Y/n] ")
+	}
+	if !promptDefaultYes() {
+		return
+	}
+	installForAgent(pickAgent(), false)
+}
+
+func installForAgent(a agentTarget, project bool) {
+	baseDir := a.installDir(project)
+	n, err := installAllSkills(baseDir)
+	if err != nil {
+		fmt.Printf("  Warning: skill install failed: %v\n", err)
+		return
+	}
+	fmt.Println()
+	fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), baseDir, n)
+	printNextSteps()
+}
+
+// skillsCurrent returns true when every detected agent has current skills at
+// both global and project scopes.
+func skillsCurrent(detected []agentTarget) bool {
+	for _, a := range detected {
+		for _, project := range []bool{false, true} {
+			baseDir := a.installDir(project)
+			if !isSkillInstalled(baseDir) {
+				return false
+			}
+			for _, skill := range skills.All {
+				embedded, err := skillFilesMap(skill)
+				if err != nil {
+					return false
+				}
+				if anySkillChanged(baseDir, skill, embedded) {
+					return false
+				}
+			}
 		}
 	}
+	return true
 }
 
 // skillFilesMap returns the embedded files for a single skill, keyed by
@@ -311,29 +399,23 @@ func skillFilesMap(skill string) (map[string][]byte, error) {
 }
 
 // anySkillChanged reports whether the installed copy of `skill` under baseDir
-// differs from the embedded version (missing, extra, or differing files).
+// differs from the embedded version. Uses the manifest hash for a fast
+// comparison, then verifies all listed files still exist on disk.
 func anySkillChanged(baseDir, skill string, embedded map[string][]byte) bool {
 	dir := filepath.Join(baseDir, skill)
-	for rel, want := range embedded {
-		got, err := os.ReadFile(filepath.Join(dir, rel))
-		if err != nil {
-			return true
-		}
-		if string(got) != string(want) {
+	m, err := skills.ReadManifest(dir)
+	if err != nil {
+		return true
+	}
+	if m.Hash != skills.ManifestHash(embedded) {
+		return true
+	}
+	for _, f := range m.Files {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
 			return true
 		}
 	}
-	installedCount := 0
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() {
-			installedCount++
-		}
-		return nil
-	})
-	return installedCount != len(embedded)
+	return false
 }
 
 func offerSkillUpgrade() {
