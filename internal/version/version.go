@@ -1,6 +1,9 @@
 package version
 
-import "runtime/debug"
+import (
+	"runtime/debug"
+	"strings"
+)
 
 // Version is the current version of the Pharos CLI.
 // Overridden at build time via ldflags, or detected from Go module info.
@@ -20,7 +23,7 @@ func init() {
 		return
 	}
 	if info.Main.Version != "" && info.Main.Version != "(devel)" {
-		Version = info.Main.Version
+		Version = strings.TrimPrefix(info.Main.Version, "v")
 	}
 	for _, setting := range info.Settings {
 		switch setting.Key {
