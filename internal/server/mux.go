@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/udit-001/pharos/internal/db"
-	"github.com/udit-001/pharos/internal/docs"
+	"github.com/udit-001/pharos/internal/docutil"
 	"github.com/udit-001/pharos/internal/markdown"
 	"github.com/udit-001/pharos/internal/render"
 	"github.com/udit-001/pharos/internal/urls"
@@ -410,7 +410,7 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		// — the workspace create command pre-populates the template.
 		mission := ""
 		if missionData, err := os.ReadFile(wsStore.Layout().MissionPath()); err == nil {
-			if trimmed := strings.TrimSpace(string(missionData)); !docs.IsTemplate(trimmed, "mission") {
+			if trimmed := strings.TrimSpace(string(missionData)); !docutil.IsTemplate(trimmed, "mission") {
 				mission = trimmed
 			}
 		}
@@ -467,10 +467,10 @@ func handleDocPage(store *db.Store, kind string) http.HandlerFunc {
 			// Workspace documents are seeded with placeholder templates on
 			// create ({...} markers, or default prose for Notes). Treat an
 			// unfilled template as empty so the learner gets guidance.
-			if !docs.IsTemplate(trimmed, kind) {
+			if !docutil.IsTemplate(trimmed, kind) {
 				// Strip a leading "# ..." H1 that duplicates the navbar title —
 				// all document FORMAT templates start with one.
-				if body := docs.StripH1(trimmed); body != "" {
+				if body := docutil.StripH1(trimmed); body != "" {
 					data.BodyHTML = markdown.Render(body)
 				}
 			}

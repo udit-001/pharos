@@ -1,4 +1,4 @@
-package docs
+package docutil
 
 import "testing"
 

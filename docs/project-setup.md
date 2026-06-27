@@ -56,7 +56,7 @@ internal/
 │   ├── fts_query.go      # Centralised FTS5 query builder
 │   ├── seal_test.go      # Encapsulation guarantee (no raw SQL escape)
 │   └── *_test.go         # Integration tests with temp SQLite DBs
-├── docs/           # Markdown generation (CLI reference, etc.)
+├── docutil/        # Workspace document template helpers (IsTemplate, StripH1)
 ├── extract/        # HTML→plaintext text extraction (goquery-based)
 ├── markdown/       # Markdown→HTML rendering (goldmark)
 ├── migrate/        # Embedded SQL migrations (12 files)
