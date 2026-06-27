@@ -175,6 +175,14 @@ func writePage(w http.ResponseWriter, sd *db.SidebarData, title, activeWS, activ
 	fmt.Fprint(w, render.Page(f, content))
 }
 
+// writeNotFound renders a styled 404 page inside the app frame. Pass a
+// non-nil sd to show the sidebar (item-not-found in a valid workspace);
+// nil gives a standalone page (workspace-not-found, unknown route).
+func writeNotFound(w http.ResponseWriter, sd *db.SidebarData, title, message string) {
+	w.WriteHeader(http.StatusNotFound)
+	writePage(w, sd, title, "", "", 0, "", "", render.NotFound(title, message))
+}
+
 // ── API Handlers ──
 
 func handleListWorkspaces(store *db.Store) http.HandlerFunc {
@@ -343,7 +351,7 @@ func handleAboutPage(store *db.Store) http.HandlerFunc {
 func handleAppShell(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Page not found", "The page you're looking for doesn't exist.")
 			return
 		}
 
@@ -410,7 +418,7 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		name := r.PathValue("name")
 		wsStore, err := store.Workspace(name)
 		if err != nil {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
 			return
 		}
 		ws := wsStore.Workspace()
@@ -422,7 +430,7 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 
 		sd, err := wsStore.GetSidebarData()
 		if err != nil {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Workspace not found", "This workspace could not be loaded.")
 			return
 		}
 
@@ -480,7 +488,7 @@ func handleDocPage(store *db.Store, kind string) http.HandlerFunc {
 		name := r.PathValue("name")
 		wsStore, err := store.Workspace(name)
 		if err != nil {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
 			return
 		}
 
@@ -532,7 +540,7 @@ func handleGlossaryPage(store *db.Store) http.HandlerFunc {
 		name := r.PathValue("name")
 		wsStore, err := store.Workspace(name)
 		if err != nil {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
 			return
 		}
 
@@ -564,19 +572,20 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 
 		wsStore, err := store.Workspace(name)
 		if err != nil {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
 			return
 		}
 
 		current, err := wsStore.GetLessonBySeq(seq)
 		if err != nil {
-			http.NotFound(w, r)
+			sd, _ := wsStore.GetSidebarData()
+			writeNotFound(w, &sd, "Lesson not found", fmt.Sprintf("Lesson #%d doesn't exist in this workspace.", seq))
 			return
 		}
 
 		sd, err := wsStore.GetSidebarData()
 		if err != nil {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Lesson not found", "This lesson could not be loaded.")
 			return
 		}
 
@@ -600,21 +609,23 @@ func handleRecordPage(store *db.Store) http.HandlerFunc {
 
 		wsStore, err := store.Workspace(name)
 		if err != nil {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
 			return
 		}
 		ws := wsStore.Workspace()
 
 		current, err := wsStore.GetRecordBySeq(seq)
 		if err != nil {
-			http.NotFound(w, r)
+			sd, _ := wsStore.GetSidebarData()
+			writeNotFound(w, &sd, "Record not found", fmt.Sprintf("Learning record #%d doesn't exist in this workspace.", seq))
 			return
 		}
 
 		recPath := filepath.Join(ws.Path, "learning-records", current.Filename)
 		mdData, err := os.ReadFile(recPath)
 		if err != nil {
-			http.NotFound(w, r)
+			sd, _ := wsStore.GetSidebarData()
+			writeNotFound(w, &sd, "Record not found", "This learning record's file could not be read.")
 			return
 		}
 
@@ -639,13 +650,14 @@ func handleRefPage(store *db.Store) http.HandlerFunc {
 
 		wsStore, err := store.Workspace(name)
 		if err != nil {
-			http.NotFound(w, r)
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
 			return
 		}
 
 		current, err := wsStore.GetRefBySlug(slug)
 		if err != nil {
-			http.NotFound(w, r)
+			sd, _ := wsStore.GetSidebarData()
+			writeNotFound(w, &sd, "Reference not found", fmt.Sprintf("Reference %q doesn't exist in this workspace.", slug))
 			return
 		}
 
@@ -735,84 +747,7 @@ func serveFileOr404(w http.ResponseWriter, r *http.Request, path, kind, file str
 func iframeNotFound(w http.ResponseWriter, kind, ident string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
-	fmt.Fprint(w, fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Not found</title>
-<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
-<style>
-  :root {
-    --bg: #eceff4;
-    --card: #ffffff;
-    --border: #e5e9f0;
-    --muted: #6b7689;
-    --text: #2e3440;
-    --link: #5e81ac;
-  }
-  [data-theme="dark"] {
-    --bg: #353b4a;
-    --card: #3b4252;
-    --border: #434c5e;
-    --muted: #81a1c1;
-    --text: #d8dee9;
-    --link: #81a1c1;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 2rem;
-  }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 2.5rem 2rem;
-    max-width: 26rem;
-    text-align: center;
-  }
-  .icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 1rem;
-    color: var(--muted);
-    opacity: 0.5;
-  }
-  h1 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.5rem; }
-  p { font-size: 0.9rem; line-height: 1.6; color: var(--muted); margin: 0; }
-  code {
-    display: inline-block;
-    margin-top: 1rem;
-    background: var(--bg);
-    padding: 0.25rem 0.5rem;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    font-family: ui-monospace, 'SF Mono', monospace;
-    color: var(--text);
-  }
-</style>
-</head>
-<body>
-  <div class="card">
-    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-      <path d="M10 17l5-5-5-5"/>
-      <path d="M15 12H3"/>
-    </svg>
-    <h1>This %s isn&rsquo;t on disk</h1>
-    <p>The workspace tracks this %s, but the file is missing. It may have been moved or deleted outside pharos. Re-revise it from your agent to restore the content.</p>
-    <code>%s</code>
-  </div>
-</body>
-</html>`, kind, kind, ident))
+	fmt.Fprint(w, render.IframeNotFound(kind, ident))
 }
 
 func handleAssetFile(store *db.Store) http.HandlerFunc {

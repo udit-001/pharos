@@ -207,6 +207,9 @@ func addWatchDirs(w *fsnotify.Watcher, dir string) {
 
 // buildBinary compiles ./cmd/pharos to out.
 func buildBinary(root, out string) error {
+	if err := runTemplGenerate(root); err != nil {
+		return err
+	}
 	cmd := exec.Command("go", "build", "-o", out, "./cmd/pharos")
 	cmd.Dir = root
 	cmd.Stdout = os.Stdout

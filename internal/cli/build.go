@@ -11,6 +11,8 @@ import (
 
 const buildOutput = "pharos"
 
+const templVersion = "v0.3.1020"
+
 var buildFlags struct {
 	noCSS bool
 }
@@ -71,6 +73,9 @@ func runBuild() error {
 		if err := os.WriteFile(cssEmbed, data, 0o644); err != nil {
 			return fmt.Errorf("write embedded CSS: %w", err)
 		}
+		if err := runTemplGenerate(root); err != nil {
+			return err
+		}
 	}
 
 	fmt.Println()
@@ -88,5 +93,22 @@ func runBuild() error {
 	fmt.Println("  ✓ Built pharos")
 	fmt.Println()
 
+	return nil
+}
+
+func runTemplGenerate(root string) error {
+	if _, err := exec.LookPath("templ"); err != nil {
+		fmt.Println("  (templ CLI not found — using committed *_templ.go)")
+		fmt.Printf("    install: go install github.com/a-h/templ/cmd/templ@%s\n", templVersion)
+		return nil
+	}
+	fmt.Println("  Generating templ components...")
+	tc := exec.Command("templ", "generate")
+	tc.Dir = root
+	tc.Stdout = os.Stdout
+	tc.Stderr = os.Stderr
+	if err := tc.Run(); err != nil {
+		return fmt.Errorf("templ generate failed: %w", err)
+	}
 	return nil
 }

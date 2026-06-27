@@ -1,0 +1,82 @@
+package render
+
+templ iframeNotFoundPage(kind, ident string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Not found</title>
+			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
+			<style>
+				:root {
+					--bg: #eceff4;
+					--card: #ffffff;
+					--border: #e5e9f0;
+					--muted: #6b7689;
+					--text: #2e3440;
+					--link: #5e81ac;
+				}
+				[data-theme="dark"] {
+					--bg: #353b4a;
+					--card: #3b4252;
+					--border: #434c5e;
+					--muted: #81a1c1;
+					--text: #d8dee9;
+					--link: #81a1c1;
+				}
+				* { box-sizing: border-box; }
+				body {
+					margin: 0;
+					font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+					background: var(--bg);
+					color: var(--text);
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					min-height: 100vh;
+					padding: 2rem;
+				}
+				.card {
+					background: var(--card);
+					border: 1px solid var(--border);
+					border-radius: 12px;
+					padding: 2.5rem 2rem;
+					max-width: 26rem;
+					text-align: center;
+				}
+				.icon {
+					width: 48px;
+					height: 48px;
+					margin: 0 auto 1rem;
+					color: var(--muted);
+					opacity: 0.5;
+				}
+				h1 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.5rem; }
+				p { font-size: 0.9rem; line-height: 1.6; color: var(--muted); margin: 0; }
+				code {
+					display: inline-block;
+					margin-top: 1rem;
+					background: var(--bg);
+					padding: 0.25rem 0.5rem;
+					border-radius: 6px;
+					font-size: 0.8rem;
+					font-family: ui-monospace, 'SF Mono', monospace;
+					color: var(--text);
+				}
+			</style>
+		</head>
+		<body>
+			<div class="card">
+				<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+					<path d="M10 17l5-5-5-5"/>
+					<path d="M15 12H3"/>
+				</svg>
+				<h1>This { kind } isn’t on disk</h1>
+				<p>The workspace tracks this { kind }, but the file is missing. It may have been moved or deleted outside pharos. Re-revise it from your agent to restore the content.</p>
+				<code>{ ident }</code>
+			</div>
+		</body>
+	</html>
+}

@@ -1,6 +1,8 @@
 package render
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"strings"
 )
@@ -8,97 +10,11 @@ import (
 // Page renders the full HTML document: the frame (sidebar + topbar + wrapper)
 // wrapped around the given content HTML.
 func Page(f Frame, content string) string {
-	return fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>%s — Pharos</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/app.css?v=4">
-<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
-</head>
-<body class="font-sans">
-<div class="flex h-screen overflow-hidden bg-white text-slate-800">
-
-  %s
-
-  %s
-
-  <main class="flex flex-col flex-1 overflow-hidden">
-    <header class="relative flex items-center justify-between gap-4 min-h-12 px-4 md:px-6 py-2.5 bg-stone-50 border-b border-slate-200">
-      <div class="flex items-center gap-3 min-w-0">
-        %s
-        %s
-        %s
-      </div>
-      %s
-      <div class="flex items-center gap-2">
-        <form action="/search" method="GET" class="flex items-center">
-          <div class="flex items-center border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus-within:border-slate-400 transition-colors">
-            <input type="text" name="q" placeholder="Search..." aria-label="Search" value="%s" class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-all">
-          </div>
-        </form>
-        <a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" title="About Pharos">`+iconHelp()+`</a>
-        <button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Toggle theme">
-          <svg data-theme-icon="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        </button>
-      </div>
-    </header>
-
-    <div class="flex-1 overflow-y-auto %s">
-      <div class="%s mx-auto%s">
-        %s
-      </div>
-    </div>
-  </main>
-
-</div>
-
-<script>
-function toggleSidebar() {
-  var sb = document.getElementById('sidebar');
-  var ov = document.getElementById('sidebar-overlay');
-  sb.classList.toggle('sidebar-hidden');
-  ov.classList.toggle('hidden');
-}
-function toggleTheme() {
-  var html = document.documentElement;
-  var isDark = html.dataset.theme === 'dark';
-  var next = isDark ? 'light' : 'dark';
-  html.dataset.theme = next;
-  localStorage.setItem('pharos_theme', next);
-  document.querySelectorAll('iframe').forEach(function(f) {
-    try { f.contentWindow.postMessage({type: 'theme', theme: next}, '*'); } catch(e) {}
-  });
-  document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', next !== 'dark');
-  document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', next === 'dark');
-}
-(function() {
-  if (document.documentElement.dataset.theme === 'dark') {
-    document.querySelector('[data-theme-icon=sun]').classList.remove('hidden');
-    document.querySelector('[data-theme-icon=moon]').classList.add('hidden');
-  }
-})();
-</script>
-</body>
-</html>`,
-		esc(f.Title),
-		sidebarOverlay(),
-		sidebarBlock(f),
-		topbarMenuButton(f),
-		breadcrumbs(f),
-		topbarTitle(f),
-		topbarCenterBranding(f),
-		esc(f.SearchQuery),
-		contentPaddingClass(f.FrameContent()),
-		frameMaxWidthClass(f.FrameContent()),
-		frameContentClass(f.FrameContent()),
-		content,
-	)
+	var buf bytes.Buffer
+	if err := document(f, content).Render(context.Background(), &buf); err != nil {
+		return "<!DOCTYPE html><html><body>" + content + "</body></html>"
+	}
+	return buf.String()
 }
 
 func sidebarOverlay() string {
@@ -187,15 +103,21 @@ func breadcrumbs(f Frame) string {
 	if f.ActiveWS == "" {
 		return ""
 	}
+	// On the workspace landing page there's no item crumb, and the
+	// "Dashboard / Workspace" trail is redundant — the sidebar logo
+	// links to Dashboard and the workspace link is a self-link.
+	if f.ActiveType == "" {
+		return ""
+	}
 	wsLabel := f.ActiveWS
 	if f.Sidebar.Workspace != nil {
 		wsLabel = displayName(f.Sidebar.Workspace.Name, f.Sidebar.Workspace.Topic)
 	}
 	wsURL := fmt.Sprintf("/workspace/%s", urlPathEscape(f.ActiveWS))
 
-	// Build trail: always starts with Dashboard / Workspace
+	// Build trail: Workspace / Item (Dashboard is reachable via the
+	// sidebar logo, so it doesn't earn a crumb).
 	sep := `<span class="text-slate-300 mx-1 shrink-0">/</span>`
-	dashLink := `<a href="/" class="text-slate-400 hover:text-slate-600 no-underline text-sm">Dashboard</a>`
 	wsLink := fmt.Sprintf(`<a href="%s" class="text-slate-400 hover:text-slate-600 no-underline text-sm">%s</a>`, wsURL, esc(wsLabel))
 
 	// If there's a page-level item, add it as the third crumb
@@ -244,21 +166,14 @@ func breadcrumbs(f Frame) string {
 		}
 	}
 
-	return fmt.Sprintf(`<nav class="flex items-center gap-0 text-sm min-w-0">%s%s%s%s</nav>`,
-		dashLink, sep, wsLink, pageCrumb)
+	return fmt.Sprintf(`<nav class="flex items-center gap-0 text-sm min-w-0">%s%s</nav>`,
+		wsLink, pageCrumb)
 }
 
 func frameContentClass(isFrame bool) string {
 	if isFrame {
 		return " flex flex-col overflow-hidden h-full"
 	}
-	return ""
-}
-
-// topbarTitle returns the page title for the topbar. Currently unused —
-// branding is handled by topbarCenterBranding on the dashboard, and
-// breadcrumbs show the page name inside workspaces.
-func topbarTitle(f Frame) string {
 	return ""
 }
 

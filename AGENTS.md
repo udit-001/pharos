@@ -10,7 +10,7 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 ## Conventions
 
-- HTML is rendered via `fmt.Sprintf` in `internal/render/` — no templates.
+- HTML is rendered via `templ` components in `internal/render/`. View funcs keep a `(...) string` interface (call `component.Render` internally); callers and `render_test.go` are unchanged. `*.templ` sources compile to committed `*_templ.go` — run `templ generate` (wired into `pharos build`/`pharos dev`; install with `go install github.com/a-h/templ/cmd/templ@<templVersion>`). Raw HTML fields (`content`, `BodyHTML`) use `@templ.Raw(...)`; all else auto-escapes.
 - Tailwind v4 standalone CLI: edit `web/input.css`, then `pharos build`. CSS is `//go:embed`'d and committed.
 - Each Cobra command lives in its own file under `internal/cli/`.
 - Version lives in `internal/version/` as `Version`/`Commit`/`Date` vars, overridable via ldflags or auto-detected from `debug.BuildInfo` + VCS settings.

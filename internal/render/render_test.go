@@ -79,7 +79,7 @@ func TestRecordActiveStatusTag(t *testing.T) {
 func TestPageWrapsContentInFrame(t *testing.T) {
 	f := Frame{Title: "My Page"}
 	out := Page(f, "<p>BODY</p>")
-	if !strings.Contains(out, "<!DOCTYPE html>") {
+	if !strings.Contains(strings.ToLower(out), "<!doctype html>") {
 		t.Errorf("expected doctype, got:\n%s", out)
 	}
 	if !strings.Contains(out, "<title>My Page — Pharos</title>") {
