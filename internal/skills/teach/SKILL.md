@@ -80,16 +80,16 @@ Every external link in a lesson must use `target="_blank" rel="noopener noreferr
 
 ## Assets
 
-Lessons are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second lesson could reuse.
+HTML pages (lessons and references) are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second page could reuse.
 
-A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`, so two link types resolve differently from inside it:
+Each HTML page renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>` or `/api/ref-html/<workspace>/<file>`, so two link types resolve differently from inside it:
 
-- **Asset references** (a stylesheet, script, or image the lesson loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
+- **Asset references** (a stylesheet, script, or image the page loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
 - **Contextual links** (clicking to another dashboard page) must escape the iframe with an absolute route and `target="_top"`. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table covering mission, glossary, resources, notes, lessons, records, and references — never guess a URL pattern. A bare `lessons/0002.html` link would load inside the iframe and break the sidebar.
 
-Reuse is the default, not the exception. Before authoring a lesson, check what assets already exist: `pharos asset list`. Build from the components already there. When a lesson needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future lesson would duplicate.
+Reuse is the default, not the exception. Before authoring a lesson or reference, check what assets already exist: `pharos asset list`. Build from the components already there. When a page needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future page would duplicate.
 
-A shared stylesheet is the first component every workspace earns: every lesson links it, so the lessons look like one consistent course rather than a pile of one-offs. See [LESSON-THEME.md](./LESSON-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
+A shared stylesheet is the first component every workspace earns: every HTML page — lessons and references alike — links it, so the workspace looks like one consistent course rather than a pile of one-offs. See [PAGE-THEME.md](./PAGE-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
 
 ## The Mission
 
@@ -160,6 +160,8 @@ Lessons will rarely be revisited later - reference documents will be. They shoul
 
 References are addressed by **slug** (descriptive name derived from the title), not sequence numbers. If a reference needs updating, revise it: `pharos reference revise <slug> --body-file <path>`.
 
+References are HTML files that render in the same iframe as lessons — they must link `assets/style.css` and follow the [PAGE-THEME.md](./PAGE-THEME.md) boilerplate (theme sync, root-relative asset paths, FOUC prevention). A reference that omits the stylesheet renders unstyled.
+
 Some learning topics lend themselves to reference:
 
 - Syntax and code snippets for programming
@@ -168,7 +170,7 @@ Some learning topics lend themselves to reference:
 - Exercises and routines for fitness
 - Glossaries for any topic with its own nomenclature
 
-Glossaries, in particular, are an essential reference. Once one is created, it should be adhered to in every lesson. When writing a lesson, fetch the glossary terms from `GET /api/workspaces/{id}/glossary-terms` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — see [LESSON-THEME.md](./LESSON-THEME.md) for the tooltip convention.
+Glossaries, in particular, are an essential reference. Once one is created, it should be adhered to in every lesson. When writing a lesson, fetch the glossary terms from `GET /api/workspaces/{id}/glossary-terms` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — see [PAGE-THEME.md](./PAGE-THEME.md) for the tooltip convention.
 
 ## `NOTES.md`
 

@@ -1,8 +1,8 @@
-# Lesson Theme — Nord-Inspired Design System
+# Page Theme — Nord-Inspired Design System
 
-Lessons render inside an iframe within the Pharos dashboard. They must match the dashboard's Nord-inspired palette so they feel integral to the app, not embedded.
+Lessons and references render inside an iframe within the Pharos dashboard. They must match the dashboard's Nord-inspired palette so they feel integral to the app, not embedded.
 
-The dashboard controls theme via `data-theme` attribute on `<html>` — light or dark. Lessons sync by reading `localStorage` on load and listening for `postMessage` theme events at runtime.
+The dashboard controls theme via `data-theme` attribute on `<html>` — light or dark. HTML pages sync by reading `localStorage` on load and listening for `postMessage` theme events at runtime.
 
 ---
 
@@ -20,7 +20,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 
 ## Nord Palette (CSS Variables)
 
-These are the shared variables every lesson must use — never hardcoded color values.
+These are the shared variables every HTML page must use — never hardcoded color values.
 
 ### Light mode (`:root`)
 
@@ -68,13 +68,15 @@ Reverse the luminance: backgrounds become dark, text becomes light, keeping Nord
 
 ## Required Boilerplate
 
+Every HTML page — lessons and references alike — starts with this boilerplate. It links the shared stylesheet, prevents theme flash, and wires up runtime theme sync. A reference that omits it renders unstyled.
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lesson Title</title>
+<title>Page Title</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -121,14 +123,14 @@ Reverse the luminance: backgrounds become dark, text becomes light, keeping Nord
 
 Key rules:
 - **No `data-theme` on `<html>`** — the blocking script sets it dynamically
-- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic, optional glossary tooltip (`<script src="assets/glossary-tooltip.js">`), and postMessage listener
-- **CSS links are root-relative** — no `../`, the iframe serves from `/api/lesson-html/<workspace>/<file>`
+- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), optional glossary tooltip (`<script src="assets/glossary-tooltip.js">`), and postMessage listener
+- **CSS links are root-relative** — no `../`, the iframe serves from `/api/lesson-html/<workspace>/<file>` or `/api/ref-html/<workspace>/<file>`
 
 ---
 
-## Component Patterns (not CSS — design free)
+## Component Patterns (lessons only — design free)
 
-These are the functional building blocks. The teach skill should create appropriate CSS for each.
+These are the functional building blocks for interactive lessons. References typically don't need them — they're cheat sheets, not interactive content. The teach skill should create appropriate CSS for each.
 
 ### Quiz
 
@@ -161,20 +163,20 @@ Used for quiz options and any clickable action. Rounded, filled, hover feedback.
 ## Layout
 
 - `.container` — centered, max-width matches the dashboard's reading column (~56rem), padded
-- Lessons are self-contained HTML — no prev/next nav, the dashboard sidebar handles sequencing
+- HTML pages are self-contained — no prev/next nav, the dashboard sidebar handles sequencing
 - Content is single-column, stacked vertically
 
 ---
 
 ## Contextual Links (Iframe Escape)
 
-Links that navigate outside the lesson (to any dashboard page) must use `target="_top"` with an absolute route. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table — never guess a URL pattern. Relative links like `../lesson/0002.html` load inside the iframe and lose the dashboard chrome.
+Links that navigate outside the page (to any dashboard page) must use `target="_top"` with an absolute route. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table — never guess a URL pattern. Relative links like `../lesson/0002.html` load inside the iframe and lose the dashboard chrome.
 
 ---
 
 ## Glossary Tooltips
 
-When the workspace has glossary terms, wrap each occurrence of a term in lesson prose with a `<span class="glossary-term" data-term="TermName">TermName</span>` so the reader gets a hoverable definition preview.
+When the workspace has glossary terms, wrap each occurrence of a term in page prose with a `<span class="glossary-term" data-term="TermName">TermName</span>` so the reader gets a hoverable definition preview. This applies to both lessons and references — any HTML page that uses workspace terminology.
 
 **Convention:**
 
@@ -183,13 +185,13 @@ The <span class="glossary-term" data-term="Hypertrophy">Hypertrophy</span>
 response drives muscle growth.
 ```
 
-**Tooltip CSS + JS** — both are seeded in `assets/` at workspace creation and linked automatically by lessons that already include `<link rel="stylesheet" href="assets/style.css">`. The only addition needed is the script reference before `</body>` (before the postMessage listener):
+**Tooltip CSS + JS** — both are seeded in `assets/` at workspace creation and linked automatically by pages that already include `<link rel="stylesheet" href="assets/style.css">`. The only addition needed is the script reference before `</body>` (before the postMessage listener):
 
 ```html
 <script src="assets/glossary-tooltip.js"></script>
 ```
 
-The JS fetches definitions from `GET /api/workspaces/name/{name}/glossary-terms` at runtime — no definitions are baked into the lesson HTML. The workspace name is extracted from the iframe URL automatically.
+The JS fetches definitions from `GET /api/workspaces/name/{name}/glossary-terms` at runtime — no definitions are baked into the page HTML. The workspace name is extracted from the iframe URL automatically.
 
 **Don't wrap every occurrence.** Use judgement: wrap the first occurrence in a section, or where re-reading the definition aids understanding. Over-wrapping makes text noisy and trains readers to ignore tooltips.
 
@@ -199,6 +201,6 @@ The JS fetches definitions from `GET /api/workspaces/name/{name}/glossary-terms`
 
 1. **Everything uses CSS variables**, never hardcoded hex values
 2. **Dark mode is free** — switching `data-theme` toggles all variable values; using variables makes it work automatically
-3. **No dashboard chrome in lessons** — the dashboard owns navigation
+3. **No dashboard chrome in pages** — the dashboard owns navigation
 4. **Reusable components live in `assets/`** — extract shared CSS with `pharos asset create`
 5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css`, `assets/quiz.css`, and `assets/glossary-tooltip.js` should be purely presentational/behavioural, not theme-detection

@@ -9,7 +9,7 @@ import (
 // Workspace seed files — the default content written into a freshly created
 // workspace. Real files (lintable, syntax-highlighted, previewable) embedded
 // at compile time; one source of truth for what a new workspace contains.
-// See LESSON-THEME.md in the teach skill for the design conventions these
+// See PAGE-THEME.md in the teach skill for the design conventions these
 // files follow.
 
 //go:embed seed/style.css
