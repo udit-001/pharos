@@ -22,15 +22,15 @@ func renderComponent(c templ.Component) string {
 	return buf.String()
 }
 
-func Dashboard(d DashboardData) string    { return renderComponent(dashboard(d)) }
-func About() string                       { return renderComponent(about()) }
-func WorkspacePage(d WorkspaceData) string { return renderComponent(workspacePage(d)) }
-func Lesson(d LessonData) string           { return renderComponent(lesson(d)) }
-func Record(d RecordData) string          { return renderComponent(record(d)) }
-func Ref(d RefData) string                 { return renderComponent(ref(d)) }
-func Document(d DocumentData) string      { return renderComponent(documentView(d)) }
+func Dashboard(d DashboardData) string      { return renderComponent(dashboard(d)) }
+func About() string                         { return renderComponent(about()) }
+func WorkspacePage(d WorkspaceData) string  { return renderComponent(workspacePage(d)) }
+func Lesson(d LessonData) string            { return renderComponent(lesson(d)) }
+func Record(d RecordData) string            { return renderComponent(record(d)) }
+func Ref(d RefData) string                  { return renderComponent(ref(d)) }
+func Document(d DocumentData) string        { return renderComponent(documentView(d)) }
 func NotFound(title, message string) string { return renderComponent(notFound(title, message)) }
-func Search(d SearchData) string           { return renderComponent(search(d)) }
+func Search(d SearchData) string            { return renderComponent(search(d)) }
 
 // workspaceMeta formats the lesson/record/ref counts for a dashboard card.
 func workspaceMeta(w WorkspaceCard) string {
