@@ -2,6 +2,8 @@ package db
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -77,7 +79,10 @@ func (s *Store) GetWorkspaceByName(name string) (Workspace, error) {
 	return w, nil
 }
 
-// AddWorkspace creates a new workspace.
+// AddWorkspace creates a new workspace row only. It does not create the
+// on-disk directory or seed templates — for that use CreateWorkspace, which
+// owns the full row ⇔ dir tree invariant. Tests use AddWorkspace to set up a
+// row without the filesystem; production code uses CreateWorkspace.
 func (s *Store) AddWorkspace(w Workspace) (Workspace, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	result, err := s.db.Exec(
@@ -93,6 +98,68 @@ func (s *Store) AddWorkspace(w Workspace) (Workspace, error) {
 	w.CreatedAt = now
 	w.LastStudied = now
 	return w, nil
+}
+
+// CreateWorkspace owns the full workspace lifecycle: it creates the directory
+// tree (root + subdirs), seeds the default files (CSS/JS assets, MISSION/
+// RESOURCES/NOTES templates), and inserts the row. The "row ⇔ dir tree"
+// invariant lives here — a created workspace always has both. wsPath is
+// supplied by the caller (the CLI knows the data dir / --dir override); the
+// store owns the scaffold. Mirrors the WorkspaceStore.CreateLesson/Record
+// shape for the workspace entity itself.
+func (s *Store) CreateWorkspace(name, topic, wsPath string) (Workspace, error) {
+	layout := NewLayout(wsPath)
+
+	for _, sub := range layout.Subdirs() {
+		if err := os.MkdirAll(filepath.Join(layout.Root, sub), 0o755); err != nil {
+			return Workspace{}, fmt.Errorf("create %s directory: %w", sub, err)
+		}
+	}
+
+	displayName := topic
+	if displayName == "" {
+		displayName = name
+	}
+	if err := seedWorkspaceDefaults(layout, displayName); err != nil {
+		return Workspace{}, fmt.Errorf("seed workspace: %w", err)
+	}
+
+	w := Workspace{Name: name, Topic: topic, Path: wsPath}
+	created, err := s.AddWorkspace(w)
+	if err != nil {
+		// Roll back the directory scaffold on DB failure so a retry
+		// doesn't hit a duplicate-name error against an orphaned dir.
+		_ = os.RemoveAll(wsPath)
+		return Workspace{}, err
+	}
+	return created, nil
+}
+
+// DeleteWorkspaceByName removes a workspace's row (cascading to its lessons,
+// records, and references), deletes its on-disk directory, and clears the
+// current-workspace setting if it pointed at the deleted one. The inverse of
+// CreateWorkspace — the row ⇔ dir tree invariant is torn down in one place.
+// Confirmation prompting stays with the caller (a UI concern).
+func (s *Store) DeleteWorkspaceByName(name string) error {
+	w, err := s.GetWorkspaceByName(name)
+	if err != nil {
+		return fmt.Errorf("workspace %q not found: %w", name, err)
+	}
+
+	if err := s.DeleteWorkspace(w.ID); err != nil {
+		return fmt.Errorf("delete workspace row: %w", err)
+	}
+
+	if w.Path != "" {
+		if err := os.RemoveAll(w.Path); err != nil {
+			return fmt.Errorf("remove workspace directory: %w", err)
+		}
+	}
+
+	if current, _ := s.CurrentWorkspace(); current == w.Name {
+		_ = s.SetCurrentWorkspace("")
+	}
+	return nil
 }
 
 // UpdateWorkspaceMission updates the mission_why field.

@@ -1,24 +1,12 @@
-// GLOSSARY-TOOLTIP.js — Reference copy of the tooltip runtime.
-//
-// Actual implementation: assets/glossary-tooltip.js (seeded per workspace
-// at creation via workspace_create.go). Do NOT inline this into lessons.
-// Lessons link it with <script src="assets/glossary-tooltip.js">.
-//
-// CSS lives in assets/style.css (Glossary tooltips section).
-// See LESSON-THEME.md for the convention.
-
 (function() {
   var m = window.location.pathname.match(/\/api\/lesson-html\/([^/]+)\//);
   if (!m) return;
   var wsName = m[1];
-
   var tip = document.createElement('div');
   tip.className = 'glossary-tooltip';
   document.body.appendChild(tip);
-
   var els = document.querySelectorAll('.glossary-term');
   if (!els.length) return;
-
   var defs = null;
   fetch('/api/workspaces/name/' + encodeURIComponent(wsName) + '/glossary-terms')
     .then(function(r) { return r.json(); })
@@ -27,7 +15,6 @@
       data.forEach(function(t) { defs[t.term] = t.definition; });
     })
     .catch(function() {});
-
   els.forEach(function(el) {
     el.addEventListener('mouseenter', function(e) {
       if (!defs) return;

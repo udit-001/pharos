@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -484,6 +485,11 @@ func (w *WorkspaceStore) SupersedeRecord(seq int, title, bodyMD, summary string)
 	return created, *old, nil
 }
 
+// ErrRefSlugExists signals that a reference with the given slug already
+// exists in the workspace. Callers (e.g. the CLI) wrap it into a user-facing
+// message that hints at the revise command.
+var ErrRefSlugExists = errors.New("reference slug already exists")
+
 // CreateRef creates a new reference: slug-based filename, write file, DB row.
 func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -495,7 +501,7 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 	existing, _ := w.GetRefs()
 	for _, r := range existing {
 		if r.Slug == slug {
-			return Reference{}, fmt.Errorf("reference with slug %q already exists", slug)
+			return Reference{}, fmt.Errorf("reference with slug %q already exists: %w", slug, ErrRefSlugExists)
 		}
 	}
 

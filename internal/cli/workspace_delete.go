@@ -51,20 +51,12 @@ Examples:
 			}
 		}
 
-		// Delete the DB row first (cascades to lessons, records, references)
-		if err := s.DeleteWorkspace(ws.ID); err != nil {
-			return fmt.Errorf("delete workspace from database: %w", err)
-		}
-
-		// Remove the workspace directory
-		if err := os.RemoveAll(ws.Path); err != nil {
-			return fmt.Errorf("remove workspace directory: %w", err)
-		}
-
-		// Clear current workspace if it was the deleted one
-		current, _ := s.CurrentWorkspace()
-		if current == ws.Name {
-			_ = s.SetCurrentWorkspace("")
+		// DeleteWorkspaceByName owns the full teardown: DB row (cascading to
+		// lessons/records/references), the on-disk directory, and clearing the
+		// current-workspace setting if it pointed here. Confirmation is a UI
+		// concern, handled above.
+		if err := s.DeleteWorkspaceByName(ws.Name); err != nil {
+			return err
 		}
 
 		if jsonOut {
