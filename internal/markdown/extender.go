@@ -1,4 +1,4 @@
-package server
+package markdown
 
 import (
 	"bytes"
@@ -9,6 +9,9 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// externalLinkExtender adds target="_blank" rel="noopener noreferrer" to
+// external (http/https) links so they open in a new tab — internal/relative
+// links are left untouched.
 type externalLinkExtender struct{}
 
 func (e *externalLinkExtender) Extend(m goldmark.Markdown) {

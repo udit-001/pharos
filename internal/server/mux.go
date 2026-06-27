@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,16 +10,11 @@ import (
 	"strings"
 
 	"github.com/udit-001/pharos/internal/db"
+	"github.com/udit-001/pharos/internal/docs"
+	"github.com/udit-001/pharos/internal/markdown"
 	"github.com/udit-001/pharos/internal/render"
 	"github.com/udit-001/pharos/internal/urls"
 	"github.com/udit-001/pharos/internal/web"
-	"github.com/yuin/goldmark"
-)
-
-var md = goldmark.New(
-	goldmark.WithExtensions(
-		&externalLinkExtender{},
-	),
 )
 
 // NewMux builds the HTTP mux for the Pharos dashboard: CSS serving, JSON API,
@@ -437,22 +431,20 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		// — the workspace create command pre-populates the template.
 		mission := ""
 		if missionData, err := os.ReadFile(wsStore.Layout().MissionPath()); err == nil {
-			if trimmed := strings.TrimSpace(string(missionData)); trimmed != "" && !strings.Contains(trimmed, "{") {
+			if trimmed := strings.TrimSpace(string(missionData)); !docs.IsTemplate(trimmed, "mission") {
 				mission = trimmed
 			}
 		}
 
 		// Render mission markdown → HTML (same pattern as learning records)
-		var missionHTML bytes.Buffer
+		missionHTML := ""
 		if mission != "" {
-			if err := md.Convert([]byte(mission), &missionHTML); err != nil {
-				missionHTML.WriteString("<p>Mission unavailable</p>")
-			}
+			missionHTML = markdown.Render(mission)
 		}
 
 		data := render.WorkspaceData{
 			Workspace: toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
-			Mission:   missionHTML.String(),
+			Mission:   missionHTML,
 			Lessons:   toRenderLessons(sd.Lessons),
 			Records:   toRenderRecords(sd.Records),
 			Refs:      toRenderRefs(sd.Refs),
@@ -496,26 +488,11 @@ func handleDocPage(store *db.Store, kind string) http.HandlerFunc {
 			// Workspace documents are seeded with placeholder templates on
 			// create ({...} markers, or default prose for Notes). Treat an
 			// unfilled template as empty so the learner gets guidance.
-			hasPlaceholder := strings.Contains(trimmed, "{")
-			_, isDefaultNotes := strings.CutPrefix(trimmed, "# Notes\n\nPreferences and working notes for this workspace.")
-			isDefaultNotes = isDefaultNotes && kind == "notes"
-			if trimmed != "" && !hasPlaceholder && !isDefaultNotes {
+			if !docs.IsTemplate(trimmed, kind) {
 				// Strip a leading "# ..." H1 that duplicates the navbar title —
 				// all document FORMAT templates start with one.
-				if strings.HasPrefix(trimmed, "# ") {
-					if nl := strings.IndexByte(trimmed, '\n'); nl >= 0 {
-						trimmed = strings.TrimSpace(trimmed[nl+1:])
-					} else {
-						trimmed = ""
-					}
-				}
-				if trimmed != "" {
-					var buf bytes.Buffer
-					if err := md.Convert([]byte(trimmed), &buf); err == nil {
-						data.BodyHTML = buf.String()
-					} else {
-						data.BodyHTML = "<p>Document unavailable.</p>"
-					}
+				if body := docs.StripH1(trimmed); body != "" {
+					data.BodyHTML = markdown.Render(body)
 				}
 			}
 		}
@@ -625,12 +602,7 @@ func handleRecordPage(store *db.Store) http.HandlerFunc {
 			return
 		}
 
-		var buf bytes.Buffer
-		if err := md.Convert(mdData, &buf); err != nil {
-			buf.WriteString("<p>Error rendering markdown</p>")
-		}
-
-		data := render.RecordData{Title: current.Title, Status: current.Status, BodyHTML: buf.String()}
+		data := render.RecordData{Title: current.Title, Status: current.Status, BodyHTML: markdown.Render(string(mdData))}
 		wsStore.SetLastViewed("record", seq)
 		sd, _ := wsStore.GetSidebarData()
 		writePage(w, &sd, current.Title, name, "record", seq, "", "", render.Record(data))
