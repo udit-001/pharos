@@ -39,16 +39,22 @@ func TestContinueItemLesson(t *testing.T) {
 	}
 }
 
-// TestContinueItemRef covers the LastRefSeq branch that was previously
-// untested (it lived inline in the HTTP handler). This is the branch the
-// report flagged as "exactly the one that breaks silently."
+// TestContinueItemRef covers the LastRefSeq branch. last_ref_seq stores the
+// viewed reference's row ID (refs are slug-based — migration 00006 dropped
+// sequence_number). This test verifies the continue card shows the viewed
+// ref, not just the first one.
 func TestContinueItemRef(t *testing.T) {
 	store := newTestStore(t)
 	ws := seedWorkspace(t, store, "alpha")
 	if _, err := ws.AddRef(Reference{Title: "SQL Joins", Slug: "sql-joins", Filename: "sql-joins.html"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ws.SetLastViewed("ref", 0); err != nil {
+	ref2, err := ws.AddRef(Reference{Title: "Index Tuning", Slug: "index-tuning", Filename: "index-tuning.html"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// View the SECOND ref — the continue card must show it, not refs[0]
+	if err := ws.SetLastViewed("ref", int(ref2.ID)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,10 +65,10 @@ func TestContinueItemRef(t *testing.T) {
 	if ci == nil {
 		t.Fatal("expected continue item, got nil")
 	}
-	if want := "/workspace/alpha/ref/sql-joins"; ci.URL != want {
-		t.Errorf("URL = %q, want %q", ci.URL, want)
+	if want := "/workspace/alpha/ref/index-tuning"; ci.URL != want {
+		t.Errorf("URL = %q, want %q (the viewed ref, not refs[0])", ci.URL, want)
 	}
-	if want := "alpha — Reference: SQL Joins"; ci.Label != want {
+	if want := "alpha — Reference: Index Tuning"; ci.Label != want {
 		t.Errorf("Label = %q, want %q", ci.Label, want)
 	}
 }

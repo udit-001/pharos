@@ -275,9 +275,9 @@ type ContinueItem struct {
 // workspace has any activity. The URL/label are built here so the handler is
 // a thin caller.
 //
-// NOTE: the LastRefSeq branch currently takes the first reference rather than
-// the one matching LastRefSeq — preserved from the original handler logic.
-// Moving it here makes the branch testable; fixing it is a separate concern.
+// last_ref_seq stores a reference's row ID, not a sequence number — refs are
+// slug-based (migration 00006 dropped sequence_number). The > 0 guard skips
+// stale zero values from the pre-fix SetLastViewed("ref", 0) call.
 func (s *Store) ContinueItem() (*ContinueItem, error) {
 	ws, _ := s.GetWorkspaces()
 	for _, w := range ws {
@@ -295,17 +295,19 @@ func (s *Store) ContinueItem() (*ContinueItem, error) {
 					}, nil
 				}
 			}
-		} else if w.LastRefSeq != nil {
+		} else if w.LastRefSeq != nil && *w.LastRefSeq > 0 {
 			wsStore, err := s.Workspace(w.Name)
 			if err != nil {
 				continue
 			}
 			refs, _ := wsStore.GetRefs()
-			if len(refs) > 0 {
-				return &ContinueItem{
-					URL:   urls.Ref(w.Name, refs[0].Slug),
-					Label: fmt.Sprintf("%s — Reference: %s", w.Name, refs[0].Title),
-				}, nil
+			for _, ref := range refs {
+				if ref.ID == int64(*w.LastRefSeq) {
+					return &ContinueItem{
+						URL:   urls.Ref(w.Name, ref.Slug),
+						Label: fmt.Sprintf("%s — Reference: %s", w.Name, ref.Title),
+					}, nil
+				}
 			}
 		}
 	}

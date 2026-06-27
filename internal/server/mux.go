@@ -596,7 +596,7 @@ func handleRefPage(store *db.Store) http.HandlerFunc {
 			Title:  current.Title,
 			RawURL: fmt.Sprintf("/api/ref-html/%s/%s", urls.PathEscape(name), urls.PathEscape(current.Filename)),
 		}
-		wsStore.SetLastViewed("ref", 0)
+		wsStore.SetLastViewed("ref", int(current.ID))
 		sd, _ := wsStore.GetSidebarData()
 		writePage(w, &sd, current.Title, name, "ref", 0, slug, "", render.Ref(data))
 	}
