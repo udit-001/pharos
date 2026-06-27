@@ -45,6 +45,22 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 		w.Write(web.CSS)
 	})
 
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Write(web.FaviconICO)
+	})
+	mux.HandleFunc("GET /favicon.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Write(web.FaviconPNG)
+	})
+	mux.HandleFunc("GET /favicon.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Write(web.FaviconSVG)
+	})
+
 	// JSON API
 	mux.HandleFunc("GET /api/workspaces", jsonHandler(handleListWorkspaces(store)))
 	mux.HandleFunc("GET /api/workspaces/{id}", jsonHandler(handleGetWorkspace(store)))
@@ -329,7 +345,7 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 
 func handleAboutPage(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		writePage(w, nil, "About — Pharos", "", "", 0, "", "", render.About())
+		writePage(w, nil, "About", "", "", 0, "", "", render.About())
 	}
 }
 
