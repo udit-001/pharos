@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 const wsColumns = `id, name, topic, path, mission_why, created_at, last_studied, last_lesson_seq, last_record_seq, last_ref_seq`
@@ -237,4 +239,75 @@ func (s *Store) WorkspaceCount() (int, error) {
 	var count int
 	err := s.db.Get(&count, "SELECT COUNT(*) FROM workspaces")
 	return count, err
+}
+
+// Stats holds aggregate counts across all workspaces.
+type Stats struct {
+	Workspaces int
+	Lessons    int
+	Records    int
+	Refs       int
+}
+
+// Totals sums the lesson/record/ref counts across the given workspaces.
+// Callers that already have the workspace list (e.g. the dashboard handler,
+// which needs it for the grid) use this to avoid a second query.
+func Totals(ws []Workspace) Stats {
+	var t Stats
+	for _, w := range ws {
+		t.Lessons += w.LessonCount
+		t.Records += w.RecordCount
+		t.Refs += w.RefCount
+	}
+	t.Workspaces = len(ws)
+	return t
+}
+
+// ContinueItem is the "continue where you left off" recommendation for the
+// dashboard. URL is the navigational link; Label is the display text.
+type ContinueItem struct {
+	URL   string
+	Label string
+}
+
+// ContinueItem derives the "continue where you left off" recommendation: the
+// first workspace with a last-viewed lesson or reference. Returns nil if no
+// workspace has any activity. The URL/label are built here so the handler is
+// a thin caller.
+//
+// NOTE: the LastRefSeq branch currently takes the first reference rather than
+// the one matching LastRefSeq — preserved from the original handler logic.
+// Moving it here makes the branch testable; fixing it is a separate concern.
+func (s *Store) ContinueItem() (*ContinueItem, error) {
+	ws, _ := s.GetWorkspaces()
+	for _, w := range ws {
+		if w.LastLessonSeq != nil && *w.LastLessonSeq > 0 {
+			wsStore, err := s.Workspace(w.Name)
+			if err != nil {
+				continue
+			}
+			lessons, _ := wsStore.GetLessons()
+			for _, l := range lessons {
+				if l.SequenceNumber == *w.LastLessonSeq {
+					return &ContinueItem{
+						URL:   urls.Lesson(w.Name, l.SequenceNumber),
+						Label: fmt.Sprintf("%s — Lesson: %s", w.Name, l.Title),
+					}, nil
+				}
+			}
+		} else if w.LastRefSeq != nil {
+			wsStore, err := s.Workspace(w.Name)
+			if err != nil {
+				continue
+			}
+			refs, _ := wsStore.GetRefs()
+			if len(refs) > 0 {
+				return &ContinueItem{
+					URL:   urls.Ref(w.Name, refs[0].Slug),
+					Label: fmt.Sprintf("%s — Reference: %s", w.Name, refs[0].Title),
+				}, nil
+			}
+		}
+	}
+	return nil, nil
 }

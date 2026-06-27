@@ -281,14 +281,9 @@ func handleGetGlossaryTermsByName(store *db.Store) http.HandlerFunc {
 func handleStats(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ws, _ := store.GetWorkspaces()
-		tl, tr, tRef := 0, 0, 0
-		for _, w := range ws {
-			tl += w.LessonCount
-			tr += w.RecordCount
-			tRef += w.RefCount
-		}
+		t := db.Totals(ws)
 		jsonResponse(w, map[string]any{
-			"totalWorkspaces": len(ws), "totalLessons": tl, "totalRecords": tr, "totalRefs": tRef,
+			"totalWorkspaces": t.Workspaces, "totalLessons": t.Lessons, "totalRecords": t.Records, "totalRefs": t.Refs,
 		})
 	}
 }
@@ -346,47 +341,15 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 		}
 
 		ws, _ := store.GetWorkspaces()
-		tl, tr, tRef := 0, 0, 0
-		for _, w := range ws {
-			tl += w.LessonCount
-			tr += w.RecordCount
-			tRef += w.RefCount
-		}
+		totals := db.Totals(ws)
 
 		data := render.DashboardData{
-			Stats: render.Stats{Workspaces: len(ws), Lessons: tl, Records: tr, Refs: tRef},
+			Stats: render.Stats{Workspaces: totals.Workspaces, Lessons: totals.Lessons, Records: totals.Records, Refs: totals.Refs},
 		}
 
 		// Continue card
-		for _, w := range ws {
-			var continueURL, continueLabel string
-			if w.LastLessonSeq != nil && *w.LastLessonSeq > 0 {
-				wsStore, err := store.Workspace(w.Name)
-				if err == nil {
-					lessons, _ := wsStore.GetLessons()
-					for _, l := range lessons {
-						if l.SequenceNumber == *w.LastLessonSeq {
-							continueURL = urls.Lesson(w.Name, l.SequenceNumber)
-							continueLabel = fmt.Sprintf("%s — Lesson: %s", w.Name, l.Title)
-							break
-						}
-					}
-				}
-			} else if w.LastRefSeq != nil {
-				wsStore, err := store.Workspace(w.Name)
-				if err == nil {
-					refs, _ := wsStore.GetRefs()
-					if len(refs) > 0 {
-						ref := refs[0]
-						continueURL = urls.Ref(w.Name, ref.Slug)
-						continueLabel = fmt.Sprintf("%s — Reference: %s", w.Name, ref.Title)
-					}
-				}
-			}
-			if continueURL != "" {
-				data.Continue = &render.ContinueItem{URL: continueURL, Label: continueLabel}
-				break
-			}
+		if ci, _ := store.ContinueItem(); ci != nil {
+			data.Continue = &render.ContinueItem{URL: ci.URL, Label: ci.Label}
 		}
 
 		// Workspace grid
