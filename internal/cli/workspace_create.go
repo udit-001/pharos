@@ -14,7 +14,7 @@ var workspaceCreateCmd = &cobra.Command{
 	Short: "Create a new learning workspace",
 	Long: `Create a new learning workspace.
 
-The workspace is a directory under ~/.pharos/workspaces/ containing:
+The workspace is a directory under your data directory's workspaces/ containing:
   MISSION.md          — Why you're learning this topic
   RESOURCES.md        — Curated sources and communities
   NOTES.md            — Preferences and working notes

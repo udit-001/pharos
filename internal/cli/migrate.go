@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	"github.com/pressly/goose/v3"
@@ -35,7 +36,7 @@ var migrateUpCmd = &cobra.Command{
 	Short: "Apply all pending migrations",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		rawDB, err := db.OpenRaw(storePath)
+		rawDB, err := db.OpenRaw(filepath.Join(resolveDataDir(), "pharos.db"))
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
@@ -57,7 +58,7 @@ var migrateDownCmd = &cobra.Command{
 	Short: "Roll back the most recent migration",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		rawDB, err := db.OpenRaw(storePath)
+		rawDB, err := db.OpenRaw(filepath.Join(resolveDataDir(), "pharos.db"))
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
@@ -84,7 +85,7 @@ var migrateUpToCmd = &cobra.Command{
 			return fmt.Errorf("invalid version: %s", args[0])
 		}
 
-		rawDB, err := db.OpenRaw(storePath)
+		rawDB, err := db.OpenRaw(filepath.Join(resolveDataDir(), "pharos.db"))
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
@@ -111,7 +112,7 @@ var migrateDownToCmd = &cobra.Command{
 			return fmt.Errorf("invalid version: %s", args[0])
 		}
 
-		rawDB, err := db.OpenRaw(storePath)
+		rawDB, err := db.OpenRaw(filepath.Join(resolveDataDir(), "pharos.db"))
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
@@ -133,7 +134,7 @@ var migrateStatusCmd = &cobra.Command{
 	Short: "Show migration status",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		rawDB, err := db.OpenRaw(storePath)
+		rawDB, err := db.OpenRaw(filepath.Join(resolveDataDir(), "pharos.db"))
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}

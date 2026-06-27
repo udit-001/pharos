@@ -3,6 +3,8 @@ module github.com/udit-001/pharos
 go 1.25.10
 
 require (
+	github.com/PuerkitoBio/goquery v1.12.0
+	github.com/a-h/templ v0.3.1020
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/pressly/goose/v3 v3.27.1
@@ -12,7 +14,7 @@ require (
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.12.0 // indirect
+	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect

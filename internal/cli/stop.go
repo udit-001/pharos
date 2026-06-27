@@ -3,10 +3,10 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/config"
 )
 
 var stopCmd = &cobra.Command{
@@ -14,7 +14,7 @@ var stopCmd = &cobra.Command{
 	Short: "Stop the running web UI dashboard server",
 	Long: `Stop the local Pharos web server if one is running.
 
-Reads the PID file at ~/.pharos/server.pid, sends a graceful
+Reads the server PID file, sends a graceful
 shutdown signal (SIGINT) to the server process, and cleans up
 the PID file.
 
@@ -75,9 +75,7 @@ Examples:
 }
 
 func cleanupPidFile() {
-	home, _ := os.UserHomeDir()
-	pidPath := filepath.Join(home, ".pharos", "server.pid")
-	os.Remove(pidPath)
+	os.Remove(config.PidPath())
 }
 
 func init() {

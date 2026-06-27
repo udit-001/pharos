@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/config"
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/server"
 )
@@ -112,9 +112,8 @@ Examples:
 		}
 
 		// Write PID file before starting server
-		home, _ := os.UserHomeDir()
-		pidPath := filepath.Join(home, ".pharos", "server.pid")
-		_ = os.MkdirAll(filepath.Dir(pidPath), 0o755)
+		pidPath := config.PidPath()
+		_ = os.MkdirAll(config.ConfigDir(), 0o755)
 
 		// The server will write the actual port to the PID file
 		// after it binds. For now, write a placeholder.
@@ -148,8 +147,7 @@ type pidInfo struct {
 }
 
 func readPidFile() (*pidInfo, error) {
-	home, _ := os.UserHomeDir()
-	pidPath := filepath.Join(home, ".pharos", "server.pid")
+	pidPath := config.PidPath()
 	data, err := os.ReadFile(pidPath)
 	if err != nil {
 		return nil, err

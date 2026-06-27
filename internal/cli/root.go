@@ -9,30 +9,27 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/config"
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/version"
 )
 
-func defaultDBPath() string {
-	home, err := os.UserHomeDir()
+func resolveDataDir() string {
+	cfg, err := config.Load()
 	if err != nil {
-		return "pharos.db"
+		return config.DefaultDataDir()
 	}
-	return filepath.Join(home, ".pharos", "pharos.db")
+	if cfg != nil && cfg.DataDir != "" {
+		return cfg.DataDir
+	}
+	return config.DefaultDataDir()
 }
 
 func defaultWorkspacesDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "./workspaces"
-	}
-	return filepath.Join(home, ".pharos", "workspaces")
+	return filepath.Join(resolveDataDir(), "workspaces")
 }
 
-var (
-	storePath string
-	jsonOut   bool
-)
+var jsonOut bool
 
 // ctxStore is the context key for the injected *db.Store.
 type ctxStore struct{}
@@ -63,14 +60,30 @@ to start a workspace.
 
 Most commands support --json for machine-readable output.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "init" || cmd.Name() == "migrate" || cmd.Name() == "dev" || cmd.Name() == "upgrade" || cmd.Name() == "tailwind" || cmd.Name() == "build" {
+		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "init" || cmd.Name() == "config" || cmd.Name() == "migrate" || cmd.Name() == "dev" || cmd.Name() == "upgrade" || cmd.Name() == "tailwind" || cmd.Name() == "build" {
 			return nil
 		}
 		// Migrate and tailwind subcommands also handle their own DB
 		if cmd.Parent() != nil && (cmd.Parent().Name() == "migrate" || cmd.Parent().Name() == "tailwind") {
 			return nil
 		}
-		s, err := db.Open(storePath)
+		// Load config with auto-migration for existing users
+		cfg, err := config.Load()
+		if err != nil {
+			return fmt.Errorf("config error: %w\n\n  Fix or delete %s", err, config.Path())
+		}
+		if cfg == nil {
+			defaultDir := config.DefaultDataDir()
+			defaultDB := filepath.Join(defaultDir, "pharos.db")
+			if _, statErr := os.Stat(defaultDB); statErr == nil {
+				cfg = &config.Config{DataDir: defaultDir}
+				if saveErr := config.Save(cfg); saveErr != nil {
+					return fmt.Errorf("auto-migrate config: %w", saveErr)
+				}
+			}
+		}
+		dataDir := resolveDataDir()
+		s, err := db.Open(filepath.Join(dataDir, "pharos.db"))
 		if err != nil {
 			return fmt.Errorf("open database: %w\n\n  Run 'pharos init' to set up pharos", err)
 		}
@@ -88,7 +101,6 @@ Most commands support --json for machine-readable output.`,
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&storePath, "db", defaultDBPath(), "Path to SQLite database")
 	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "Output as JSON")
 }
 
