@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/udit-001/pharos/internal/migrate"
@@ -17,6 +18,13 @@ import (
 // scoping from WorkspaceStore stays enforced (LEARN-12).
 type Store struct {
 	db *sqlx.DB
+}
+
+// nowTimestamp returns the current UTC time as an RFC3339Nano string.
+// This is the single source of truth for timestamp formatting across
+// all write paths, ensuring ORDER BY works correctly on TEXT columns.
+func nowTimestamp() string {
+	return time.Now().UTC().Format(time.RFC3339Nano)
 }
 
 // SQL exposes the underlying *sql.DB for migration tooling (goose). It is

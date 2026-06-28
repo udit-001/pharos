@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/udit-001/pharos/internal/extract"
@@ -147,7 +146,7 @@ func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 // that need body_text indexing should use CreateLesson instead.
 func (w *WorkspaceStore) AddLesson(l Lesson) (Lesson, error) {
 	l.WorkspaceID = w.ws.ID
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	// Determine next sequence number
 	var maxSeq int
@@ -218,7 +217,7 @@ func (w *WorkspaceStore) SearchRecords(query string) ([]LearningRecord, error) {
 // set automatically from the scoped workspace.
 func (w *WorkspaceStore) AddRecord(r LearningRecord) (LearningRecord, error) {
 	r.WorkspaceID = w.ws.ID
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	var maxSeq int
 	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM learning_records WHERE workspace_id = ?", r.WorkspaceID)
@@ -297,7 +296,7 @@ func (w *WorkspaceStore) SearchRefs(query string) ([]Reference, error) {
 // automatically from the scoped workspace.
 func (w *WorkspaceStore) AddRef(r Reference) (Reference, error) {
 	r.WorkspaceID = w.ws.ID
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	if r.Slug == "" {
 		r.Slug = Slugify(r.Title)
@@ -345,7 +344,7 @@ func (w *WorkspaceStore) UpdateTopic(topic string) error {
 // CreateLesson creates a new lesson: sequencing, slugify, filename, write file,
 // DB row — all in one method. The CLI shrinks to parse-and-call.
 func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	var maxSeq int
 	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM lessons WHERE workspace_id = ?", w.ws.ID)
@@ -399,7 +398,7 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, s
 		return fmt.Errorf("write lesson file: %w", err)
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	t := current.Title
 	if title != nil {
 		t = *title
@@ -416,7 +415,7 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, s
 // CreateRecord creates a new learning record: sequencing, slugify, filename,
 // write file, DB row — all in one method.
 func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRecord, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	var maxSeq int
 	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM learning_records WHERE workspace_id = ?", w.ws.ID)
@@ -472,7 +471,7 @@ func (w *WorkspaceStore) SupersedeRecord(seq int, title, bodyMD, summary string)
 		return LearningRecord{}, LearningRecord{}, err
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	_, err = w.db().Exec("UPDATE learning_records SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?", created.ID, now, old.ID)
 	if err != nil {
 		return created, LearningRecord{}, fmt.Errorf("supersede old record: %w", err)
@@ -492,7 +491,7 @@ var ErrRefSlugExists = errors.New("reference slug already exists")
 
 // CreateRef creates a new reference: slug-based filename, write file, DB row.
 func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	slug := Slugify(title)
 	filename := slug + ".html"
@@ -549,7 +548,7 @@ func (w *WorkspaceStore) ReviseRef(slug, bodyHTML string, title *string, summary
 		return fmt.Errorf("write reference file: %w", err)
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	t := current.Title
 	if title != nil {
 		t = *title
@@ -596,7 +595,7 @@ func (w *WorkspaceStore) AddGlossaryTerm(term, definition, category, avoid strin
 	if definition == "" {
 		return fmt.Errorf("definition must not be empty")
 	}
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	_, err := w.db().Exec(
 		`INSERT INTO glossary_terms (workspace_id, term, definition, category, avoid, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)

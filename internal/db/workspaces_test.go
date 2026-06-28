@@ -1,6 +1,9 @@
 package db
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestTotals(t *testing.T) {
 	ws := []Workspace{
@@ -70,6 +73,33 @@ func TestContinueItemRef(t *testing.T) {
 	}
 	if want := "alpha — Reference: Index Tuning"; ci.Label != want {
 		t.Errorf("Label = %q, want %q", ci.Label, want)
+	}
+}
+
+func TestContinueItemPicksMostRecentWorkspace(t *testing.T) {
+	store := newTestStore(t)
+	goWs := seedWorkspace(t, store, "go")
+	if _, err := goWs.AddLesson(Lesson{Title: "Go Program", Filename: "0001.html"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := goWs.SetLastViewed("lesson", 1); err != nil {
+		t.Fatal(err)
+	}
+
+	autismWs := seedWorkspace(t, store, "autism")
+	if _, err := autismWs.AddLesson(Lesson{Title: "Autism Lesson", Filename: "0001.html"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := autismWs.SetLastViewed("lesson", 1); err != nil {
+		t.Fatal(err)
+	}
+
+	ci, err := store.ContinueItem()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ci == nil || !strings.Contains(ci.Label, "autism") {
+		t.Fatalf("continue card should show autism (most recent), got %+v", ci)
 	}
 }
 

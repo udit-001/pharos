@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/udit-001/pharos/internal/urls"
 )
@@ -86,7 +85,7 @@ func (s *Store) GetWorkspaceByName(name string) (Workspace, error) {
 // owns the full row ⇔ dir tree invariant. Tests use AddWorkspace to set up a
 // row without the filesystem; production code uses CreateWorkspace.
 func (s *Store) AddWorkspace(w Workspace) (Workspace, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	result, err := s.db.Exec(
 		`INSERT INTO workspaces (name, topic, path, mission_why, created_at, last_studied)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -189,13 +188,14 @@ func (s *Store) SetLastViewed(id int64, itemType string, seq int) error {
 	default:
 		return fmt.Errorf("unknown item type: %s", itemType)
 	}
-	_, err := s.db.Exec(fmt.Sprintf("UPDATE workspaces SET %s = ?, last_studied = datetime('now') WHERE id = ?", col), seq, id)
+	now := nowTimestamp()
+	_, err := s.db.Exec(fmt.Sprintf("UPDATE workspaces SET %s = ?, last_studied = ? WHERE id = ?", col), seq, now, id)
 	return err
 }
 
 // TouchWorkspace updates last_studied timestamp.
 func (s *Store) TouchWorkspace(id int64) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	_, err := s.db.Exec("UPDATE workspaces SET last_studied = ? WHERE id = ?", now, id)
 	return err
 }
