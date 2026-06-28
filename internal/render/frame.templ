@@ -61,11 +61,11 @@ templ document(f Frame, content string) {
 					var html = document.documentElement;
 					var isDark = html.dataset.theme === 'dark';
 					var next = isDark ? 'light' : 'dark';
-					html.dataset.theme = next;
-					localStorage.setItem('pharos_theme', next);
 					document.querySelectorAll('iframe').forEach(function(f) {
 						try { f.contentWindow.postMessage({type: 'theme', theme: next}, '*'); } catch(e) {}
 					});
+					html.dataset.theme = next;
+					localStorage.setItem('pharos_theme', next);
 					document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', next !== 'dark');
 					document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', next === 'dark');
 				}

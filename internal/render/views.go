@@ -77,8 +77,8 @@ func onboardingBlock(displayName, mission string) string {
 	var missionLine string
 	if mission == "" {
 		missionLine = fmt.Sprintf(`<div class="flex items-center gap-3 py-2">
-			<code class="bg-slate-100 px-2 py-0.5 rounded text-xs text-slate-600 shrink-0">pharos mission --edit</code>
-			<span class="text-sm text-slate-500">Set a goal for learning %s</span>
+			<code class="bg-slate-100 px-2 py-0.5 rounded text-xs text-slate-600 shrink-0">"I want to master %s"</code>
+			<span class="text-sm text-slate-500">Tell your agent what you want to learn</span>
 		</div>`, esc(displayName))
 	}
 
@@ -102,16 +102,16 @@ func bigIcon(svg string, px int) string {
 	return strings.Replace(s, `width="20" height="20"`, `width="`+size+`" height="`+size+`"`, 1)
 }
 
-func docCommand(kind string) string {
+func emptyStateAction(kind string) string {
 	switch kind {
 	case "mission":
-		return "pharos mission --edit"
+		return `"Set a learning goal for me"`
 	case "resources":
-		return "pharos resources --edit"
+		return `"Add some reference materials"`
 	case "glossary":
-		return "pharos glossary create \"<term>\" \"<definition>\""
+		return `"Define the key terms"`
 	case "notes":
-		return "# edit NOTES.md directly"
+		return "Your agent records learning preferences here"
 	}
 	return ""
 }
@@ -128,6 +128,14 @@ func docHint(kind string) string {
 		return "Scratchpad for preferences and working notes"
 	}
 	return ""
+}
+
+// orEmpty returns s if non-empty, otherwise fallback.
+func orEmpty(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	return s
 }
 
 func pluralResults(n int) string {
