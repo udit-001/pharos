@@ -232,7 +232,7 @@ templ quizLibrary(d QuizLibraryData) {
 					<div class="flex-1 min-w-0">
 						<div class="flex items-center justify-between">
 							<span class="font-medium text-sm group-hover:text-blue-700 transition-colors">{ q.Title }</span>
-							<span class="text-xs text-slate-400 tabular-nums">{ q.ItemCount } items</span>
+							<span class="text-xs text-slate-400 tabular-nums">{ q.ItemCount } questions</span>
 						</div>
 						if q.Description != "" {
 							<div class="text-xs text-slate-400 mt-0.5">{ q.Description }</div>
@@ -257,12 +257,12 @@ templ quiz(d QuizData) {
 				<form method="POST" action={ urls.QuizStart(d.Workspace.Name, d.Slug) }>
 					if d.InProgressAttempt > 0 {
 						<button type="submit" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
-							Resume assessment
+							Resume quiz
 						</button>
 						<input type="hidden" name="attempt_id" value={ strconv.FormatInt(d.InProgressAttempt, 10) }/>
 					} else {
 						<button type="submit" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
-							Start assessment
+							Start quiz
 						</button>
 					}
 				</form>
@@ -306,7 +306,7 @@ templ quizReview(d QuizReviewData) {
 		<div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
 			<div class="flex items-center justify-between">
 				<span class="text-xs font-medium text-slate-500" id="progress-label"></span>
-				<span class="text-xs text-slate-400">{ d.Score }/{ d.Total } correct</span>
+				<span class="text-xs font-medium text-slate-600">{ d.Score }/{ d.Total } correct</span>
 			</div>
 			<div class="flex gap-1" id="review-dots"></div>
 			<div id="review-card"></div>

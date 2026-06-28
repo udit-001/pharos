@@ -381,7 +381,7 @@ func TestQuizLibraryAndDetailPages(t *testing.T) {
 		t.Fatalf("quiz library status = %d, want 200; body: %s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"Genetics foundations", "Core genetic factors in ASD", "2 items"} {
+	for _, want := range []string{"Genetics foundations", "Core genetic factors in ASD", "2 questions"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("quiz library missing %q", want)
 		}
@@ -397,7 +397,7 @@ func TestQuizLibraryAndDetailPages(t *testing.T) {
 		t.Fatalf("quiz detail status = %d, want 200; body: %s", rec.Code, rec.Body.String())
 	}
 	body = rec.Body.String()
-	for _, want := range []string{"Genetics foundations", "Core genetic factors in ASD", "2 questions", "Start assessment"} {
+	for _, want := range []string{"Genetics foundations", "Core genetic factors in ASD", "2 questions", "Start quiz"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("quiz detail missing %q", want)
 		}

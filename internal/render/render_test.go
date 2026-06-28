@@ -121,7 +121,7 @@ func TestQuizLibraryRendersQuizzes(t *testing.T) {
 	for _, want := range []string{
 		"Genetics foundations",
 		"Core factors",
-		"5 items",
+		"5 questions",
 		"/workspace/alpha/quiz/genetics-foundations",
 	} {
 		if !strings.Contains(out, want) {
@@ -150,7 +150,7 @@ func TestQuizDetailRendersStartButton(t *testing.T) {
 		"Genetics foundations",
 		"Core genetic factors in ASD",
 		"5 questions",
-		"Start assessment",
+		"Start quiz",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected output to contain %q, got:\n%s", want, out)
