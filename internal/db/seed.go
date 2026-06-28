@@ -3,6 +3,7 @@ package db
 import (
 	_ "embed"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -14,6 +15,9 @@ import (
 
 //go:embed seed/style.css
 var seedStyleCSS string
+
+//go:embed seed/fonts/inter-latin.woff2
+var seedInterLatinWOFF2 []byte
 
 //go:embed seed/glossary-tooltip.js
 var seedGlossaryTooltipJS string
@@ -48,6 +52,22 @@ func seedWorkspaceDefaults(layout Layout, displayName string) error {
 			continue // file exists — preserve
 		}
 		if err := writeToFile(f.path, f.content); err != nil {
+			return err
+		}
+	}
+
+	// Binary assets (fonts, etc.)
+	bins := []struct {
+		path string
+		data []byte
+	}{
+		{layout.AssetPath(filepath.Join("fonts", "inter-latin.woff2")), seedInterLatinWOFF2},
+	}
+	for _, f := range bins {
+		if _, err := os.Stat(f.path); err == nil {
+			continue
+		}
+		if err := writeBytesToFile(f.path, f.data); err != nil {
 			return err
 		}
 	}
