@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -30,6 +31,42 @@ func Record(d RecordData) string            { return renderComponent(record(d)) 
 func Ref(d RefData) string                  { return renderComponent(ref(d)) }
 func QuizLibrary(d QuizLibraryData) string  { return renderComponent(quizLibrary(d)) }
 func Quiz(d QuizData) string                { return renderComponent(quiz(d)) }
+func QuizAttempt(d AttemptData) string {
+	out := renderComponent(quizAttempt(d))
+
+	// Inject JSON data + JS as raw script tags (templ treats <script>
+	// content as raw text, so we append after the templ component).
+	questionsJSON, _ := json.Marshal(d.Questions)
+	answeredIDs := make([]int64, 0, len(d.AnsweredIDs))
+	for id := range d.AnsweredIDs {
+		answeredIDs = append(answeredIDs, id)
+	}
+	dataJSON, _ := json.Marshal(map[string]any{
+		"attemptId":   d.AttemptID,
+		"quizSlug":    d.QuizSlug,
+		"quizTitle":   d.QuizTitle,
+		"workspace":   d.Workspace.Name,
+		"questions":   json.RawMessage(questionsJSON),
+		"answeredIds": answeredIDs,
+	})
+	out += `<script type="application/json" id="attempt-data">` + string(dataJSON) + `</script>`
+	out += `<script>` + quizAttemptJS + `</script>`
+	return out
+}
+
+func QuizReview(d QuizReviewData) string {
+	out := renderComponent(quizReview(d))
+
+	itemsJSON, _ := json.Marshal(d.Items)
+	dataJSON, _ := json.Marshal(map[string]any{
+		"score": d.Score,
+		"total": d.Total,
+		"items": json.RawMessage(itemsJSON),
+	})
+	out += `<script type="application/json" id="review-data">` + string(dataJSON) + `</script>`
+	out += `<script>` + quizReviewJS + `</script>`
+	return out
+}
 func Document(d DocumentData) string        { return renderComponent(documentView(d)) }
 func NotFound(title, message string) string { return renderComponent(notFound(title, message)) }
 func Search(d SearchData) string            { return renderComponent(search(d)) }

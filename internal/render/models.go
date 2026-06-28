@@ -138,6 +138,61 @@ type QuizData struct {
 	Title       string
 	Description string
 	ItemCount   int
+	// InProgressAttempt is the ID of a resumable attempt, or 0 if none.
+	InProgressAttempt int64
+	// PastAttempts shows completed attempts with scores, newest first.
+	PastAttempts []QuizAttemptSummary
+}
+
+// QuizAttemptSummary is one row in the quiz detail attempt list.
+type QuizAttemptSummary struct {
+	ID         int64
+	Score      int
+	Total      int
+	CompletedAt string
+}
+
+// AttemptQuestion is one question in the attempt page, embedded as JSON.
+// Options is empty for recall mode. The correct answer is NOT included.
+type AttemptQuestion struct {
+	ID      int64  `json:"id"`
+	Title   string `json:"title"`
+	Mode    string `json:"mode"`
+	Options []string `json:"options,omitempty"`
+}
+
+// AttemptData drives the quiz attempt page.
+type AttemptData struct {
+	Workspace  Workspace
+	QuizSlug   string
+	QuizTitle  string
+	AttemptID  int64
+	Questions  []AttemptQuestion
+	// AnsweredIDs is the set of question IDs already answered (for resume).
+	AnsweredIDs map[int64]bool
+}
+
+// ReviewItem is one question in the review page.
+type ReviewItem struct {
+	QuestionID    int64
+	QuestionTitle string
+	Mode          string
+	Options       []string
+	UserResponse  string
+	CorrectIndex  int // for choice mode
+	IsCorrect     bool
+	RevealText    string // for recall mode
+}
+
+// QuizReviewData drives the quiz review page.
+type QuizReviewData struct {
+	Workspace Workspace
+	QuizSlug  string
+	QuizTitle string
+	AttemptID int64
+	Score     int
+	Total     int
+	Items     []ReviewItem
 }
 
 // GlossaryTermRow is one term in the glossary page.

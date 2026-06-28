@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -261,6 +262,130 @@ func TestAddQuestionAndQuiz(t *testing.T) {
 	}
 	if len(items) != 1 || items[0] != "strongest-asd-risk-gene" {
 		t.Errorf("items = %+v, want [strongest-asd-risk-gene]", items)
+	}
+}
+
+func TestQuizAttemptLifecycle(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	// Seed a choice question + quiz.
+	q, err := alpha.AddQuestion(Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := alpha.AddQuiz(Quiz{
+		Title: "Geography",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	// Create attempt — starts in_progress.
+	qa, err := alpha.CreateQuizAttempt(quiz.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt: %v", err)
+	}
+	if qa.Status != "in_progress" {
+		t.Errorf("initial status = %q, want in_progress", qa.Status)
+	}
+
+	// Submit correct answer (index 1 = Paris).
+	att, err := alpha.SubmitAttempt(qa.ID, q.ID, "1", 2500)
+	if err != nil {
+		t.Fatalf("SubmitAttempt: %v", err)
+	}
+	if att.Correct == nil || !*att.Correct {
+		t.Error("expected correct=true for Paris")
+	}
+
+	// Score is 1/1.
+	correct, total := alpha.ScoreAttempt(qa.ID)
+	if correct != 1 || total != 1 {
+		t.Errorf("ScoreAttempt = %d/%d, want 1/1", correct, total)
+	}
+
+	// Complete the attempt.
+	if err := alpha.CompleteQuizAttempt(qa.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt: %v", err)
+	}
+	got, _ := alpha.GetQuizAttempt(qa.ID)
+	if got.Status != "completed" {
+		t.Errorf("status after complete = %q, want completed", got.Status)
+	}
+
+	// State machine: cannot submit to a completed attempt.
+	_, err = alpha.SubmitAttempt(qa.ID, q.ID, "0", 100)
+	if err == nil {
+		t.Error("expected error submitting to completed attempt")
+	}
+
+	// State machine: cannot complete again.
+	if err := alpha.CompleteQuizAttempt(qa.ID); err == nil {
+		t.Error("expected error completing already-completed attempt")
+	}
+}
+
+func TestQuizAttemptAbandon(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+	q, _ := alpha.AddQuestion(Question{
+		Title:  "q1",
+		Mode:   "choice",
+		Config: `{"options":["a","b"],"key":0}`,
+	})
+	quiz, _ := alpha.AddQuiz(Quiz{Title: "Quiz", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
+
+	qa, _ := alpha.CreateQuizAttempt(quiz.ID)
+
+	// Abandon an in_progress attempt.
+	if err := alpha.AbandonQuizAttempt(qa.ID); err != nil {
+		t.Fatalf("AbandonQuizAttempt: %v", err)
+	}
+	got, _ := alpha.GetQuizAttempt(qa.ID)
+	if got.Status != "abandoned" {
+		t.Errorf("status = %q, want abandoned", got.Status)
+	}
+
+	// State machine: cannot submit to abandoned attempt.
+	_, err := alpha.SubmitAttempt(qa.ID, q.ID, "0", 100)
+	if err == nil {
+		t.Error("expected error submitting to abandoned attempt")
+	}
+
+	// State machine: cannot abandon again.
+	if err := alpha.AbandonQuizAttempt(qa.ID); err == nil {
+		t.Error("expected error abandoning already-abandoned attempt")
+	}
+}
+
+func TestChoiceConfigGrade(t *testing.T) {
+	cc := ChoiceConfig{Options: []string{"a", "b", "c"}, Key: 1}
+	cases := []struct {
+		response string
+		want     bool
+	}{
+		{"0", false},
+		{"1", true},
+		{"2", false},
+	}
+	for _, c := range cases {
+		got, err := cc.Grade(c.response)
+		if err != nil {
+			t.Errorf("Grade(%q) error: %v", c.response, err)
+		}
+		if got != c.want {
+			t.Errorf("Grade(%q) = %v, want %v", c.response, got, c.want)
+		}
+	}
+	// Non-numeric response errors.
+	if _, err := cc.Grade("abc"); err == nil {
+		t.Error("expected error for non-numeric response")
 	}
 }
 

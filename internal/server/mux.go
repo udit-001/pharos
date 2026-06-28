@@ -84,14 +84,28 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /workspace/{name}/ref/{slug}", handleRefPage(store))
 	mux.HandleFunc("GET /workspace/{name}/quizzes", handleQuizLibraryPage(store))
 	mux.HandleFunc("GET /workspace/{name}/quiz/{slug}", handleQuizPage(store))
+	mux.HandleFunc("POST /workspace/{name}/quiz/{slug}/start", handleQuizStart(store))
+	mux.HandleFunc("GET /workspace/{name}/quiz/{slug}/attempt/{attemptID}", handleQuizAttemptPage(store))
+	mux.HandleFunc("GET /workspace/{name}/quiz/{slug}/review/{attemptID}", handleQuizReviewPage(store))
 	mux.HandleFunc("GET /about", handleAboutPage(store))
 	mux.HandleFunc("GET /search", handleSearchPage(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/{file}", handleLessonHTML(store))
 	mux.HandleFunc("GET /api/ref-html/{name}/{file}", handleRefHTML(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/assets/{file}", handleAssetFile(store))
 	mux.HandleFunc("GET /api/ref-html/{name}/assets/{file}", handleAssetFile(store))
+	mux.HandleFunc("POST /api/attempt", jsonHandler(handleSubmitAttempt(store)))
+	mux.HandleFunc("POST /api/quiz-attempt/{id}/complete", jsonHandler(handleCompleteQuizAttempt(store)))
+	mux.HandleFunc("POST /api/quiz-attempt/{id}/abandon", jsonHandler(handleAbandonQuizAttempt(store)))
 
 	return mux
+}
+
+// dateShort returns the YYYY-MM-DD prefix of a timestamp.
+func dateShort(ts string) string {
+	if len(ts) >= 10 {
+		return ts[:10]
+	}
+	return ts
 }
 
 // ── helpers ──
@@ -692,14 +706,313 @@ func handleQuizPage(store *db.Store) http.HandlerFunc {
 
 		items, _ := current.ParseItems()
 		sd, _ := wsStore.GetSidebarData()
+
+		// Find in-progress and past completed attempts for this quiz.
+		var inProgress int64
+		var pastAttempts []render.QuizAttemptSummary
+		if attempts, err := wsStore.GetQuizAttempts(current.ID); err == nil {
+			for _, a := range attempts {
+				if a.Status == "in_progress" && inProgress == 0 {
+					inProgress = a.ID
+					continue
+				}
+				if a.Status == "completed" {
+					correct, total := wsStore.ScoreAttempt(a.ID)
+					pastAttempts = append(pastAttempts, render.QuizAttemptSummary{
+						ID:          a.ID,
+						Score:       correct,
+						Total:       total,
+						CompletedAt: dateShort(a.CompletedAt),
+					})
+				}
+			}
+		}
+
 		data := render.QuizData{
-			Workspace:   toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
-			Slug:        current.Slug,
-			Title:       current.Title,
-			Description: current.Description,
-			ItemCount:   len(items),
+			Workspace:         toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
+			Slug:              current.Slug,
+			Title:             current.Title,
+			Description:       current.Description,
+			ItemCount:         len(items),
+			InProgressAttempt: inProgress,
+			PastAttempts:      pastAttempts,
 		}
 		writePage(w, &sd, current.Title, name, "quiz", 0, slug, "", render.Quiz(data))
+	}
+}
+
+// ── Quiz Attempt Flow ──
+
+func handleQuizStart(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		slug := r.PathValue("slug")
+
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
+			return
+		}
+		quiz, err := wsStore.GetQuizBySlug(slug)
+		if err != nil {
+			writeNotFound(w, nil, "Quiz not found", fmt.Sprintf("Quiz %q doesn't exist.", slug))
+			return
+		}
+
+		// Resume an existing in-progress attempt if one exists.
+		if attempts, err := wsStore.GetQuizAttempts(quiz.ID); err == nil {
+			for _, a := range attempts {
+				if a.Status == "in_progress" {
+					http.Redirect(w, r, urls.QuizAttemptPage(name, slug, a.ID), http.StatusSeeOther)
+					return
+				}
+			}
+		}
+
+		// Otherwise create a new attempt.
+		qa, err := wsStore.CreateQuizAttempt(quiz.ID)
+		if err != nil {
+			writeNotFound(w, nil, "Could not start", "Failed to create a quiz attempt.")
+			return
+		}
+		http.Redirect(w, r, urls.QuizAttemptPage(name, slug, qa.ID), http.StatusSeeOther)
+	}
+}
+
+func handleQuizAttemptPage(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		slug := r.PathValue("slug")
+		attemptID, _ := strconv.ParseInt(r.PathValue("attemptID"), 10, 64)
+
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
+			return
+		}
+		quiz, err := wsStore.GetQuizBySlug(slug)
+		if err != nil {
+			writeNotFound(w, nil, "Quiz not found", fmt.Sprintf("Quiz %q doesn't exist.", slug))
+			return
+		}
+		qa, err := wsStore.GetQuizAttempt(attemptID)
+		if err != nil {
+			sd, _ := wsStore.GetSidebarData()
+			writeNotFound(w, &sd, "Attempt not found", "This quiz attempt could not be loaded.")
+			return
+		}
+		if qa.Status != "in_progress" {
+			http.Redirect(w, r, urls.QuizReview(name, slug, attemptID), http.StatusSeeOther)
+			return
+		}
+
+		// Resolve question slugs to full questions (without correct answers).
+		// Only choice-mode questions are included — recall mode is deferred to Slice 3.
+		slugs, _ := quiz.ParseItems()
+		var questions []render.AttemptQuestion
+		answeredIDs := map[int64]bool{}
+		for _, qslug := range slugs {
+			q, err := wsStore.GetQuestionBySlug(qslug)
+			if err != nil {
+				continue
+			}
+			cfg, _ := q.ParseConfig()
+			cc, ok := cfg.(db.ChoiceConfig)
+			if !ok {
+				continue // skip non-choice questions in Slice 2
+			}
+			questions = append(questions, render.AttemptQuestion{
+				ID:      q.ID,
+				Title:   q.Title,
+				Mode:    q.Mode,
+				Options: cc.Options,
+			})
+		}
+
+		// Mark already-answered questions (for resume).
+		if answered, err := wsStore.GetAttempts(attemptID); err == nil {
+			for _, a := range answered {
+				answeredIDs[a.QuestionID] = true
+			}
+		}
+
+		sd, _ := wsStore.GetSidebarData()
+		data := render.AttemptData{
+			Workspace:   toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
+			QuizSlug:    slug,
+			QuizTitle:   quiz.Title,
+			AttemptID:   attemptID,
+			Questions:   questions,
+			AnsweredIDs: answeredIDs,
+		}
+		writePage(w, &sd, quiz.Title, name, "quiz", 0, slug, "", render.QuizAttempt(data))
+	}
+}
+
+func handleQuizReviewPage(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		slug := r.PathValue("slug")
+		attemptID, _ := strconv.ParseInt(r.PathValue("attemptID"), 10, 64)
+
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
+			return
+		}
+		quiz, err := wsStore.GetQuizBySlug(slug)
+		if err != nil {
+			writeNotFound(w, nil, "Quiz not found", fmt.Sprintf("Quiz %q doesn't exist.", slug))
+			return
+		}
+		qa, err := wsStore.GetQuizAttempt(attemptID)
+		if err != nil {
+			sd, _ := wsStore.GetSidebarData()
+			writeNotFound(w, &sd, "Attempt not found", "This quiz attempt could not be loaded.")
+			return
+		}
+		// An in-progress attempt has no review yet — send the user back to it.
+		if qa.Status == "in_progress" {
+			http.Redirect(w, r, urls.QuizAttemptPage(name, slug, attemptID), http.StatusSeeOther)
+			return
+		}
+
+		// Build review items from quiz items + submitted answers.
+		quizSlugs, _ := quiz.ParseItems()
+		attempts, _ := wsStore.GetAttempts(attemptID)
+		attemptMap := map[int64]db.Attempt{}
+		for _, a := range attempts {
+			attemptMap[a.QuestionID] = a
+		}
+
+		var items []render.ReviewItem
+		for _, qslug := range quizSlugs {
+			q, err := wsStore.GetQuestionBySlug(qslug)
+			if err != nil {
+				continue
+			}
+			cfg, _ := q.ParseConfig()
+			cc, ok := cfg.(db.ChoiceConfig)
+			if !ok {
+				continue // skip non-choice questions in Slice 2
+			}
+			att, hasAtt := attemptMap[q.ID]
+
+			ri := render.ReviewItem{
+				QuestionID:    q.ID,
+				QuestionTitle: q.Title,
+				Mode:          q.Mode,
+				Options:       cc.Options,
+				CorrectIndex:  cc.Key,
+			}
+			if hasAtt {
+				ri.UserResponse = att.Response
+				if att.Correct != nil {
+					ri.IsCorrect = *att.Correct
+				}
+			}
+			items = append(items, ri)
+		}
+
+		correct, total := wsStore.ScoreAttempt(attemptID)
+		sd, _ := wsStore.GetSidebarData()
+		data := render.QuizReviewData{
+			Workspace: toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
+			QuizSlug:  slug,
+			QuizTitle: quiz.Title,
+			AttemptID: attemptID,
+			Score:     correct,
+			Total:     total,
+			Items:     items,
+		}
+		writePage(w, &sd, "Review — "+quiz.Title, name, "quiz", 0, slug, "", render.QuizReview(data))
+	}
+}
+
+func handleSubmitAttempt(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			QuizAttemptID int64  `json:"quiz_attempt_id"`
+			QuestionID    int64  `json:"question_id"`
+			Response      string `json:"response"`
+			LatencyMs     int    `json:"latency_ms"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		wsStore, err := store.QuizAttemptWorkspace(body.QuizAttemptID)
+		if err != nil {
+			jsonError(w, "quiz attempt not found", http.StatusNotFound)
+			return
+		}
+
+		att, err := wsStore.SubmitAttempt(body.QuizAttemptID, body.QuestionID, body.Response, body.LatencyMs)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Resolve the correct index for client-side feedback display.
+		question, err := wsStore.GetQuestionByID(body.QuestionID)
+		correctIndex := 0
+		if err == nil {
+			if cc, ok := mustParseConfig(question); ok {
+				correctIndex = cc.Key
+			}
+		}
+
+		correct := false
+		if att.Correct != nil {
+			correct = *att.Correct
+		}
+		jsonResponse(w, map[string]any{
+			"correct":       correct,
+			"correct_index": correctIndex,
+		})
+	}
+}
+
+func mustParseConfig(q *db.Question) (db.ChoiceConfig, bool) {
+	cfg, err := q.ParseConfig()
+	if err != nil {
+		return db.ChoiceConfig{}, false
+	}
+	cc, ok := cfg.(db.ChoiceConfig)
+	return cc, ok
+}
+
+func handleCompleteQuizAttempt(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		wsStore, err := store.QuizAttemptWorkspace(id)
+		if err != nil {
+			jsonError(w, "quiz attempt not found", http.StatusNotFound)
+			return
+		}
+		if err := wsStore.CompleteQuizAttempt(id); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		correct, total := wsStore.ScoreAttempt(id)
+		jsonResponse(w, map[string]any{"ok": true, "correct": correct, "total": total})
+	}
+}
+
+func handleAbandonQuizAttempt(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		wsStore, err := store.QuizAttemptWorkspace(id)
+		if err != nil {
+			jsonError(w, "quiz attempt not found", http.StatusNotFound)
+			return
+		}
+		if err := wsStore.AbandonQuizAttempt(id); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		jsonResponse(w, map[string]any{"ok": true})
 	}
 }
 

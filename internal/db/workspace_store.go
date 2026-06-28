@@ -354,6 +354,173 @@ func (w *WorkspaceStore) AddQuiz(q Quiz) (Quiz, error) {
 	return q, nil
 }
 
+// ── Quiz Attempts ──
+
+// CreateQuizAttempt starts a new attempt for the given quiz. The attempt is
+// created with status in_progress.
+func (w *WorkspaceStore) CreateQuizAttempt(quizID int64) (QuizAttempt, error) {
+	now := nowTimestamp()
+	result, err := w.db().Exec(
+		`INSERT INTO quiz_attempts (workspace_id, quiz_id, status, started_at)
+		 VALUES (?, ?, 'in_progress', ?)`,
+		w.ws.ID, quizID, now,
+	)
+	if err != nil {
+		return QuizAttempt{}, fmt.Errorf("create quiz attempt: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	return QuizAttempt{
+		ID: id, WorkspaceID: w.ws.ID, QuizID: quizID,
+		Status: "in_progress", StartedAt: now,
+	}, nil
+}
+
+// GetQuizAttempt fetches a single quiz attempt by ID.
+func (w *WorkspaceStore) GetQuizAttempt(id int64) (*QuizAttempt, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM quiz_attempts WHERE id = ?", quizAttemptColumns),
+		id,
+	)
+	a, err := scanQuizAttempt(row)
+	if err != nil {
+		return nil, fmt.Errorf("quiz attempt %d not found: %w", id, err)
+	}
+	return &a, nil
+}
+
+// GetQuizAttempts returns all attempts for a quiz, newest first.
+func (w *WorkspaceStore) GetQuizAttempts(quizID int64) ([]QuizAttempt, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM quiz_attempts WHERE quiz_id = ? ORDER BY started_at DESC", quizAttemptColumns),
+		quizID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []QuizAttempt
+	for rows.Next() {
+		a, err := scanQuizAttempt(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan quiz attempt: %w", err)
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+// GetAttempts returns all answers for a quiz attempt, ordered by creation.
+func (w *WorkspaceStore) GetAttempts(quizAttemptID int64) ([]Attempt, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM attempts WHERE quiz_attempt_id = ? ORDER BY created_at ASC", attemptColumns),
+		quizAttemptID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanAttempts(rows)
+}
+
+// SubmitAttempt records a single answer, grades it server-side via the
+// question's config, and returns the resulting Attempt row. Returns an
+// error if the parent quiz attempt is not in_progress.
+func (w *WorkspaceStore) SubmitAttempt(quizAttemptID, questionID int64, response string, latencyMs int) (Attempt, error) {
+	// State machine guard: attempt must be in_progress.
+	qa, err := w.GetQuizAttempt(quizAttemptID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	if qa.Status != "in_progress" {
+		return Attempt{}, fmt.Errorf("cannot submit to %s attempt", qa.Status)
+	}
+
+	// Grade server-side for choice mode.
+	question, err := w.GetQuestionByID(questionID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	cfg, err := question.ParseConfig()
+	if err != nil {
+		return Attempt{}, err
+	}
+	correct, err := cfg.Grade(response)
+	if err != nil {
+		return Attempt{}, err
+	}
+
+	now := nowTimestamp()
+	result, err := w.db().Exec(
+		`INSERT INTO attempts (quiz_attempt_id, question_id, correct, response, latency_ms, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		quizAttemptID, questionID, correct, response, latencyMs, now,
+	)
+	if err != nil {
+		return Attempt{}, fmt.Errorf("insert attempt: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	return Attempt{
+		ID: id, QuizAttemptID: quizAttemptID, QuestionID: questionID,
+		Correct: &correct, Response: response, LatencyMs: &latencyMs,
+		CreatedAt: now,
+	}, nil
+}
+
+// CompleteQuizAttempt marks an attempt as completed. Enforces that the
+// current status is in_progress.
+func (w *WorkspaceStore) CompleteQuizAttempt(id int64) error {
+	return w.transitionQuizAttempt(id, "in_progress", "completed")
+}
+
+// AbandonQuizAttempt marks an attempt as abandoned. Enforces that the
+// current status is in_progress.
+func (w *WorkspaceStore) AbandonQuizAttempt(id int64) error {
+	return w.transitionQuizAttempt(id, "in_progress", "abandoned")
+}
+
+func (w *WorkspaceStore) transitionQuizAttempt(id int64, fromStatus, toStatus string) error {
+	now := nowTimestamp()
+	var completedAt interface{}
+	if toStatus == "completed" {
+		completedAt = now
+	}
+	res, err := w.db().Exec(
+		`UPDATE quiz_attempts SET status = ?, completed_at = ? WHERE id = ? AND status = ?`,
+		toStatus, completedAt, id, fromStatus,
+	)
+	if err != nil {
+		return fmt.Errorf("transition quiz attempt to %s: %w", toStatus, err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("quiz attempt %d not in %s state", id, fromStatus)
+	}
+	return nil
+}
+
+// ScoreAttempt returns (correct, total) for a quiz attempt via SQL aggregation.
+func (w *WorkspaceStore) ScoreAttempt(quizAttemptID int64) (correct, total int) {
+	row := w.db().QueryRow(
+		"SELECT COUNT(CASE WHEN correct = 1 THEN 1 END), COUNT(*) FROM attempts WHERE quiz_attempt_id = ?",
+		quizAttemptID,
+	)
+	_ = row.Scan(&correct, &total)
+	return correct, total
+}
+
+// GetQuestionByID fetches a single question by its primary key.
+func (w *WorkspaceStore) GetQuestionByID(id int64) (*Question, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM questions WHERE workspace_id = ? AND id = ?", questionColumns),
+		w.ws.ID, id,
+	)
+	q, err := scanQuestion(row)
+	if err != nil {
+		return nil, fmt.Errorf("question %d not found: %w", id, err)
+	}
+	return &q, nil
+}
+
 // ── References ──
 
 // GetRefs returns all references in this workspace.
@@ -771,6 +938,17 @@ func (s *Store) WorkspaceByID(id int64) (*WorkspaceStore, error) {
 		return nil, fmt.Errorf("workspace %d not found: %w", id, err)
 	}
 	return &WorkspaceStore{store: s, ws: ws}, nil
+}
+
+// QuizAttemptWorkspace resolves the workspace that owns a quiz attempt and
+// returns a scoped WorkspaceStore. Used by API handlers that receive only
+// an attempt ID (not a workspace name from the URL).
+func (s *Store) QuizAttemptWorkspace(attemptID int64) (*WorkspaceStore, error) {
+	var wsID int64
+	if err := s.db.Get(&wsID, "SELECT workspace_id FROM quiz_attempts WHERE id = ?", attemptID); err != nil {
+		return nil, fmt.Errorf("quiz attempt %d not found: %w", attemptID, err)
+	}
+	return s.WorkspaceByID(wsID)
 }
 
 // truncateSnippet returns a short preview of text, breaking at a word boundary.

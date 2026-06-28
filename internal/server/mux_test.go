@@ -69,6 +69,15 @@ func (e *testEnv) get(t *testing.T, target string) *httptest.ResponseRecorder {
 	return rec
 }
 
+func (e *testEnv) post(t *testing.T, target, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", target, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	e.mux.ServeHTTP(rec, req)
+	return rec
+}
+
 func (e *testEnv) workspaceID(t *testing.T) int64 {
 	t.Helper()
 	rec := e.get(t, "/api/workspaces")
@@ -402,5 +411,84 @@ func TestQuizLibraryAndDetailPages(t *testing.T) {
 	rec = env.get(t, "/workspace/alpha/quiz/no-such-quiz")
 	if rec.Code != 404 {
 		t.Errorf("nonexistent quiz should 404; got %d", rec.Code)
+	}
+}
+
+func TestQuizAttemptAPIFlow(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Seed a choice question + quiz.
+	q, err := wsStore.AddQuestion(db.Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("seed question: %v", err)
+	}
+	quiz, _ := wsStore.AddQuiz(db.Quiz{
+		Title: "Geography",
+		Items: `["` + q.Slug + `"]`,
+	})
+	_ = quiz
+
+	// POST start → redirects to attempt page.
+	rec := env.post(t, "/workspace/alpha/quiz/geography/start", "")
+	if rec.Code != 303 {
+		t.Fatalf("start status = %d, want 303; body: %s", rec.Code, rec.Body.String())
+	}
+	loc := rec.Header().Get("Location")
+	if !strings.Contains(loc, "/attempt/") {
+		t.Fatalf("redirect = %q, want /attempt/ path", loc)
+	}
+
+	// Extract attempt ID from the redirect.
+	attemptID := strings.TrimPrefix(loc, "/workspace/alpha/quiz/geography/attempt/")
+
+	// Attempt page renders.
+	rec = env.get(t, loc)
+	if rec.Code != 200 {
+		t.Fatalf("attempt page status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "attempt-data") {
+		t.Error("attempt page missing JSON data block")
+	}
+	if !strings.Contains(body, "Capital of France") {
+		t.Error("attempt page missing question title")
+	}
+
+	// Submit correct answer via API.
+	rec = env.post(t, "/api/attempt",
+		`{"quiz_attempt_id":`+attemptID+`,"question_id":`+strconv.FormatInt(q.ID, 10)+`,"response":"1","latency_ms":2000}`)
+	if rec.Code != 200 {
+		t.Fatalf("submit status = %d; body: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"correct":true`) {
+		t.Errorf("expected correct:true; got %s", rec.Body.String())
+	}
+
+	// Complete the attempt.
+	rec = env.post(t, "/api/quiz-attempt/"+attemptID+"/complete", "")
+	if rec.Code != 200 {
+		t.Fatalf("complete status = %d; body: %s", rec.Code, rec.Body.String())
+	}
+
+	// Review page renders with score.
+	rec = env.get(t, "/workspace/alpha/quiz/geography/review/"+attemptID)
+	if rec.Code != 200 {
+		t.Fatalf("review page status = %d", rec.Code)
+	}
+	body = rec.Body.String()
+	if !strings.Contains(body, "1/1") {
+		t.Error("review page missing score 1/1")
+	}
+
+	// State machine: submit to completed attempt → error.
+	rec = env.post(t, "/api/attempt",
+		`{"quiz_attempt_id":`+attemptID+`,"question_id":`+strconv.FormatInt(q.ID, 10)+`,"response":"0","latency_ms":100}`)
+	if rec.Code != 400 {
+		t.Errorf("submit to completed attempt should 400; got %d", rec.Code)
 	}
 }

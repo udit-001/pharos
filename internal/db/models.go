@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 )
 
 // Workspace represents a learning workspace.
@@ -94,9 +95,35 @@ type Quiz struct {
 }
 
 // QuestionConfig is the typed, mode-specific shape of a Question's config.
-// Each concrete config validates its own invariants.
+// Each concrete config validates its own invariants and grades responses.
 type QuestionConfig interface {
+	Mode() string
 	Validate() error
+	Grade(response string) (bool, error)
+}
+
+// QuizAttempt tracks a single run through a quiz. Status transitions:
+// in_progress → completed | abandoned (enforced at the store layer).
+type QuizAttempt struct {
+	ID          int64  `db:"id" json:"id"`
+	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
+	QuizID      int64  `db:"quiz_id" json:"quizId"`
+	Status      string `db:"status" json:"status"` // in_progress | completed | abandoned
+	StartedAt   string `db:"started_at" json:"startedAt"`
+	CompletedAt string `db:"completed_at" json:"completedAt,omitempty"`
+}
+
+// Attempt is one answered question within a QuizAttempt. For Choice mode,
+// Correct is set server-side by Config.Grade. For Recall (Slice 3), the
+// client sends the self-grade and Correct is set from it.
+type Attempt struct {
+	ID            int64  `db:"id" json:"id"`
+	QuizAttemptID int64  `db:"quiz_attempt_id" json:"quizAttemptId"`
+	QuestionID    int64  `db:"question_id" json:"questionId"`
+	Correct       *bool  `db:"correct" json:"correct,omitempty"` // nullable until answered
+	Response      string `db:"response" json:"response"`
+	LatencyMs     *int   `db:"latency_ms" json:"latencyMs,omitempty"`
+	CreatedAt     string `db:"created_at" json:"createdAt"`
 }
 
 // ChoiceConfig is the config for a choice-mode question: a list of options
@@ -105,6 +132,8 @@ type ChoiceConfig struct {
 	Options []string `json:"options"`
 	Key     int      `json:"key"`
 }
+
+func (c ChoiceConfig) Mode() string { return "choice" }
 
 // Validate checks that a choice config has at least two options and an
 // in-range correct-answer index.
@@ -118,11 +147,23 @@ func (c ChoiceConfig) Validate() error {
 	return nil
 }
 
+// Grade parses the response as the selected option index and compares it
+// to the correct key. Returns true if they match.
+func (c ChoiceConfig) Grade(response string) (bool, error) {
+	idx, err := strconv.Atoi(response)
+	if err != nil {
+		return false, fmt.Errorf("choice response must be a number, got %q: %w", response, err)
+	}
+	return idx == c.Key, nil
+}
+
 // RecallConfig is the config for a recall-mode question: the text revealed
 // after the learner self-grades.
 type RecallConfig struct {
 	RevealText string `json:"reveal_text"`
 }
+
+func (c RecallConfig) Mode() string { return "recall" }
 
 // Validate checks that a recall config has non-empty reveal text.
 func (c RecallConfig) Validate() error {
@@ -130,6 +171,12 @@ func (c RecallConfig) Validate() error {
 		return fmt.Errorf("reveal_text must not be empty")
 	}
 	return nil
+}
+
+// Grade returns false — recall is self-graded on the client (Slice 3).
+// The server does not grade recall responses.
+func (c RecallConfig) Grade(response string) (bool, error) {
+	return false, nil
 }
 
 // ParseConfig parses a Question's raw config JSON into the typed config
