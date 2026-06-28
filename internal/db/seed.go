@@ -22,6 +22,9 @@ var seedInterLatinWOFF2 []byte
 //go:embed seed/glossary-tooltip.js
 var seedGlossaryTooltipJS string
 
+//go:embed seed/copy-code.js
+var seedCopyCodeJS string
+
 //go:embed seed/MISSION.md
 var seedMissionMD string
 
@@ -43,6 +46,7 @@ func seedWorkspaceDefaults(layout Layout, displayName string) error {
 	}{
 		{layout.AssetPath("style.css"), seedStyleCSS},
 		{layout.AssetPath("glossary-tooltip.js"), seedGlossaryTooltipJS},
+		{layout.AssetPath("copy-code.js"), seedCopyCodeJS},
 		{layout.MissionPath(), strings.ReplaceAll(seedMissionMD, "{{DISPLAY_NAME}}", displayName)},
 		{layout.ResourcesPath(), strings.ReplaceAll(seedResourcesMD, "{{DISPLAY_NAME}}", displayName)},
 		{layout.NotesPath(), seedNotesMD},

@@ -16,6 +16,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Shared styles | `assets/style.css` (variables, typography, layout, component classes) + `assets/quiz.css` (quiz-specific classes) |
 | Quiz interactivity | Inline `<script>` before `</body>` — binds to `.q` elements |
 | Font delivery | `@font-face` in `assets/style.css` → `assets/fonts/inter-latin.woff2` (vendored — works offline, no CDN) |
+| Copy code | `assets/copy-code.js` — adds copy button to `<pre>` on hover; opt-out per block via `data-no-copy` |
 
 ---
 
@@ -114,6 +115,7 @@ Every HTML page — lessons and references alike — starts with this boilerplat
   });
 })();
 </script>
+<script src="assets/copy-code.js"></script>
 <script>window.addEventListener('message',function(e){if(e.data&&e.data.type==='theme')document.documentElement.dataset.theme=e.data.theme})</script>
 </body>
 </html>
@@ -121,7 +123,7 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 
 Key rules:
 - **No `data-theme` on `<html>`** — the blocking script sets it dynamically
-- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), optional glossary tooltip (`<script src="assets/glossary-tooltip.js">`), and postMessage listener
+- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), optional glossary tooltip (`<script src="assets/glossary-tooltip.js">`), `<script src="assets/copy-code.js">`, and postMessage listener
 - **CSS links are root-relative** — no `../`, the iframe serves from `/api/lesson-html/<workspace>/<file>` or `/api/ref-html/<workspace>/<file>`
 
 ---
@@ -288,6 +290,18 @@ response drives muscle growth.
 The JS fetches definitions from `GET /api/workspaces/name/{name}/glossary-terms` at runtime — no definitions are baked into the page HTML. The workspace name is extracted from the iframe URL automatically.
 
 **Don't wrap every occurrence.** Use judgement: wrap the first occurrence in a section, or where re-reading the definition aids understanding. Over-wrapping makes text noisy and trains readers to ignore tooltips.
+
+---
+
+## Copy Code
+
+Every `<pre>` block gets a copy button on hover (auto-seeded `assets/copy-code.js`, no extra step needed).
+
+Blocks where typing builds storage strength — skill-phase exercise code — use `data-no-copy` to preserve desirable difficulty:
+
+```html
+<pre data-no-copy><code class="language-go">...</code></pre>
+```
 
 ---
 

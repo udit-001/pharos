@@ -91,6 +91,37 @@ templ document(f Frame, content string) {
 					el.removeAttribute('title');
 				}
 			});
+			(function(){
+				var c = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+				var k = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+				document.querySelectorAll('.prose pre:not([data-no-copy])').forEach(function(pre){
+					if(pre.querySelector('.copy-code-btn'))return;
+					var p=window.getComputedStyle(pre).position;
+					if(p==='static')pre.style.position='relative';
+					var b=document.createElement('button');
+					b.className='copy-code-btn';
+					b.setAttribute('aria-label','Copy code');
+					b.innerHTML=c;
+					b.addEventListener('click',function(e){
+						e.stopPropagation();
+						var code=pre.querySelector('code');
+						var t=code?code.textContent:pre.textContent;
+						if(navigator.clipboard){
+							navigator.clipboard.writeText(t).then(function(){
+								b.innerHTML=k;b.classList.add('copied');
+								setTimeout(function(){b.innerHTML=c;b.classList.remove('copied')},2000);
+							}).catch(function(){f(code||pre,b)});
+						}else{f(code||pre,b)}
+					});
+					pre.appendChild(b);
+				});
+				function f(el,b){
+					var r=document.createRange();r.selectNodeContents(el);
+					var s=window.getSelection();s.removeAllRanges();s.addRange(r);
+					b.innerHTML=k;b.classList.add('copied');
+					setTimeout(function(){b.innerHTML=c;b.classList.remove('copied');s.removeAllRanges()},2000);
+				}
+			})();
 			</script>
 		</body>
 	</html>
