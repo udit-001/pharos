@@ -23,11 +23,32 @@ type assetSpec struct {
 //go:embed highlight.css
 var highlightCSS string
 
+//go:embed mermaid-lightbox.css
+var mermaidLightboxCSS string
+
+//go:embed mermaid-lightbox.js
+var mermaidLightboxJS string
+
+//go:embed mermaid-theme.js
+var mermaidThemeJS string
+
 var knownAssets = map[string]assetSpec{
 	"mermaid": {
 		Filename:       "mermaid.min.js",
 		DefaultVersion: "11",
 		URLTemplate:    "https://cdn.jsdelivr.net/npm/mermaid@{{VERSION}}/dist/mermaid.min.js",
+		ExtraFiles: map[string]string{
+			"mermaid-theme.js": mermaidThemeJS,
+		},
+	},
+	"mermaid-lightbox": {
+		Filename:       "",
+		DefaultVersion: "",
+		URLTemplate:    "",
+		ExtraFiles: map[string]string{
+			"mermaid-lightbox.js":  mermaidLightboxJS,
+			"mermaid-lightbox.css": mermaidLightboxCSS,
+		},
 	},
 	"highlightjs": {
 		Filename:       "highlight.min.js",
@@ -72,45 +93,55 @@ Examples:
 			version = spec.DefaultVersion
 		}
 
-		url := strings.ReplaceAll(spec.URLTemplate, "{{VERSION}}", version)
-		targetPath := filepath.Join(ws.Path, "assets", spec.Filename)
+		var targetPath string
+		if spec.Filename != "" {
+			targetPath = filepath.Join(ws.Path, "assets", spec.Filename)
 
-		if _, err := os.Stat(targetPath); err == nil {
-			if jsonOut {
-				printJSON(map[string]any{
-					"present":  true,
-					"name":     name,
-					"version":  version,
-					"filename": spec.Filename,
-				})
+			if _, err := os.Stat(targetPath); err == nil && spec.URLTemplate != "" {
+				// downloaded asset already present — skip
+				if jsonOut {
+					printJSON(map[string]any{
+						"present":  true,
+						"name":     name,
+						"version":  version,
+						"filename": spec.Filename,
+					})
+					return nil
+				}
+				fmt.Println()
+				fmt.Printf("  ✓ %s@%s is already present — skipping\n", name, version)
+				fmt.Println()
 				return nil
 			}
-			fmt.Println()
-			fmt.Printf("  ✓ %s@%s is already present — skipping\n", name, version)
-			fmt.Println()
-			return nil
-		}
 
-		resp, err := http.Get(url)
-		if err != nil {
-			return fmt.Errorf("download %s: %w", name, err)
-		}
-		defer resp.Body.Close()
+			if spec.URLTemplate != "" {
+				if version == "" {
+					version = spec.DefaultVersion
+				}
+				url := strings.ReplaceAll(spec.URLTemplate, "{{VERSION}}", version)
 
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("download %s: server returned %s", name, resp.Status)
-		}
+				resp, err := http.Get(url)
+				if err != nil {
+					return fmt.Errorf("download %s: %w", name, err)
+				}
+				defer resp.Body.Close()
 
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("read response: %w", err)
-		}
+				if resp.StatusCode != http.StatusOK {
+					return fmt.Errorf("download %s: server returned %s", name, resp.Status)
+				}
 
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-			return fmt.Errorf("create assets dir: %w", err)
-		}
-		if err := os.WriteFile(targetPath, data, 0o644); err != nil {
-			return fmt.Errorf("write asset: %w", err)
+				data, err := io.ReadAll(resp.Body)
+				if err != nil {
+					return fmt.Errorf("read response: %w", err)
+				}
+
+				if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+					return fmt.Errorf("create assets dir: %w", err)
+				}
+				if err := os.WriteFile(targetPath, data, 0o644); err != nil {
+					return fmt.Errorf("write asset: %w", err)
+				}
+			}
 		}
 
 		var extras []string
@@ -143,8 +174,10 @@ Examples:
 		}
 
 		fmt.Println()
-		fmt.Printf("  ✓ Added %s@%s\n", name, version)
-		fmt.Printf("    File: %s\n", targetPath)
+		fmt.Printf("  ✓ Added %s\n", name)
+		if targetPath != "" {
+			fmt.Printf("    File: %s\n", targetPath)
+		}
 		for _, f := range extras {
 			fmt.Printf("    File: %s\n", filepath.Join(ws.Path, "assets", f))
 		}

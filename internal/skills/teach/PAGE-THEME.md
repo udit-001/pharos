@@ -142,14 +142,45 @@ For flowcharts, sequence diagrams, and other diagrams in lessons. Not auto-seede
 pharos asset add mermaid
 ```
 
+`pharos asset add mermaid` writes `mermaid.min.js` (downloaded from CDN) and `mermaid-theme.js` (Nord dark/light theme support) to `assets/`. Add the lightbox separately:
+
+```
+pharos asset add mermaid-lightbox
+```
+
 Include in the lesson `<head>`:
 
 ```html
 <script src="assets/mermaid.min.js"></script>
-<script>mermaid.initialize({startOnLoad:true,theme:'neutral',themeVariables:{fontFamily:'Inter,sans-serif'}})</script>
+<script src="assets/mermaid-theme.js"></script>
+<link rel="stylesheet" href="assets/mermaid-lightbox.css">
+<script src="assets/mermaid-lightbox.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  window.mermaid.initialize({startOnLoad:false,theme:'base',themeVariables:window.mermaidTheme.themeVars()});
+  window.mermaid.run({
+    querySelector: '.mermaid',
+    postRenderCallback: function(id) {
+      var svg = document.getElementById(id);
+      var el = svg && svg.closest ? svg.closest('.mermaid') : null;
+      if (!el && svg) {
+        var p = svg.parentNode;
+        while (p && p !== document.body) {
+          if (p.classList && p.classList.contains('mermaid')) { el = p; break; }
+          p = p.parentNode;
+        }
+      }
+      if (el && window.mermaidLightbox) window.mermaidLightbox.addToolbar(el);
+    }
+  });
+});
+</script>
 ```
 
-Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. See [Component Patterns](#component-patterns-lessons-only--design-free) for styling.
+> **Why `theme: 'base'`?** The `base` theme lets `themeVariables` control all diagram colors, enabling dark/light mode switching. Colors are swapped via CSS string replacement in `mermaid-theme.js` on theme toggle — no re-render needed.
+> **Why the `<script>` is wrapped in `DOMContentLoaded`?** `mermaid-theme.js` reads `document.documentElement.dataset.theme` on load to pick the correct initial color palette. Wrapping in `DOMContentLoaded` ensures the FOUC-prevention script (which sets `data-theme`) has already run.
+
+Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. Container background styles (rounded, padded, dark/light swap) are auto-seeded in `assets/style.css` — no extra `<style>` needed.
 
 ### Highlight.js (on-demand)
 
@@ -215,7 +246,7 @@ flowchart TD
 </div>
 ```
 
-Style overrides (light/dark aware) belong in lesson-specific `<style>` — seed Mermaid with `themeVariables.fontFamily: 'Inter,sans-serif'` to match the page font.
+`mermaid-theme.js` already sets `fontFamily: 'Inter, sans-serif'` in both light and dark palettes — no extra `themeVariables` needed for font matching.
 
 ### Buttons
 
