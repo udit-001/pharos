@@ -125,12 +125,67 @@ button, .btn {
 }
 button:hover, .btn:hover { opacity: 0.9; }
 
+/* Mermaid diagram containers */
+.mermaid {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 16px 8px;
+  margin: 20px 0;
+  overflow-x: auto;
+  text-align: center;
+}
+[data-theme="dark"] .mermaid {
+  background: var(--slate-50);
+}
+
 /* Glossary tooltips */
-.glossary-term { cursor: help; border-bottom: 1px dashed currentColor; position: relative; }
-.glossary-tooltip { position: fixed; background: var(--slate-900); color: var(--slate-50); padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5; max-width: 320px; white-space: normal; box-shadow: 0 8px 24px rgba(0,0,0,0.2); pointer-events: none; opacity: 0; transition: opacity 0.15s ease; z-index: 9999; }
-.glossary-tooltip.visible { opacity: 1; }
-.glossary-tooltip::after { content: ''; position: absolute; left: 50%; margin-left: -6px; border: 6px solid transparent; }
+.glossary-term {
+  cursor: help;
+  border-bottom: 1px dotted var(--blue-700);
+  position: relative;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.glossary-term:hover {
+  background: color-mix(in srgb, var(--blue-700) 8%, transparent);
+  border-radius: 2px;
+}
+.glossary-tooltip {
+  position: fixed;
+  background: var(--slate-800);
+  color: var(--slate-50);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 320px;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+}
+.glossary-tooltip.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.glossary-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  margin-left: -7px;
+  border: 7px solid transparent;
+}
 /* Arrow points down (below tooltip) when tooltip is above the term */
-.glossary-tooltip::after { top: 100%; border-top-color: var(--slate-900); }
+.glossary-tooltip::after {
+  top: 100%;
+  border-top-color: var(--slate-800);
+}
 /* Arrow points up (above tooltip) when tooltip is below the term — toggled by JS */
-.glossary-tooltip.tooltip-below::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--slate-900); }
+.glossary-tooltip.tooltip-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--slate-800);
+}
