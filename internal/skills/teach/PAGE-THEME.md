@@ -179,10 +179,10 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 ```
 
-> **Why `theme: 'base'`?** The `base` theme lets `themeVariables` control all diagram colors, enabling dark/light mode switching. Colors are swapped via CSS string replacement in `mermaid-theme.js` on theme toggle — no re-render needed.
-> **Why the `<script>` is wrapped in `DOMContentLoaded`?** `mermaid-theme.js` reads `document.documentElement.dataset.theme` on load to pick the correct initial color palette. Wrapping in `DOMContentLoaded` ensures the FOUC-prevention script (which sets `data-theme`) has already run.
+> **Why `theme: 'base'`?** The `base` theme lets `themeVariables` control all diagram colors, enabling dark/light mode switching. On theme toggle, `mermaid-theme.js` re-renders each diagram to a throwaway via `mermaid.render` and copies only its `<style>` (and gradient stops) into the live SVG — this *retints* without re-running the layout, so the diagram doesn't jump size. (A plain hex string-swap can't retint mindmap nodes, which mermaid emits as `hsl()` derived from `primaryColor`; the dark palette also pins `cScale0..12` + `git0` to Nord frost/aurora hues so each mindmap branch is a distinct colour instead of collapsing to near-black.)
+> **Why the `<script>` is wrapped in `DOMContentLoaded`?** `mermaid-theme.js` reads `document.documentElement.dataset.theme` on load to pick the correct initial color palette. Wrapping in `DOMContentLoaded` ensures the FOUC-prevention script (which sets `data-theme`) has already run. `mermaid-theme.js` also captures each `.mermaid` div's source into `data-mermaid-src` before mermaid replaces it, so retint can re-render later.
 
-Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. Container background styles (rounded, padded, dark/light swap) are auto-seeded in `assets/style.css` — no extra `<style>` needed.
+Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. Container background styles (rounded, padded, dark/light swap) are auto-seeded in `assets/style.css` — no extra `<style>` needed. Diagrams are capped at `max-height: 65vh` so tall vertical flowcharts don't consume the whole page; the expand button (lightbox) opens them full-size for readable detail.
 
 ### Highlight.js (on-demand)
 

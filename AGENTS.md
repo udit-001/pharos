@@ -50,3 +50,10 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 - `extractText()` is the shared helper in `workspace_store.go` for HTML→plaintext. `extractTextFromMarkdown()` handles markdown→plaintext without a goldmark roundtrip.
 - `IndexLessons()` / `IndexRefs()` / `IndexRecords()` skip items that already have non-empty `body_text` — they're idempotent. To re-index after an extractText fix, clear body_text first: `UPDATE lessons SET body_text = ''`.
 - `pharos search --rebuild-index --all` rebuilds across all workspaces.
+
+### Mermaid theming
+
+- **`mermaid-theme.js` retints — it does not swap.** Mindmap node fills are emitted as `hsl()` (derived from `primaryColor` via the neo look), not hex, so a hex-string-swap silently skips them and mindmaps stay stuck on the old theme. `retint()` renders a throwaway via `mermaid.render` and copies only its `<style>` (+ gradient stops) into the live SVG, which preserves the layout/viewBox. Reverting to a `swapColors`-style regex will reintroduce the bug.
+- **Dark mindmaps need explicit `cScale0..12` + `git0`** in `NORD_DARK`. Without them every section derives from `primaryColor` (`#3b4252`, L≈15%) and collapses to near-black; the palette pins Nord frost/aurora hues per branch.
+- **`mermaid-theme.js` + `style.css` are `//go:embed`'d** (`internal/cli/asset_add.go`, `internal/db/seed.go`). `pharos asset add mermaid` skips extra files that already exist — delete the workspace copy first to redeploy.
+- **Verify theming after edits** via Playwright: toggle theme, assert `viewBox` unchanged across toggle and that node fills retint (mindmap `.section-0` + flowchart `.node rect`), in both the genetics and autism workspaces (the only ones with mermaid).
