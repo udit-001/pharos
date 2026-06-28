@@ -13,10 +13,10 @@ Before creating anything, check whether the work already exists. A workspace is 
 
 Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:
 
-- `MISSION.md`: The _reason_ the user is learning. Update with `pharos mission --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
-- `RESOURCES.md`: Curated knowledge sources and communities. Update with `pharos resources --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
-- **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary create "<term>" "<definition>"`, display with `pharos glossary` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
-- `NOTES.md`: Scratchpad for preferences and working notes. Update with `pharos notes --body-file <path>` or `pharos notes --append --body-file <path>`.
+- `MISSION.md`: The _reason_ the user is learning. Read with `pharos mission show` (or `pharos mission show --json`), update with `pharos mission edit --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
+- `RESOURCES.md`: Curated knowledge sources and communities. Read with `pharos resources show` (or `pharos resources show --json`), update with `pharos resources edit --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
+- **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary create "<term>" "<definition>"`, display with `pharos glossary list` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
+- `NOTES.md`: Scratchpad for preferences and working notes. Read with `pharos notes show` (or `pharos notes show --json`), update with `pharos notes edit --body-file <path>` or `pharos notes edit --append --body-file <path>`.
 - `./lessons/*.html`: Self-contained lesson HTML files. Create with `pharos lesson create "<title>" --body-file <path>`.
 - `./learning-records/*.md`: ADR-style records of what was learned. Create with `pharos record create "<title>" --body-file <path>`.
 - `./reference/*.html`: Reference documents — cheat sheets, syntax guides. Create with `pharos reference create "<title>" --body-file <path>`.
@@ -174,6 +174,10 @@ Glossaries, in particular, are an essential reference. Once one is created, it s
 
 ## `NOTES.md`
 
-The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. Record these with `pharos notes --body-file <path>` or append to them with `pharos notes --append --body-file <path>`.
+The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. Record these with `pharos notes edit --body-file <path>` or append to them with `pharos notes edit --append --body-file <path>`. To review existing notes, use `pharos notes show` (or `pharos notes show --json`).
 
 After each session, check `NOTES.md` for user preferences before starting the next session. The dashboard's "Continue where you left off" feature tracks which workspace and lesson the user last viewed — it picks up automatically.
+
+## Followup Questions
+
+After presenting a lesson, ask the user in chat if they have any followup questions.

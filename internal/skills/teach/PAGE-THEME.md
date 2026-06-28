@@ -196,10 +196,6 @@ A key takeaway or insight. Visually distinct from body paragraphs — uses accen
 
 A recommendation for further reading. Subtle background, distinguishes it from callout.
 
-### Ask prompt
-
-A reminder at lesson end that the user can ask followup questions. Dashed border to feel provisional / conversational.
-
 ### Tables
 
 Standard data tables with bordered rows, left-aligned headers, muted dividers.

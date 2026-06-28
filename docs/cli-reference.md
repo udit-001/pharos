@@ -88,25 +88,28 @@ pharos reference revise <slug> -w "<workspace>" --summary "<new>"      # Update 
 ## Workspace Documents
 
 ```bash
-pharos mission -w "<workspace>"                   # Show mission
-pharos mission -w "<workspace>" --edit / -e       # Edit mission in $EDITOR
-pharos mission -w "<workspace>" --body-file <path> # Write mission from file
+pharos mission show -w "<workspace>"                                 # Show mission
+pharos mission show -w "<workspace>" --json                          # Show mission as JSON
+pharos mission edit -w "<workspace>"                                 # Edit mission in $EDITOR
+pharos mission edit -w "<workspace>" --body-file <path>               # Write mission from file
 
-pharos resources -w "<workspace>"                  # Show resources
-pharos resources -w "<workspace>" --edit / -e      # Edit resources
-pharos resources -w "<workspace>" --body-file <path>
+pharos resources show -w "<workspace>"                                # Show resources
+pharos resources show -w "<workspace>" --json                         # Show resources as JSON
+pharos resources edit -w "<workspace>"                                # Edit resources in $EDITOR
+pharos resources edit -w "<workspace>" --body-file <path>             # Write resources from file
 
-pharos glossary list                              # Show glossary
-pharos glossary list --json                       # Show glossary as JSON
-pharos glossary create "<term>" "<definition>" -w "<workspace>"           # Add or update a term
-pharos glossary create "<term>" "<definition>" --category "<name>"       # Group under a heading
-pharos glossary create "<term>" "<definition>" --avoid "<synonym>"       # Flag a synonym to avoid
-pharos glossary delete "<term>" -w "<workspace>"                          # Remove a term (idempotent)
+pharos notes show -w "<workspace>"                                    # Show notes
+pharos notes show -w "<workspace>" --json                             # Show notes as JSON
+pharos notes edit -w "<workspace>"                                    # Edit notes in $EDITOR
+pharos notes edit -w "<workspace>" --body-file <path>                 # Write notes from file
+pharos notes edit -w "<workspace>" --append --body-file <path>        # Append to notes
 
-pharos notes -w "<workspace>"                      # Show notes (scratchpad)
-pharos notes -w "<workspace>" --edit / -e           # Edit notes
-pharos notes -w "<workspace>" --body-file <path>    # Write notes from file
-pharos notes -w "<workspace>" --append              # Append to notes instead of overwriting
+pharos glossary list                                                  # Show glossary
+pharos glossary list --json                                           # Show glossary as JSON
+pharos glossary create "<term>" "<definition>" -w "<workspace>"       # Add or update a term
+pharos glossary create "<term>" "<definition>" --category "<name>"    # Group under a heading
+pharos glossary create "<term>" "<definition>" --avoid "<synonym>"    # Flag a synonym to avoid
+pharos glossary delete "<term>" -w "<workspace>"                      # Remove a term (idempotent)
 ```
 
 ## Assets

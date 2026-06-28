@@ -47,18 +47,25 @@ pharos workspace use "<name>"
 `pharos workspace create` auto-sets the new workspace as current. If only one
 workspace exists, it is used automatically.
 
-## Singletons (one per workspace, flags not subcommands)
+## Mission, Resources, Notes
 
 ```bash
-pharos mission    [--edit | --body-file <path>]
-pharos resources  [--edit | --body-file <path>]
-pharos notes      [--edit | --body-file <path>] [--append]
-```
+pharos mission show                            # Print the file
+pharos mission show --json                     # Print as JSON
+pharos mission edit                            # Open in $EDITOR
+pharos mission edit --body-file <path>         # Write content from a file
 
-- `--edit`: open in `$EDITOR` (mission, resources, notes only)
-- `--body-file <path>`: write content from a file (mission, resources, notes only)
-- `--append` (notes only): append instead of overwrite
-- No flags: read and print
+pharos resources show                          # Print the file
+pharos resources show --json                   # Print as JSON
+pharos resources edit                          # Open in $EDITOR
+pharos resources edit --body-file <path>       # Write content from a file
+
+pharos notes show                              # Print the file
+pharos notes show --json                       # Print as JSON
+pharos notes edit                              # Open in $EDITOR
+pharos notes edit --body-file <path>           # Write content from a file
+pharos notes edit --append --body-file <path>  # Append to file
+```
 
 ## Glossary
 
