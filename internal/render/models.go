@@ -153,6 +153,8 @@ type QuizData struct {
 	InProgressAttempt int64
 	// PastAttempts shows completed attempts with scores, newest first.
 	PastAttempts []QuizAttemptSummary
+	// ExtraAttemptCount is the number of completed attempts beyond the 3 shown.
+	ExtraAttemptCount int
 }
 
 // QuizAttemptSummary is one row in the quiz detail attempt list.

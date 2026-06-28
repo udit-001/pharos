@@ -58,17 +58,17 @@ const quizAttemptJS = `
     if (q.mode === 'choice') {
       html += '<div class="space-y-2" id="options">';
       for (var i = 0; i < q.options.length; i++) {
-        html += '<button data-idx="' + i + '" class="option-btn w-full text-left flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors cursor-pointer text-sm text-slate-700">';
+        html += '<button data-idx="' + i + '" class="option-btn w-full text-left flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors cursor-pointer text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-700">';
         html += '<span class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs text-slate-500 shrink-0">' + letters[i] + '</span>';
         html += q.options[i] + '</button>';
       }
       html += '</div>';
-      html += '<button id="submit-btn" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer">Submit answer</button>';
+      html += '<button id="submit-btn" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">Submit answer</button>';
     } else if (q.mode === 'recall') {
       html += '<div class="p-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-700 leading-relaxed">' + q.reveal + '</div>';
       html += '<div class="flex gap-3">';
-      html += '<button id="got-it-btn" class="flex-1 bg-emerald-600 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-emerald-600/90 transition-colors cursor-pointer">Got it</button>';
-      html += '<button id="not-yet-btn" class="flex-1 bg-red-600 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-red-600/90 transition-colors cursor-pointer">Not yet</button>';
+      html += '<button id="got-it-btn" class="flex-1 bg-emerald-600 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-emerald-600/90 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-600">Got it</button>';
+      html += '<button id="not-yet-btn" class="flex-1 bg-red-600 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-red-600/90 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-600">Not yet</button>';
       html += '</div>';
     }
     card.innerHTML = html;
@@ -162,7 +162,7 @@ const quizAttemptJS = `
     var card = document.getElementById('question-card');
     var sb = document.createElement('button');
     var isLast = currentIdx >= questions.length - 1;
-    sb.className = 'w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer';
+    sb.className = 'w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700';
     sb.textContent = isLast ? 'Finish' : 'Next';
     sb.onclick = function() {
       if (isLast) {
@@ -201,19 +201,19 @@ const quizReviewJS = `
     c.innerHTML = '';
     for (var i = 0; i < items.length; i++) {
       var d = document.createElement('span');
-      d.className = 'w-3 h-3 rounded-full cursor-pointer hover:ring-2 hover:ring-slate-300 ' + (items[i].IsCorrect ? 'bg-emerald-600' : 'bg-red-600');
+      d.className = 'w-5 h-1.5 rounded-full cursor-pointer hover:ring-2 hover:ring-slate-300 ' + (items[i].IsCorrect ? 'bg-emerald-600' : 'bg-red-600');
       if (i === idx) d.className += ' ring-2 ring-slate-400';
       d.onclick = (function(n) { return function() { idx = n; render(); }; })(i);
       c.appendChild(d);
     }
+    document.getElementById('progress-label').textContent = 'Question ' + (idx + 1) + ' of ' + items.length;
   }
 
   function render() {
     var item = items[idx];
     var card = document.getElementById('review-card');
     var html = '<div class="space-y-4 p-4 rounded-lg border border-slate-200">';
-    html += '<div class="flex items-center justify-between">';
-    html += '<span class="text-xs font-medium text-slate-500">Question ' + (idx + 1) + ' of ' + items.length + '</span>';
+    html += '<div class="flex items-center justify-end">';
     html += '<span class="inline-flex items-center ' + (item.IsCorrect ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600') + ' text-xs font-medium px-2 py-0.5 rounded">' + (item.IsCorrect ? 'Correct' : 'Incorrect') + '</span>';
     html += '</div>';
     html += '<h4 class="text-sm font-medium text-slate-800 leading-relaxed">' + item.QuestionTitle + '</h4>';
@@ -238,12 +238,12 @@ const quizReviewJS = `
     var nav = document.getElementById('review-nav');
     nav.innerHTML = '';
     var prevB = document.createElement('button');
-    prevB.className = 'flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors cursor-pointer' + (idx === 0 ? ' opacity-30 cursor-not-allowed' : '');
+    prevB.className = 'flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700 rounded' + (idx === 0 ? ' opacity-30 cursor-not-allowed' : '');
     prevB.textContent = 'Previous';
     if (idx > 0) prevB.onclick = function() { idx--; render(); };
     nav.appendChild(prevB);
     var nextB = document.createElement('button');
-    nextB.className = 'flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors cursor-pointer' + (idx >= items.length - 1 ? ' opacity-30 cursor-not-allowed' : '');
+    nextB.className = 'flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700 rounded' + (idx >= items.length - 1 ? ' opacity-30 cursor-not-allowed' : '');
     nextB.textContent = 'Next';
     if (idx < items.length - 1) nextB.onclick = function() { idx++; render(); };
     nav.appendChild(nextB);

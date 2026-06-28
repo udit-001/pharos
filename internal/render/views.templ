@@ -1,7 +1,6 @@
 package render
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/udit-001/pharos/internal/urls"
@@ -237,28 +236,31 @@ templ quiz(d QuizData) {
 				<p class="text-sm text-slate-400 mt-0.5 mb-6">{ d.ItemCount } questions</p>
 				<form method="POST" action={ urls.QuizStart(d.Workspace.Name, d.Slug) }>
 					if d.InProgressAttempt > 0 {
-						<button type="submit" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer">
+						<button type="submit" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
 							Resume assessment
 						</button>
 						<input type="hidden" name="attempt_id" value={ strconv.FormatInt(d.InProgressAttempt, 10) }/>
 					} else {
-						<button type="submit" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer">
+						<button type="submit" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
 							Start assessment
 						</button>
 					}
 				</form>
-				if len(d.PastAttempts) > 0 {
-					<div class="mt-8 text-left space-y-2">
-						<div class="text-xs font-medium text-slate-500 uppercase tracking-wider">Previous attempts</div>
-						for _, a := range d.PastAttempts {
-							<a href={ urls.QuizReview(d.Workspace.Name, d.Slug, a.ID) } class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs no-underline hover:bg-slate-100 transition-colors">
-								<span class="text-slate-600 flex-1">{ a.CompletedAt }</span>
-								<span class="font-medium text-emerald-600">{ a.Score }/{ a.Total }</span>
-								<span class="text-slate-400">Review</span>
-							</a>
-						}
-					</div>
-				}
+			if len(d.PastAttempts) > 0 {
+				<div class="mt-8 text-left space-y-2">
+					<div class="text-xs font-medium text-slate-500 uppercase tracking-wider">Previous attempts</div>
+					for _, a := range d.PastAttempts {
+						<a href={ urls.QuizReview(d.Workspace.Name, d.Slug, a.ID) } class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs no-underline hover:bg-slate-100 transition-colors">
+							<span class="text-slate-600 flex-1">{ a.CompletedAt }</span>
+							<span class="font-medium text-emerald-600">{ a.Score }/{ a.Total }</span>
+							<span class="text-slate-400">Review</span>
+						</a>
+					}
+					if d.ExtraAttemptCount > 0 {
+						<p class="text-xs text-slate-400 pl-3">and { d.ExtraAttemptCount } more</p>
+					}
+				</div>
+			}
 			</div>
 		</div>
 	</div>
@@ -268,7 +270,7 @@ templ quizAttempt(d AttemptData) {
 	<div class="max-w-md mx-auto space-y-4" style="min-height:calc(100dvh - 102px);display:flex;flex-direction:column;justify-content:center">
 		<div class="flex items-center justify-between">
 			<span class="text-xs font-medium text-slate-500" id="progress-label"></span>
-			<button onclick="abandonQuiz()" class="text-xs text-slate-400 hover:text-slate-600 cursor-pointer">Quit</button>
+			<button onclick="abandonQuiz()" class="text-xs text-slate-400 hover:text-slate-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700 rounded">Quit</button>
 		</div>
 		<div class="flex gap-1" id="progress-dots"></div>
 		<div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5" id="question-card"></div>
@@ -282,13 +284,11 @@ templ quizReview(d QuizReviewData) {
 			Back to { d.QuizTitle }
 		</a>
 		<div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-			<div class="text-center">
-				<div class="text-2xl font-bold text-slate-800">{ d.Score }/{ d.Total }</div>
+			<div class="flex items-center justify-between">
+				<span class="text-xs font-medium text-slate-500" id="progress-label"></span>
+				<span class="text-xs text-slate-400">{ d.Score }/{ d.Total } correct</span>
 			</div>
-			<div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-				<div class="h-full bg-emerald-600 rounded-full" style={ fmt.Sprintf("width: %d%%", d.Score * 100 / max(d.Total, 1)) }></div>
-			</div>
-			<div class="flex justify-center gap-2" id="review-dots"></div>
+			<div class="flex gap-1" id="review-dots"></div>
 			<div id="review-card"></div>
 			<div class="flex items-center justify-between" id="review-nav"></div>
 		</div>

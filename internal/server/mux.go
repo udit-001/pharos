@@ -729,7 +729,7 @@ func handleQuizPage(store *db.Store) http.HandlerFunc {
 
 		// Find in-progress and past completed attempts for this quiz.
 		var inProgress int64
-		var pastAttempts []render.QuizAttemptSummary
+		var allCompleted []render.QuizAttemptSummary
 		if attempts, err := wsStore.GetQuizAttempts(current.ID); err == nil {
 			for _, a := range attempts {
 				if a.Status == "in_progress" && inProgress == 0 {
@@ -738,7 +738,7 @@ func handleQuizPage(store *db.Store) http.HandlerFunc {
 				}
 				if a.Status == "completed" {
 					correct, total := wsStore.ScoreAttempt(a.ID)
-					pastAttempts = append(pastAttempts, render.QuizAttemptSummary{
+					allCompleted = append(allCompleted, render.QuizAttemptSummary{
 						ID:          a.ID,
 						Score:       correct,
 						Total:       total,
@@ -746,6 +746,14 @@ func handleQuizPage(store *db.Store) http.HandlerFunc {
 					})
 				}
 			}
+		}
+
+		// Cap at 3 most recent; show "and N more" for the rest.
+		var pastAttempts []render.QuizAttemptSummary
+		if len(allCompleted) > 3 {
+			pastAttempts = allCompleted[:3]
+		} else {
+			pastAttempts = allCompleted
 		}
 
 		data := render.QuizData{
@@ -756,6 +764,7 @@ func handleQuizPage(store *db.Store) http.HandlerFunc {
 			ItemCount:         len(items),
 			InProgressAttempt: inProgress,
 			PastAttempts:      pastAttempts,
+			ExtraAttemptCount:  len(allCompleted) - len(pastAttempts),
 		}
 		writePage(w, &sd, current.Title, name, "quiz", 0, slug, "", render.Quiz(data))
 	}
