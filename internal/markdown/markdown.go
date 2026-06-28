@@ -4,12 +4,14 @@ import (
 	"bytes"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 )
 
 // md is the shared goldmark instance, configured with the external-link
 // extender. Package-private — callers use Render.
 var md = goldmark.New(
 	goldmark.WithExtensions(
+		extension.Table,
 		&externalLinkExtender{},
 	),
 )
