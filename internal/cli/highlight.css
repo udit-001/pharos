@@ -1,0 +1,13 @@
+.hljs { background: transparent; color: var(--slate-800); }
+.hljs-comment,
+.hljs-quote { color: var(--slate-500); font-style: italic; }
+.hljs-keyword { color: var(--blue-700); }
+.hljs-string  { color: var(--emerald-600); }
+.hljs-number  { color: var(--amber-600); }
+.hljs-built_in,
+.hljs-type   { color: var(--blue-700); }
+.hljs-literal  { color: var(--blue-700); }
+.hljs-attr,
+.hljs-variable { color: var(--slate-700); }
+.hljs-regexp,
+.hljs-deletion  { color: var(--red-600); }
