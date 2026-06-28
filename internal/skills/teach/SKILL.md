@@ -7,7 +7,7 @@ argument-hint: "What would you like to learn about?"
 
 The user has asked you to teach them something. This is a stateful request - they intend to learn the topic over multiple sessions.
 
-Before creating anything, check whether the work already exists. A workspace is curated through **revision**, not accumulation — the same principle applies at every level. Run `pharos workspace list` to check for an existing workspace on the topic; if one exists, switch to it with `pharos workspace use "<name>"` and continue where the learner left off. Only run `pharos workspace create "<topic>"` when no workspace covers the topic yet. All file operations below use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
+Before creating anything, check whether the work already exists. A workspace is curated through **revision**, not accumulation — the same principle applies at every level. Run `pharos workspace list` to check for an existing workspace on the topic; if one exists, switch to it with `pharos workspace use "<name>"` and continue where the learner left off. Only run `pharos workspace create "<topic>"` when no workspace covers the topic yet — follow the [title rules](#titles) for a concise display name. All file operations below use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
 
 ## Teaching Workspace
 
@@ -59,6 +59,22 @@ Fluency can give the user an illusory sense of mastery, but storage strength is 
 - Spacing (distributing practice over time)
 - Interleaving (mixing up different but related topics in practice - for skills practice only)
 
+## Titles
+
+Every title in a workspace — workspace display name, lesson titles, record titles, reference titles — appears in breadcrumbs, the sidebar, and search results. Long titles crowd the chrome and hide the concept.
+
+- **Max 50 characters.** A longer title means the scope is too wide — split it.
+- **Noun phrases, not sentences.** "SQL JOINs", not "How to join tables in SQL".
+- **One concept per title.** "Indexed SELECTs" and "Covering indexes" are two lessons, not one called "SELECTs and indexes".
+- **Drop filler words.** No "Understanding", "Introduction to", "Deep dive into", "Basics of".
+
+When creating a workspace, pass a display-name–worthy string as the positional arg; the CLI slugifies it for the directory and uses the original as the display title. Only use `--topic` when the display title should differ from the slug source:
+
+```bash
+pharos workspace create "SQL Joins"                      # slug: sql-joins, title: SQL Joins
+pharos workspace create "sql-joins" --topic "SQL Joins"  # same, but explicit topic
+```
+
 ## Lessons
 
 A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and titled `0001-<dash-case-name>.html` where the number increments each time.
@@ -82,14 +98,14 @@ Every external link in a lesson must use `target="_blank" rel="noopener noreferr
 
 HTML pages (lessons and references) are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second page could reuse.
 
+Reuse is the default, not the exception. Before authoring a lesson or reference, check what assets already exist: `pharos asset list`. Build from the components already there. When a page needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future page would duplicate.
+
+A shared stylesheet is the first component every workspace earns: every HTML page — lessons and references alike — links it, so the workspace looks like one consistent course rather than a pile of one-offs. See [PAGE-THEME.md](./PAGE-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
+
 Each HTML page renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>` or `/api/ref-html/<workspace>/<file>`, so two link types resolve differently from inside it:
 
 - **Asset references** (a stylesheet, script, or image the page loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
 - **Contextual links** (clicking to another dashboard page) must escape the iframe with an absolute route and `target="_top"`. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table covering mission, glossary, resources, notes, lessons, records, and references — never guess a URL pattern. A bare `lessons/0002.html` link would load inside the iframe and break the sidebar.
-
-Reuse is the default, not the exception. Before authoring a lesson or reference, check what assets already exist: `pharos asset list`. Build from the components already there. When a page needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future page would duplicate.
-
-A shared stylesheet is the first component every workspace earns: every HTML page — lessons and references alike — links it, so the workspace looks like one consistent course rather than a pile of one-offs. See [PAGE-THEME.md](./PAGE-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
 
 ## The Mission
 
