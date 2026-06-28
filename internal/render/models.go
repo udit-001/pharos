@@ -128,6 +128,17 @@ type RefData struct {
 type QuizLibraryData struct {
 	Workspace Workspace
 	Quizzes   []QuizEntry
+	// InProgress is a quiz with an active attempt, shown as a resume banner.
+	InProgress *QuizResumeLink
+}
+
+// QuizResumeLink is the in-progress banner link.
+type QuizResumeLink struct {
+	AttemptID int64
+	QuizSlug  string
+	QuizTitle string
+	Scored    int // answered so far
+	Total     int // total questions in quiz
 }
 
 // QuizData drives a quiz detail page: title, description, item count, and a
@@ -153,12 +164,14 @@ type QuizAttemptSummary struct {
 }
 
 // AttemptQuestion is one question in the attempt page, embedded as JSON.
-// Options is empty for recall mode. The correct answer is NOT included.
+// Options is empty for recall mode. Reveal is empty for choice mode.
+// The correct answer is NOT included.
 type AttemptQuestion struct {
-	ID      int64  `json:"id"`
-	Title   string `json:"title"`
-	Mode    string `json:"mode"`
+	ID      int64    `json:"id"`
+	Title   string   `json:"title"`
+	Mode    string   `json:"mode"`
 	Options []string `json:"options,omitempty"`
+	Reveal  string   `json:"reveal,omitempty"`
 }
 
 // AttemptData drives the quiz attempt page.
@@ -170,6 +183,8 @@ type AttemptData struct {
 	Questions  []AttemptQuestion
 	// AnsweredIDs is the set of question IDs already answered (for resume).
 	AnsweredIDs map[int64]bool
+	// AnsweredResults maps answered question ID → correct/incorrect.
+	AnsweredResults map[int64]bool
 }
 
 // ReviewItem is one question in the review page.

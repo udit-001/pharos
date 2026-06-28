@@ -41,13 +41,18 @@ func QuizAttempt(d AttemptData) string {
 	for id := range d.AnsweredIDs {
 		answeredIDs = append(answeredIDs, id)
 	}
+	answeredResults := map[string]bool{}
+	for id, correct := range d.AnsweredResults {
+		answeredResults[strconv.FormatInt(id, 10)] = correct
+	}
 	dataJSON, _ := json.Marshal(map[string]any{
-		"attemptId":   d.AttemptID,
-		"quizSlug":    d.QuizSlug,
-		"quizTitle":   d.QuizTitle,
-		"workspace":   d.Workspace.Name,
-		"questions":   json.RawMessage(questionsJSON),
-		"answeredIds": answeredIDs,
+		"attemptId":       d.AttemptID,
+		"quizSlug":        d.QuizSlug,
+		"quizTitle":       d.QuizTitle,
+		"workspace":       d.Workspace.Name,
+		"questions":       json.RawMessage(questionsJSON),
+		"answeredIds":     answeredIDs,
+		"answeredResults": answeredResults,
 	})
 	out += `<script type="application/json" id="attempt-data">` + string(dataJSON) + `</script>`
 	out += `<script>` + quizAttemptJS + `</script>`

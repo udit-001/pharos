@@ -10,7 +10,12 @@ const quizAttemptJS = `
   var questions = data.questions;
   var attemptId = data.attemptId;
   var answeredIds = {};
-  data.answeredIds.forEach(function(id) { answeredIds[id] = true; });
+  var results = {};
+  data.answeredIds.forEach(function(id) {
+    answeredIds[id] = true;
+    var r = data.answeredResults[String(id)];
+    results[id] = r === true;
+  });
 
   var currentIdx = 0;
   for (var i = 0; i < questions.length; i++) {
@@ -23,6 +28,7 @@ const quizAttemptJS = `
   var submitted = false;
   var correctCount = 0;
   var answeredCount = 0;
+  for (var id in answeredIds) { answeredCount++; if (results[id]) correctCount++; }
   var letters = 'ABCDEFG';
 
   function renderDots() {
@@ -31,9 +37,13 @@ const quizAttemptJS = `
     for (var i = 0; i < questions.length; i++) {
       var d = document.createElement('span');
       d.className = 'w-5 h-1.5 rounded-full ';
-      if (answeredIds[questions[i].id]) d.className += 'bg-emerald-600';
-      else if (i === currentIdx) d.className += 'bg-blue-700';
-      else d.className += 'bg-slate-200';
+      if (answeredIds[questions[i].id]) {
+        d.className += results[questions[i].id] ? 'bg-emerald-600' : 'bg-red-600';
+      } else if (i === currentIdx) {
+        d.className += 'bg-blue-700';
+      } else {
+        d.className += 'bg-slate-200';
+      }
       c.appendChild(d);
     }
     document.getElementById('progress-label').textContent = (currentIdx + 1) + ' of ' + questions.length;
@@ -53,27 +63,44 @@ const quizAttemptJS = `
         html += q.options[i] + '</button>';
       }
       html += '</div>';
+      html += '<button id="submit-btn" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer">Submit answer</button>';
+    } else if (q.mode === 'recall') {
+      html += '<div class="p-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-700 leading-relaxed">' + q.reveal + '</div>';
+      html += '<div class="flex gap-3">';
+      html += '<button id="got-it-btn" class="flex-1 bg-emerald-600 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-emerald-600/90 transition-colors cursor-pointer">Got it</button>';
+      html += '<button id="not-yet-btn" class="flex-1 bg-red-600 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-red-600/90 transition-colors cursor-pointer">Not yet</button>';
+      html += '</div>';
     }
-    html += '<button id="submit-btn" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer">Submit answer</button>';
     card.innerHTML = html;
 
-    var selected = -1;
-    var btns = card.querySelectorAll('.option-btn');
-    btns.forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        btns.forEach(function(b) { b.classList.remove('border-blue-700', 'bg-blue-100'); });
-        btn.classList.add('border-blue-700', 'bg-blue-100');
-        selected = parseInt(btn.dataset.idx);
+    if (q.mode === 'choice') {
+      var selected = -1;
+      var btns = card.querySelectorAll('.option-btn');
+      btns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          btns.forEach(function(b) { b.classList.remove('border-blue-700', 'bg-blue-100'); });
+          btn.classList.add('border-blue-700', 'bg-blue-100');
+          selected = parseInt(btn.dataset.idx);
+        });
       });
-    });
-    document.getElementById('submit-btn').addEventListener('click', function() {
-      if (submitted || selected < 0) return;
-      submitAnswer(q, selected);
-    });
+      document.getElementById('submit-btn').addEventListener('click', function() {
+        if (submitted || selected < 0) return;
+        submitChoice(q, selected);
+      });
+    } else if (q.mode === 'recall') {
+      document.getElementById('got-it-btn').addEventListener('click', function() {
+        if (submitted) return;
+        submitRecall(q, true);
+      });
+      document.getElementById('not-yet-btn').addEventListener('click', function() {
+        if (submitted) return;
+        submitRecall(q, false);
+      });
+    }
     renderDots();
   }
 
-  function submitAnswer(q, sel) {
+  function submitChoice(q, sel) {
     submitted = true;
     var latency = Math.round(performance.now() - renderStartTime);
     fetch('/api/attempt', {
@@ -81,12 +108,25 @@ const quizAttemptJS = `
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({quiz_attempt_id: attemptId, question_id: q.id, response: String(sel), latency_ms: latency})
     }).then(function(r) { return r.json(); }).then(function(res) {
-      showFeedback(q, sel, res);
+      showChoiceFeedback(q, sel, res);
     });
   }
 
-  function showFeedback(q, sel, res) {
+  function submitRecall(q, isCorrect) {
+    submitted = true;
+    var latency = Math.round(performance.now() - renderStartTime);
+    fetch('/api/attempt', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({quiz_attempt_id: attemptId, question_id: q.id, correct: isCorrect, latency_ms: latency})
+    }).then(function(r) { return r.json(); }).then(function(res) {
+      showRecallFeedback(q, isCorrect);
+    });
+  }
+
+  function showChoiceFeedback(q, sel, res) {
     answeredIds[q.id] = true;
+    results[q.id] = res.correct;
     answeredCount++;
     if (res.correct) correctCount++;
     var card = document.getElementById('question-card');
@@ -94,28 +134,47 @@ const quizAttemptJS = `
     var btns = card.querySelectorAll('.option-btn');
     btns.forEach(function(btn, i) {
       btn.classList.remove('hover:bg-slate-50', 'hover:border-slate-300', 'cursor-pointer');
-        if (i === correctIdx) {
+      if (i === correctIdx) {
         btn.className = 'w-full text-left flex items-center gap-3 p-3 rounded-lg border border-emerald-600 bg-emerald-100 text-sm text-slate-700';
-        } else if (i === sel) {
+      } else if (i === sel) {
         btn.className = 'w-full text-left flex items-center gap-3 p-3 rounded-lg border border-red-600 bg-red-100 text-sm text-slate-700';
       } else {
         btn.className = 'w-full text-left flex items-center gap-3 p-3 rounded-lg border border-slate-200 text-sm text-slate-400 line-through';
       }
     });
-    // Running score feedback
-    var sb = document.getElementById('submit-btn');
+    showNextButton();
+  }
+
+  function showRecallFeedback(q, isCorrect) {
+    answeredIds[q.id] = true;
+    results[q.id] = isCorrect;
+    answeredCount++;
+    if (isCorrect) correctCount++;
+    var card = document.getElementById('question-card');
+    var note = document.createElement('div');
+    note.className = 'text-xs text-slate-400';
+    note.textContent = isCorrect ? 'Marked as known.' : 'Marked for review.';
+    card.appendChild(note);
+    showNextButton();
+  }
+
+  function showNextButton() {
+    var card = document.getElementById('question-card');
+    var sb = document.createElement('button');
     var isLast = currentIdx >= questions.length - 1;
-    var scoreLine = document.createElement('div');
-    scoreLine.className = 'flex items-center justify-between text-xs text-slate-400';
-    scoreLine.innerHTML = '<span>' + correctCount + '/' + answeredCount + ' correct so far</span>';
-    card.appendChild(scoreLine);
-    sb.textContent = isLast ? 'Finish' : 'Next →';
+    sb.className = 'w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer';
+    sb.textContent = isLast ? 'Finish' : 'Next';
     sb.onclick = function() {
       if (isLast) {
         fetch('/api/quiz-attempt/' + attemptId + '/complete', {method: 'POST'})
           .then(function() { window.location.href = '/workspace/' + data.workspace + '/quiz/' + data.quizSlug + '/review/' + attemptId; });
       } else { currentIdx++; renderQuestion(); }
     };
+    card.appendChild(sb);
+    var scoreLine = document.createElement('div');
+    scoreLine.className = 'flex items-center justify-between text-xs text-slate-400';
+    scoreLine.innerHTML = '<span>' + correctCount + '/' + answeredCount + ' correct so far</span>';
+    card.appendChild(scoreLine);
     renderDots();
   }
 
@@ -169,6 +228,9 @@ const quizReviewJS = `
           html += '<div class="flex items-center gap-2 p-2 rounded border border-slate-200 text-xs text-slate-400">' + item.Options[i] + '</div>';
         }
       }
+    } else if (item.Mode === 'recall') {
+      html += '<div class="p-2 rounded bg-slate-50 text-xs text-slate-500 leading-relaxed">' + item.RevealText + '</div>';
+      html += '<div class="text-xs text-slate-400">' + (item.IsCorrect ? 'You marked this as known.' : 'You marked this for review.') + '</div>';
     }
     html += '</div>';
     card.innerHTML = html;

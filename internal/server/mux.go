@@ -668,6 +668,7 @@ func handleQuizLibraryPage(store *db.Store) http.HandlerFunc {
 		}
 
 		entries := make([]render.QuizEntry, len(quizzes))
+		var inProgress *render.QuizResumeLink
 		for i, q := range quizzes {
 			items, _ := q.ParseItems()
 			entries[i] = render.QuizEntry{
@@ -676,11 +677,30 @@ func handleQuizLibraryPage(store *db.Store) http.HandlerFunc {
 				Description: q.Description,
 				ItemCount:   len(items),
 			}
+			// Check for in-progress attempt.
+			if inProgress == nil {
+				if attempts, err := wsStore.GetQuizAttempts(q.ID); err == nil {
+					for _, a := range attempts {
+						if a.Status == "in_progress" {
+							scored, _ := wsStore.GetAttempts(a.ID)
+							inProgress = &render.QuizResumeLink{
+								AttemptID: a.ID,
+								QuizSlug:  q.Slug,
+								QuizTitle: q.Title,
+								Scored:    len(scored),
+								Total:     len(items),
+							}
+							break
+						}
+					}
+				}
+			}
 		}
 
 		data := render.QuizLibraryData{
-			Workspace: toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
-			Quizzes:   entries,
+			Workspace:  toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
+			Quizzes:    entries,
+			InProgress: inProgress,
 		}
 		writePage(w, &sd, "Quizzes", ws.Name, "quiz-library", 0, "", "", render.QuizLibrary(data))
 	}
@@ -806,44 +826,54 @@ func handleQuizAttemptPage(store *db.Store) http.HandlerFunc {
 			return
 		}
 
-		// Resolve question slugs to full questions (without correct answers).
-		// Only choice-mode questions are included — recall mode is deferred to Slice 3.
+		// Resolve question slugs to full questions (without correct answers
+		// for choice; with reveal text for recall).
 		slugs, _ := quiz.ParseItems()
 		var questions []render.AttemptQuestion
-		answeredIDs := map[int64]bool{}
 		for _, qslug := range slugs {
 			q, err := wsStore.GetQuestionBySlug(qslug)
 			if err != nil {
 				continue
 			}
 			cfg, _ := q.ParseConfig()
-			cc, ok := cfg.(db.ChoiceConfig)
-			if !ok {
-				continue // skip non-choice questions in Slice 2
+			var opts []string
+			var reveal string
+			if cc, ok := cfg.(db.ChoiceConfig); ok {
+				opts = cc.Options
+			}
+			if rc, ok := cfg.(db.RecallConfig); ok {
+				reveal = rc.RevealText
 			}
 			questions = append(questions, render.AttemptQuestion{
 				ID:      q.ID,
 				Title:   q.Title,
 				Mode:    q.Mode,
-				Options: cc.Options,
+				Options: opts,
+				Reveal:  reveal,
 			})
 		}
 
 		// Mark already-answered questions (for resume).
+		answeredIDs := map[int64]bool{}
+		answeredResults := map[int64]bool{}
 		if answered, err := wsStore.GetAttempts(attemptID); err == nil {
 			for _, a := range answered {
 				answeredIDs[a.QuestionID] = true
+				if a.Correct != nil {
+					answeredResults[a.QuestionID] = *a.Correct
+				}
 			}
 		}
 
 		sd, _ := wsStore.GetSidebarData()
 		data := render.AttemptData{
-			Workspace:   toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
-			QuizSlug:    slug,
-			QuizTitle:   quiz.Title,
-			AttemptID:   attemptID,
-			Questions:   questions,
-			AnsweredIDs: answeredIDs,
+			Workspace:       toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
+			QuizSlug:        slug,
+			QuizTitle:       quiz.Title,
+			AttemptID:       attemptID,
+			Questions:       questions,
+			AnsweredIDs:     answeredIDs,
+			AnsweredResults: answeredResults,
 		}
 		writePage(w, &sd, quiz.Title, name, "quiz", 0, slug, "", render.QuizAttempt(data))
 	}
@@ -892,24 +922,25 @@ func handleQuizReviewPage(store *db.Store) http.HandlerFunc {
 				continue
 			}
 			cfg, _ := q.ParseConfig()
-			cc, ok := cfg.(db.ChoiceConfig)
-			if !ok {
-				continue // skip non-choice questions in Slice 2
-			}
 			att, hasAtt := attemptMap[q.ID]
 
 			ri := render.ReviewItem{
 				QuestionID:    q.ID,
 				QuestionTitle: q.Title,
 				Mode:          q.Mode,
-				Options:       cc.Options,
-				CorrectIndex:  cc.Key,
 			}
 			if hasAtt {
 				ri.UserResponse = att.Response
 				if att.Correct != nil {
 					ri.IsCorrect = *att.Correct
 				}
+			}
+			if cc, ok := cfg.(db.ChoiceConfig); ok {
+				ri.Options = cc.Options
+				ri.CorrectIndex = cc.Key
+			}
+			if rc, ok := cfg.(db.RecallConfig); ok {
+				ri.RevealText = rc.RevealText
 			}
 			items = append(items, ri)
 		}
@@ -932,10 +963,11 @@ func handleQuizReviewPage(store *db.Store) http.HandlerFunc {
 func handleSubmitAttempt(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			QuizAttemptID int64  `json:"quiz_attempt_id"`
-			QuestionID    int64  `json:"question_id"`
-			Response      string `json:"response"`
-			LatencyMs     int    `json:"latency_ms"`
+			QuizAttemptID  int64  `json:"quiz_attempt_id"`
+			QuestionID     int64  `json:"question_id"`
+			Response       string `json:"response"`
+			LatencyMs      int    `json:"latency_ms"`
+			ClientCorrect  *bool  `json:"correct"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			jsonError(w, "invalid request body", http.StatusBadRequest)
@@ -948,7 +980,7 @@ func handleSubmitAttempt(store *db.Store) http.HandlerFunc {
 			return
 		}
 
-		att, err := wsStore.SubmitAttempt(body.QuizAttemptID, body.QuestionID, body.Response, body.LatencyMs)
+		att, err := wsStore.SubmitAttempt(body.QuizAttemptID, body.QuestionID, body.Response, body.LatencyMs, body.ClientCorrect)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

@@ -296,7 +296,7 @@ func TestQuizAttemptLifecycle(t *testing.T) {
 	}
 
 	// Submit correct answer (index 1 = Paris).
-	att, err := alpha.SubmitAttempt(qa.ID, q.ID, "1", 2500)
+	att, err := alpha.SubmitAttempt(qa.ID, q.ID, "1", 2500, nil)
 	if err != nil {
 		t.Fatalf("SubmitAttempt: %v", err)
 	}
@@ -320,7 +320,7 @@ func TestQuizAttemptLifecycle(t *testing.T) {
 	}
 
 	// State machine: cannot submit to a completed attempt.
-	_, err = alpha.SubmitAttempt(qa.ID, q.ID, "0", 100)
+	_, err = alpha.SubmitAttempt(qa.ID, q.ID, "0", 100, nil)
 	if err == nil {
 		t.Error("expected error submitting to completed attempt")
 	}
@@ -353,7 +353,7 @@ func TestQuizAttemptAbandon(t *testing.T) {
 	}
 
 	// State machine: cannot submit to abandoned attempt.
-	_, err := alpha.SubmitAttempt(qa.ID, q.ID, "0", 100)
+	_, err := alpha.SubmitAttempt(qa.ID, q.ID, "0", 100, nil)
 	if err == nil {
 		t.Error("expected error submitting to abandoned attempt")
 	}

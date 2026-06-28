@@ -422,10 +422,14 @@ func (w *WorkspaceStore) GetAttempts(quizAttemptID int64) ([]Attempt, error) {
 	return scanAttempts(rows)
 }
 
-// SubmitAttempt records a single answer, grades it server-side via the
-// question's config, and returns the resulting Attempt row. Returns an
-// error if the parent quiz attempt is not in_progress.
-func (w *WorkspaceStore) SubmitAttempt(quizAttemptID, questionID int64, response string, latencyMs int) (Attempt, error) {
+// SubmitAttempt records a single answer and returns the resulting Attempt
+// row. Returns an error if the parent quiz attempt is not in_progress.
+//
+// For choice mode: response is the selected option index; the server grades
+// it via Config.Grade() and clientCorrect is ignored.
+// For recall mode: the client self-grades and passes clientCorrect; the
+// server stores it as-is (never overrides the learner's self-assessment).
+func (w *WorkspaceStore) SubmitAttempt(quizAttemptID, questionID int64, response string, latencyMs int, clientCorrect *bool) (Attempt, error) {
 	// State machine guard: attempt must be in_progress.
 	qa, err := w.GetQuizAttempt(quizAttemptID)
 	if err != nil {
@@ -435,7 +439,7 @@ func (w *WorkspaceStore) SubmitAttempt(quizAttemptID, questionID int64, response
 		return Attempt{}, fmt.Errorf("cannot submit to %s attempt", qa.Status)
 	}
 
-	// Grade server-side for choice mode.
+	// Resolve the question + config to determine grading mode.
 	question, err := w.GetQuestionByID(questionID)
 	if err != nil {
 		return Attempt{}, err
@@ -444,9 +448,23 @@ func (w *WorkspaceStore) SubmitAttempt(quizAttemptID, questionID int64, response
 	if err != nil {
 		return Attempt{}, err
 	}
-	correct, err := cfg.Grade(response)
-	if err != nil {
-		return Attempt{}, err
+
+	var correct bool
+	switch cfg.Mode() {
+	case "choice":
+		// Server grades choice questions.
+		correct, err = cfg.Grade(response)
+		if err != nil {
+			return Attempt{}, err
+		}
+	case "recall":
+		// Client self-grades recall questions; server stores as-is.
+		if clientCorrect == nil {
+			return Attempt{}, fmt.Errorf("recall questions require a client_correct value")
+		}
+		correct = *clientCorrect
+	default:
+		return Attempt{}, fmt.Errorf("unknown question mode %q", cfg.Mode())
 	}
 
 	now := nowTimestamp()
