@@ -7,13 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/config"
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/server"
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 func startDaemon(port int) (*exec.Cmd, error) {
@@ -181,5 +181,5 @@ func dashboardURL(s *db.Store, port int) string {
 	if err != nil {
 		return base + "/"
 	}
-	return fmt.Sprintf("%s/workspace/%s", base, strings.ReplaceAll(current, " ", "%20"))
+	return base + urls.Workspace(current)
 }

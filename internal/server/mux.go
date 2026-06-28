@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,15 +10,11 @@ import (
 	"strings"
 
 	"github.com/udit-001/pharos/internal/db"
+	"github.com/udit-001/pharos/internal/docutil"
+	"github.com/udit-001/pharos/internal/markdown"
 	"github.com/udit-001/pharos/internal/render"
+	"github.com/udit-001/pharos/internal/urls"
 	"github.com/udit-001/pharos/internal/web"
-	"github.com/yuin/goldmark"
-)
-
-var md = goldmark.New(
-	goldmark.WithExtensions(
-		&externalLinkExtender{},
-	),
 )
 
 // NewMux builds the HTTP mux for the Pharos dashboard: CSS serving, JSON API,
@@ -48,6 +43,22 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 		}
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		w.Write(web.CSS)
+	})
+
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Write(web.FaviconICO)
+	})
+	mux.HandleFunc("GET /favicon.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Write(web.FaviconPNG)
+	})
+	mux.HandleFunc("GET /favicon.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Write(web.FaviconSVG)
 	})
 
 	// JSON API
@@ -286,14 +297,9 @@ func handleGetGlossaryTermsByName(store *db.Store) http.HandlerFunc {
 func handleStats(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ws, _ := store.GetWorkspaces()
-		tl, tr, tRef := 0, 0, 0
-		for _, w := range ws {
-			tl += w.LessonCount
-			tr += w.RecordCount
-			tRef += w.RefCount
-		}
+		t := db.Totals(ws)
 		jsonResponse(w, map[string]any{
-			"totalWorkspaces": len(ws), "totalLessons": tl, "totalRecords": tr, "totalRefs": tRef,
+			"totalWorkspaces": t.Workspaces, "totalLessons": t.Lessons, "totalRecords": t.Records, "totalRefs": t.Refs,
 		})
 	}
 }
@@ -320,11 +326,11 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 			var url string
 			switch r.Type {
 			case "lesson":
-				url = fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(r.WorkspaceName), r.SequenceNumber)
+				url = urls.Lesson(r.WorkspaceName, r.SequenceNumber)
 			case "record":
-				url = fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(r.WorkspaceName), r.SequenceNumber)
+				url = urls.Record(r.WorkspaceName, r.SequenceNumber)
 			case "ref":
-				url = fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(r.WorkspaceName), urlPathEscape(r.Slug))
+				url = urls.Ref(r.WorkspaceName, r.Slug)
 			}
 			results = append(results, apiResult{
 				Type: r.Type, Title: r.Title,
@@ -335,16 +341,11 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 	}
 }
 
-// urlPathEscape replaces spaces for URL path segments.
-func urlPathEscape(s string) string {
-	return strings.ReplaceAll(s, " ", "%20")
-}
-
 // ── Dashboard ──
 
 func handleAboutPage(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		writePage(w, nil, "About — Pharos", "", "", 0, "", "", render.About())
+		writePage(w, nil, "About", "", "", 0, "", "", render.About())
 	}
 }
 
@@ -356,47 +357,15 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 		}
 
 		ws, _ := store.GetWorkspaces()
-		tl, tr, tRef := 0, 0, 0
-		for _, w := range ws {
-			tl += w.LessonCount
-			tr += w.RecordCount
-			tRef += w.RefCount
-		}
+		totals := db.Totals(ws)
 
 		data := render.DashboardData{
-			Stats: render.Stats{Workspaces: len(ws), Lessons: tl, Records: tr, Refs: tRef},
+			Stats: render.Stats{Workspaces: totals.Workspaces, Lessons: totals.Lessons, Records: totals.Records, Refs: totals.Refs},
 		}
 
 		// Continue card
-		for _, w := range ws {
-			var continueURL, continueLabel string
-			if w.LastLessonSeq != nil && *w.LastLessonSeq > 0 {
-				wsStore, err := store.Workspace(w.Name)
-				if err == nil {
-					lessons, _ := wsStore.GetLessons()
-					for _, l := range lessons {
-						if l.SequenceNumber == *w.LastLessonSeq {
-							continueURL = fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(w.Name), l.SequenceNumber)
-							continueLabel = fmt.Sprintf("%s — Lesson: %s", w.Name, l.Title)
-							break
-						}
-					}
-				}
-			} else if w.LastRefSeq != nil {
-				wsStore, err := store.Workspace(w.Name)
-				if err == nil {
-					refs, _ := wsStore.GetRefs()
-					if len(refs) > 0 {
-						ref := refs[0]
-						continueURL = fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(w.Name), urlPathEscape(ref.Slug))
-						continueLabel = fmt.Sprintf("%s — Reference: %s", w.Name, ref.Title)
-					}
-				}
-			}
-			if continueURL != "" {
-				data.Continue = &render.ContinueItem{URL: continueURL, Label: continueLabel}
-				break
-			}
+		if ci, _ := store.ContinueItem(); ci != nil {
+			data.Continue = &render.ContinueItem{URL: ci.URL, Label: ci.Label}
 		}
 
 		// Workspace grid
@@ -424,7 +393,7 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		ws := wsStore.Workspace()
 
 		if ws.LastLessonSeq != nil {
-			http.Redirect(w, r, fmt.Sprintf("/workspace/%s/lesson/%d", name, *ws.LastLessonSeq), http.StatusFound)
+			http.Redirect(w, r, urls.Lesson(name, *ws.LastLessonSeq), http.StatusFound)
 			return
 		}
 
@@ -441,22 +410,20 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		// — the workspace create command pre-populates the template.
 		mission := ""
 		if missionData, err := os.ReadFile(wsStore.Layout().MissionPath()); err == nil {
-			if trimmed := strings.TrimSpace(string(missionData)); trimmed != "" && !strings.Contains(trimmed, "{") {
+			if trimmed := strings.TrimSpace(string(missionData)); !docutil.IsTemplate(trimmed, "mission") {
 				mission = trimmed
 			}
 		}
 
 		// Render mission markdown → HTML (same pattern as learning records)
-		var missionHTML bytes.Buffer
+		missionHTML := ""
 		if mission != "" {
-			if err := md.Convert([]byte(mission), &missionHTML); err != nil {
-				missionHTML.WriteString("<p>Mission unavailable</p>")
-			}
+			missionHTML = markdown.Render(mission)
 		}
 
 		data := render.WorkspaceData{
 			Workspace: toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
-			Mission:   missionHTML.String(),
+			Mission:   missionHTML,
 			Lessons:   toRenderLessons(sd.Lessons),
 			Records:   toRenderRecords(sd.Records),
 			Refs:      toRenderRefs(sd.Refs),
@@ -500,26 +467,11 @@ func handleDocPage(store *db.Store, kind string) http.HandlerFunc {
 			// Workspace documents are seeded with placeholder templates on
 			// create ({...} markers, or default prose for Notes). Treat an
 			// unfilled template as empty so the learner gets guidance.
-			hasPlaceholder := strings.Contains(trimmed, "{")
-			_, isDefaultNotes := strings.CutPrefix(trimmed, "# Notes\n\nPreferences and working notes for this workspace.")
-			isDefaultNotes = isDefaultNotes && kind == "notes"
-			if trimmed != "" && !hasPlaceholder && !isDefaultNotes {
+			if !docutil.IsTemplate(trimmed, kind) {
 				// Strip a leading "# ..." H1 that duplicates the navbar title —
 				// all document FORMAT templates start with one.
-				if strings.HasPrefix(trimmed, "# ") {
-					if nl := strings.IndexByte(trimmed, '\n'); nl >= 0 {
-						trimmed = strings.TrimSpace(trimmed[nl+1:])
-					} else {
-						trimmed = ""
-					}
-				}
-				if trimmed != "" {
-					var buf bytes.Buffer
-					if err := md.Convert([]byte(trimmed), &buf); err == nil {
-						data.BodyHTML = buf.String()
-					} else {
-						data.BodyHTML = "<p>Document unavailable.</p>"
-					}
+				if body := docutil.StripH1(trimmed); body != "" {
+					data.BodyHTML = markdown.Render(body)
 				}
 			}
 		}
@@ -591,7 +543,7 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 
 		data := render.LessonData{
 			Title:  current.Title,
-			RawURL: fmt.Sprintf("/api/lesson-html/%s/%s", urlPathEscape(name), urlPathEscape(current.Filename)),
+			RawURL: fmt.Sprintf("/api/lesson-html/%s/%s", urls.PathEscape(name), urls.PathEscape(current.Filename)),
 			Seq:    seq,
 			Total:  len(sd.Lessons),
 		}
@@ -629,12 +581,7 @@ func handleRecordPage(store *db.Store) http.HandlerFunc {
 			return
 		}
 
-		var buf bytes.Buffer
-		if err := md.Convert(mdData, &buf); err != nil {
-			buf.WriteString("<p>Error rendering markdown</p>")
-		}
-
-		data := render.RecordData{Title: current.Title, Status: current.Status, BodyHTML: buf.String()}
+		data := render.RecordData{Title: current.Title, Status: current.Status, BodyHTML: markdown.Render(string(mdData))}
 		wsStore.SetLastViewed("record", seq)
 		sd, _ := wsStore.GetSidebarData()
 		writePage(w, &sd, current.Title, name, "record", seq, "", "", render.Record(data))
@@ -663,9 +610,9 @@ func handleRefPage(store *db.Store) http.HandlerFunc {
 
 		data := render.RefData{
 			Title:  current.Title,
-			RawURL: fmt.Sprintf("/api/ref-html/%s/%s", urlPathEscape(name), urlPathEscape(current.Filename)),
+			RawURL: fmt.Sprintf("/api/ref-html/%s/%s", urls.PathEscape(name), urls.PathEscape(current.Filename)),
 		}
-		wsStore.SetLastViewed("ref", 0)
+		wsStore.SetLastViewed("ref", int(current.ID))
 		sd, _ := wsStore.GetSidebarData()
 		writePage(w, &sd, current.Title, name, "ref", 0, slug, "", render.Ref(data))
 	}
@@ -684,11 +631,11 @@ func handleSearchPage(store *db.Store) http.HandlerFunc {
 				var url string
 				switch res.Type {
 				case "lesson":
-					url = fmt.Sprintf("/workspace/%s/lesson/%d", urlPathEscape(res.WorkspaceName), res.SequenceNumber)
+					url = urls.Lesson(res.WorkspaceName, res.SequenceNumber)
 				case "record":
-					url = fmt.Sprintf("/workspace/%s/record/%d", urlPathEscape(res.WorkspaceName), res.SequenceNumber)
+					url = urls.Record(res.WorkspaceName, res.SequenceNumber)
 				case "ref":
-					url = fmt.Sprintf("/workspace/%s/ref/%s", urlPathEscape(res.WorkspaceName), urlPathEscape(res.Slug))
+					url = urls.Ref(res.WorkspaceName, res.Slug)
 				}
 				data.Results = append(data.Results, render.SearchResult{
 					Type: res.Type, Title: res.Title,

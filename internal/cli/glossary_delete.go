@@ -31,7 +31,9 @@ Examples:
 			return formatError("failed to delete glossary term", err)
 		}
 
-		fmt.Printf("Deleted %q from glossary.\n", term)
+		fmt.Println()
+		fmt.Printf("  ✓ Deleted glossary term: %s\n", term)
+		fmt.Println()
 		return nil
 	},
 }

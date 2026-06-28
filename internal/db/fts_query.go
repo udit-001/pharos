@@ -2,6 +2,11 @@ package db
 
 import "strings"
 
+// bm25Weights is the ranking weight policy for all FTS tables: title weight,
+// summary weight, body weight. One constant — changing it updates all three
+// search methods at once.
+const bm25Weights = "10.0, 5.0, 1.0"
+
 func buildFTSQuery(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {

@@ -10,10 +10,13 @@ templ document(f Frame, content string) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ f.Title } — Pharos</title>
-			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+		<link rel="icon" type="image/png" href="/favicon.png"/>
+		<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+		<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-			<link rel="stylesheet" href="/css/app.css?v=4"/>
+			<link rel="stylesheet" href="/css/app.css?v=5"/>
 			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 		</head>
 		<body class="font-sans">
@@ -58,20 +61,67 @@ templ document(f Frame, content string) {
 					var html = document.documentElement;
 					var isDark = html.dataset.theme === 'dark';
 					var next = isDark ? 'light' : 'dark';
-					html.dataset.theme = next;
-					localStorage.setItem('pharos_theme', next);
 					document.querySelectorAll('iframe').forEach(function(f) {
 						try { f.contentWindow.postMessage({type: 'theme', theme: next}, '*'); } catch(e) {}
 					});
+					html.dataset.theme = next;
+					localStorage.setItem('pharos_theme', next);
 					document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', next !== 'dark');
 					document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', next === 'dark');
 				}
-				(function() {
-					if (document.documentElement.dataset.theme === 'dark') {
-						document.querySelector('[data-theme-icon=sun]').classList.remove('hidden');
-						document.querySelector('[data-theme-icon=moon]').classList.add('hidden');
+			(function() {
+				if (document.documentElement.dataset.theme === 'dark') {
+					document.querySelector('[data-theme-icon=sun]').classList.remove('hidden');
+					document.querySelector('[data-theme-icon=moon]').classList.add('hidden');
+				}
+			})();
+			document.addEventListener('mouseover', function(e) {
+				var el = e.target;
+				if (!el.classList) return;
+				if (el.classList.contains('sidebar-link-label') || el.classList.contains('truncate')) {
+					if (el.scrollWidth > el.clientWidth) {
+						el.title = el.textContent.trim();
 					}
-				})();
+				}
+			});
+			document.addEventListener('mouseout', function(e) {
+				var el = e.target;
+				if (!el.classList) return;
+				if (el.classList.contains('sidebar-link-label') || el.classList.contains('truncate')) {
+					el.removeAttribute('title');
+				}
+			});
+			(function(){
+				var c = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+				var k = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+				document.querySelectorAll('.prose pre:not([data-no-copy])').forEach(function(pre){
+					if(pre.querySelector('.copy-code-btn'))return;
+					var p=window.getComputedStyle(pre).position;
+					if(p==='static')pre.style.position='relative';
+					var b=document.createElement('button');
+					b.className='copy-code-btn';
+					b.setAttribute('aria-label','Copy code');
+					b.innerHTML=c;
+					b.addEventListener('click',function(e){
+						e.stopPropagation();
+						var code=pre.querySelector('code');
+						var t=code?code.textContent:pre.textContent;
+						if(navigator.clipboard){
+							navigator.clipboard.writeText(t).then(function(){
+								b.innerHTML=k;b.classList.add('copied');
+								setTimeout(function(){b.innerHTML=c;b.classList.remove('copied')},2000);
+							}).catch(function(){f(code||pre,b)});
+						}else{f(code||pre,b)}
+					});
+					pre.appendChild(b);
+				});
+				function f(el,b){
+					var r=document.createRange();r.selectNodeContents(el);
+					var s=window.getSelection();s.removeAllRanges();s.addRange(r);
+					b.innerHTML=k;b.classList.add('copied');
+					setTimeout(function(){b.innerHTML=c;b.classList.remove('copied');s.removeAllRanges()},2000);
+				}
+			})();
 			</script>
 		</body>
 	</html>

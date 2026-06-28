@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,22 +30,6 @@ Examples:
 		}
 		ws := wsStore.Workspace()
 
-		// Get existing refs to check for duplicate slug
-		refs, err := wsStore.GetRefs()
-		if err != nil {
-			return formatError("failed to get references", err)
-		}
-
-		slug := db.Slugify(title)
-		for _, r := range refs {
-			if r.Slug == slug {
-				return fmt.Errorf("reference with slug %q already exists\n  Use 'pharos reference revise %s' to update it", slug, slug)
-			}
-		}
-
-		filename := slug + ".html"
-		refPath := filepath.Join(ws.Path, "reference", filename)
-
 		// Reference content comes from --body-file (required) — no stub template.
 		bodyFile, _ := cmd.Flags().GetString("body-file")
 		if bodyFile == "" {
@@ -56,18 +41,15 @@ Examples:
 		}
 		html := string(data)
 
-		if err := os.WriteFile(refPath, []byte(html), 0644); err != nil {
-			return fmt.Errorf("write reference file: %w", err)
-		}
-
-		// Save to database (WorkspaceID auto-set by the scoped store)
-		created, err := wsStore.AddRef(db.Reference{
-			Title:    title,
-			Slug:     slug,
-			Filename: filename,
-			Path:     filepath.Join("reference", filename),
-		})
+		// CreateRef owns the invariant: slugify, duplicate-slug check, file
+		// write, body_text extraction, and the DB row. The CLI shrinks to
+		// parse-and-call.
+		created, err := wsStore.CreateRef(title, html)
 		if err != nil {
+			if errors.Is(err, db.ErrRefSlugExists) {
+				slug := db.Slugify(title)
+				return fmt.Errorf("reference with slug %q already exists\n  Use 'pharos reference revise %s' to update it", slug, slug)
+			}
 			return formatError("failed to save reference", err)
 		}
 
@@ -78,7 +60,7 @@ Examples:
 
 		fmt.Println()
 		fmt.Printf("  ✓ Reference created: %s\n", title)
-		fmt.Printf("    File: %s\n", refPath)
+		fmt.Printf("    File: %s\n", filepath.Join(ws.Path, created.Path))
 		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 

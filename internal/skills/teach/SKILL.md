@@ -7,16 +7,16 @@ argument-hint: "What would you like to learn about?"
 
 The user has asked you to teach them something. This is a stateful request - they intend to learn the topic over multiple sessions.
 
-Before creating anything, check whether the work already exists. A workspace is curated through **revision**, not accumulation — the same principle applies at every level. Run `pharos workspace list` to check for an existing workspace on the topic; if one exists, switch to it with `pharos workspace use "<name>"` and continue where the learner left off. Only run `pharos workspace create "<topic>"` when no workspace covers the topic yet. All file operations below use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
+Before creating anything, check whether the work already exists. A workspace is curated through **revision**, not accumulation — the same principle applies at every level. Run `pharos workspace list` to check for an existing workspace on the topic; if one exists, switch to it with `pharos workspace use "<name>"` and continue where the learner left off. Only run `pharos workspace create "<topic>"` when no workspace covers the topic yet — follow the [title rules](#titles) for a concise display name. All file operations below use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
 
 ## Teaching Workspace
 
 Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:
 
-- `MISSION.md`: The _reason_ the user is learning. Update with `pharos mission --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
-- `RESOURCES.md`: Curated knowledge sources and communities. Update with `pharos resources --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
-- **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary add "<term>" "<definition>"`, display with `pharos glossary` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
-- `NOTES.md`: Scratchpad for preferences and working notes. Update with `pharos notes --body-file <path>` or `pharos notes --append --body-file <path>`.
+- `MISSION.md`: The _reason_ the user is learning. Read with `pharos mission show` (or `pharos mission show --json`), update with `pharos mission edit --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
+- `RESOURCES.md`: Curated knowledge sources and communities. Read with `pharos resources show` (or `pharos resources show --json`), update with `pharos resources edit --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
+- **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary create "<term>" "<definition>"`, display with `pharos glossary list` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
+- `NOTES.md`: Scratchpad for preferences and working notes. Read with `pharos notes show` (or `pharos notes show --json`), update with `pharos notes edit --body-file <path>` or `pharos notes edit --append --body-file <path>`.
 - `./lessons/*.html`: Self-contained lesson HTML files. Create with `pharos lesson create "<title>" --body-file <path>`.
 - `./learning-records/*.md`: ADR-style records of what was learned. Create with `pharos record create "<title>" --body-file <path>`.
 - `./reference/*.html`: Reference documents — cheat sheets, syntax guides. Create with `pharos reference create "<title>" --body-file <path>`.
@@ -59,6 +59,22 @@ Fluency can give the user an illusory sense of mastery, but storage strength is 
 - Spacing (distributing practice over time)
 - Interleaving (mixing up different but related topics in practice - for skills practice only)
 
+## Titles
+
+Every title in a workspace — workspace display name, lesson titles, record titles, reference titles — appears in breadcrumbs, the sidebar, and search results. Long titles crowd the chrome and hide the concept.
+
+- **Max 50 characters.** A longer title means the scope is too wide — split it.
+- **Noun phrases, not sentences.** "SQL JOINs", not "How to join tables in SQL".
+- **One concept per title.** "Indexed SELECTs" and "Covering indexes" are two lessons, not one called "SELECTs and indexes".
+- **Drop filler words.** No "Understanding", "Introduction to", "Deep dive into", "Basics of".
+
+When creating a workspace, pass a display-name–worthy string as the positional arg; the CLI slugifies it for the directory and uses the original as the display title. Only use `--topic` when the display title should differ from the slug source:
+
+```bash
+pharos workspace create "SQL Joins"                      # slug: sql-joins, title: SQL Joins
+pharos workspace create "sql-joins" --topic "SQL Joins"  # same, but explicit topic
+```
+
 ## Lessons
 
 A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and titled `0001-<dash-case-name>.html` where the number increments each time.
@@ -80,16 +96,16 @@ Every external link in a lesson must use `target="_blank" rel="noopener noreferr
 
 ## Assets
 
-Lessons are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second lesson could reuse.
+HTML pages (lessons and references) are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second page could reuse.
 
-A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`, so two link types resolve differently from inside it:
+Reuse is the default, not the exception. Before authoring a lesson or reference, check what assets already exist: `pharos asset list`. Build from the components already there. When a page needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future page would duplicate.
 
-- **Asset references** (a stylesheet, script, or image the lesson loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
+A shared stylesheet is the first component every workspace earns: every HTML page — lessons and references alike — links it, so the workspace looks like one consistent course rather than a pile of one-offs. See [PAGE-THEME.md](./PAGE-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
+
+Each HTML page renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>` or `/api/ref-html/<workspace>/<file>`, so two link types resolve differently from inside it:
+
+- **Asset references** (a stylesheet, script, or image the page loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
 - **Contextual links** (clicking to another dashboard page) must escape the iframe with an absolute route and `target="_top"`. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table covering mission, glossary, resources, notes, lessons, records, and references — never guess a URL pattern. A bare `lessons/0002.html` link would load inside the iframe and break the sidebar.
-
-Reuse is the default, not the exception. Before authoring a lesson, check what assets already exist: `pharos asset list`. Build from the components already there. When a lesson needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future lesson would duplicate.
-
-A shared stylesheet is the first component every workspace earns: every lesson links it, so the lessons look like one consistent course rather than a pile of one-offs. See [LESSON-THEME.md](./LESSON-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
 
 ## The Mission
 
@@ -160,6 +176,8 @@ Lessons will rarely be revisited later - reference documents will be. They shoul
 
 References are addressed by **slug** (descriptive name derived from the title), not sequence numbers. If a reference needs updating, revise it: `pharos reference revise <slug> --body-file <path>`.
 
+References are HTML files that render in the same iframe as lessons — they must link `assets/style.css` and follow the [PAGE-THEME.md](./PAGE-THEME.md) boilerplate (theme sync, root-relative asset paths, FOUC prevention). A reference that omits the stylesheet renders unstyled.
+
 Some learning topics lend themselves to reference:
 
 - Syntax and code snippets for programming
@@ -168,10 +186,14 @@ Some learning topics lend themselves to reference:
 - Exercises and routines for fitness
 - Glossaries for any topic with its own nomenclature
 
-Glossaries, in particular, are an essential reference. Once one is created, it should be adhered to in every lesson. When writing a lesson, fetch the glossary terms from `GET /api/workspaces/{id}/glossary-terms` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — see [LESSON-THEME.md](./LESSON-THEME.md) for the tooltip convention.
+Glossaries, in particular, are an essential reference. Once one is created, it should be adhered to in every lesson. When writing a lesson, fetch the glossary terms with `pharos glossary list --json` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — see [PAGE-THEME.md](./PAGE-THEME.md) for the tooltip convention.
 
 ## `NOTES.md`
 
-The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. Record these with `pharos notes --body-file <path>` or append to them with `pharos notes --append --body-file <path>`.
+The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. Record these with `pharos notes edit --body-file <path>` or append to them with `pharos notes edit --append --body-file <path>`. To review existing notes, use `pharos notes show` (or `pharos notes show --json`).
 
 After each session, check `NOTES.md` for user preferences before starting the next session. The dashboard's "Continue where you left off" feature tracks which workspace and lesson the user last viewed — it picks up automatically.
+
+## Followup Questions
+
+After presenting a lesson, ask the user in chat if they have any followup questions.

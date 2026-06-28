@@ -24,6 +24,7 @@ pharos start --no-open                   # Don't auto-open browser
 pharos start --foreground / -f           # Run in foreground
 pharos start --background / -b           # Run in background (default)
 pharos start --dev-css                   # Serve CSS from disk (dev mode)
+pharos stop                              # Stop the running web server
 ```
 
 ## Workspaces
@@ -87,20 +88,28 @@ pharos reference revise <slug> -w "<workspace>" --summary "<new>"      # Update 
 ## Workspace Documents
 
 ```bash
-pharos mission -w "<workspace>"                   # Show mission
-pharos mission -w "<workspace>" --edit / -e       # Edit mission in $EDITOR
-pharos mission -w "<workspace>" --body-file <path> # Write mission from file
+pharos mission show -w "<workspace>"                                 # Show mission
+pharos mission show -w "<workspace>" --json                          # Show mission as JSON
+pharos mission edit -w "<workspace>"                                 # Edit mission in $EDITOR
+pharos mission edit -w "<workspace>" --body-file <path>               # Write mission from file
 
-pharos resources -w "<workspace>"                  # Show resources
-pharos resources -w "<workspace>" --edit / -e      # Edit resources
-pharos resources -w "<workspace>" --body-file <path>
+pharos resources show -w "<workspace>"                                # Show resources
+pharos resources show -w "<workspace>" --json                         # Show resources as JSON
+pharos resources edit -w "<workspace>"                                # Edit resources in $EDITOR
+pharos resources edit -w "<workspace>" --body-file <path>             # Write resources from file
 
-pharos glossary -w "<workspace>"                   # Show glossary (read-only, managed via API)
+pharos notes show -w "<workspace>"                                    # Show notes
+pharos notes show -w "<workspace>" --json                             # Show notes as JSON
+pharos notes edit -w "<workspace>"                                    # Edit notes in $EDITOR
+pharos notes edit -w "<workspace>" --body-file <path>                 # Write notes from file
+pharos notes edit -w "<workspace>" --append --body-file <path>        # Append to notes
 
-pharos notes -w "<workspace>"                      # Show notes (scratchpad)
-pharos notes -w "<workspace>" --edit / -e           # Edit notes
-pharos notes -w "<workspace>" --body-file <path>    # Write notes from file
-pharos notes -w "<workspace>" --append              # Append to notes instead of overwriting
+pharos glossary list                                                  # Show glossary
+pharos glossary list --json                                           # Show glossary as JSON
+pharos glossary create "<term>" "<definition>" -w "<workspace>"       # Add or update a term
+pharos glossary create "<term>" "<definition>" --category "<name>"    # Group under a heading
+pharos glossary create "<term>" "<definition>" --avoid "<synonym>"    # Flag a synonym to avoid
+pharos glossary delete "<term>" -w "<workspace>"                      # Remove a term (idempotent)
 ```
 
 ## Assets
@@ -120,6 +129,22 @@ pharos migrate down-to <version>      # Roll back to a specific version
 pharos migrate status                 # Show migration status
 ```
 
+## Search
+
+```bash
+pharos search "<query>"                          # Search across all workspaces
+pharos search "<query>" -w "<workspace>"         # Search within one workspace
+pharos search --rebuild-index                     # Index the current workspace's content
+pharos search --rebuild-index --all               # Rebuild index across all workspaces
+```
+
+## Configuration
+
+```bash
+pharos config show                                # Show current configuration
+pharos config set data_dir ~/my-pharos            # Change the data directory
+```
+
 ## Skills
 
 ```bash
@@ -127,6 +152,16 @@ pharos skills install                 # Interactively install pharos skill into 
 pharos skills install --agent opencode  # Install for a specific agent
 pharos skills install --project       # Install at project level (not global)
 pharos skills check                   # Check installed skills and their status
+```
+
+## Maintenance
+
+```bash
+pharos upgrade                        # Upgrade pharos via 'go install ...@latest'
+pharos tailwind download              # Download the Tailwind CLI binary to .bin/tailwindcss
+pharos build                          # Rebuild CSS + Go binary
+pharos build --no-css                 # Go-only build (skip CSS rebuild)
+pharos dev                            # Hot-reload dev server
 ```
 
 ## Global Flags
@@ -162,8 +197,9 @@ The CLI generates filenames automatically from titles:
 
 ## Data
 
-SQLite database at `~/.pharos/pharos.db` (configurable via `--db`).
+SQLite database at `~/.pharos/pharos.db` (configurable via `--db` or `config set data_dir`).
 
-4 tables: `workspaces`, `lessons`, `learning_records`, `references_t`.
-FTS5 full-text search on lessons, records, and references.
+6 tables: `workspaces`, `lessons`, `learning_records`, `references_t`, `settings`, `glossary_terms`.
+FTS5 full-text search (Porter tokenizer) on lessons, records, and references.
+12 migrations (see `pharos migrate status`).
 All mutations happen through the CLI — the web UI is read-only.

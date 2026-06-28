@@ -149,6 +149,64 @@ func writeWorkspaceFile(wsStore *db.WorkspaceStore, targetPath, bodyFile, label 
 	return nil
 }
 
+// readAndPrintFile reads a workspace file and prints its content.
+func readAndPrintFile(ws db.Workspace, filePath string) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("read file: %w", err)
+	}
+	fmt.Println()
+	fmt.Printf("  Workspace: %s\n", ws.DisplayName())
+	fmt.Println()
+	fmt.Println(string(data))
+	fmt.Println()
+	return nil
+}
+
+// readAndPrintJSON reads a workspace file and outputs it as JSON.
+func readAndPrintJSON(ws db.Workspace, filePath, fileName string) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("read file: %w", err)
+	}
+	printJSON(struct {
+		Workspace string `json:"workspace"`
+		File      string `json:"file"`
+		Content   string `json:"content"`
+	}{
+		Workspace: ws.DisplayName(),
+		File:      fileName,
+		Content:   string(data),
+	})
+	return nil
+}
+
+// openInEditor opens a file in the user's $EDITOR and touches last_studied.
+func openInEditor(wsStore *db.WorkspaceStore, filePath, label string) error {
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = os.Getenv("VISUAL")
+	}
+	if editor == "" {
+		editor = "vim"
+	}
+	fmt.Println()
+	fmt.Printf("  Opening %s in %s ...\n", label, editor)
+	fmt.Println()
+	editorCmd := execCommand(editor, filePath)
+	editorCmd.Stdin = os.Stdin
+	editorCmd.Stdout = os.Stdout
+	editorCmd.Stderr = os.Stderr
+	if err := editorCmd.Run(); err != nil {
+		return fmt.Errorf("editor failed: %w", err)
+	}
+	_ = wsStore.Touch()
+	fmt.Println()
+	fmt.Printf("  ✓ %s updated\n", label)
+	fmt.Println()
+	return nil
+}
+
 func formatDateShort(ts string) string {
 	if len(ts) >= 10 {
 		return ts[:10]

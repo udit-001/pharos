@@ -2,7 +2,10 @@ package db
 
 import (
 	"fmt"
-	"time"
+	"os"
+	"path/filepath"
+
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 const wsColumns = `id, name, topic, path, mission_why, created_at, last_studied, last_lesson_seq, last_record_seq, last_ref_seq`
@@ -77,9 +80,12 @@ func (s *Store) GetWorkspaceByName(name string) (Workspace, error) {
 	return w, nil
 }
 
-// AddWorkspace creates a new workspace.
+// AddWorkspace creates a new workspace row only. It does not create the
+// on-disk directory or seed templates — for that use CreateWorkspace, which
+// owns the full row ⇔ dir tree invariant. Tests use AddWorkspace to set up a
+// row without the filesystem; production code uses CreateWorkspace.
 func (s *Store) AddWorkspace(w Workspace) (Workspace, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	result, err := s.db.Exec(
 		`INSERT INTO workspaces (name, topic, path, mission_why, created_at, last_studied)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -93,6 +99,68 @@ func (s *Store) AddWorkspace(w Workspace) (Workspace, error) {
 	w.CreatedAt = now
 	w.LastStudied = now
 	return w, nil
+}
+
+// CreateWorkspace owns the full workspace lifecycle: it creates the directory
+// tree (root + subdirs), seeds the default files (CSS/JS assets, MISSION/
+// RESOURCES/NOTES templates), and inserts the row. The "row ⇔ dir tree"
+// invariant lives here — a created workspace always has both. wsPath is
+// supplied by the caller (the CLI knows the data dir / --dir override); the
+// store owns the scaffold. Mirrors the WorkspaceStore.CreateLesson/Record
+// shape for the workspace entity itself.
+func (s *Store) CreateWorkspace(name, topic, wsPath string) (Workspace, error) {
+	layout := NewLayout(wsPath)
+
+	for _, sub := range layout.Subdirs() {
+		if err := os.MkdirAll(filepath.Join(layout.Root, sub), 0o755); err != nil {
+			return Workspace{}, fmt.Errorf("create %s directory: %w", sub, err)
+		}
+	}
+
+	displayName := topic
+	if displayName == "" {
+		displayName = name
+	}
+	if err := seedWorkspaceDefaults(layout, displayName); err != nil {
+		return Workspace{}, fmt.Errorf("seed workspace: %w", err)
+	}
+
+	w := Workspace{Name: name, Topic: topic, Path: wsPath}
+	created, err := s.AddWorkspace(w)
+	if err != nil {
+		// Roll back the directory scaffold on DB failure so a retry
+		// doesn't hit a duplicate-name error against an orphaned dir.
+		_ = os.RemoveAll(wsPath)
+		return Workspace{}, err
+	}
+	return created, nil
+}
+
+// DeleteWorkspaceByName removes a workspace's row (cascading to its lessons,
+// records, and references), deletes its on-disk directory, and clears the
+// current-workspace setting if it pointed at the deleted one. The inverse of
+// CreateWorkspace — the row ⇔ dir tree invariant is torn down in one place.
+// Confirmation prompting stays with the caller (a UI concern).
+func (s *Store) DeleteWorkspaceByName(name string) error {
+	w, err := s.GetWorkspaceByName(name)
+	if err != nil {
+		return fmt.Errorf("workspace %q not found: %w", name, err)
+	}
+
+	if err := s.DeleteWorkspace(w.ID); err != nil {
+		return fmt.Errorf("delete workspace row: %w", err)
+	}
+
+	if w.Path != "" {
+		if err := os.RemoveAll(w.Path); err != nil {
+			return fmt.Errorf("remove workspace directory: %w", err)
+		}
+	}
+
+	if current, _ := s.CurrentWorkspace(); current == w.Name {
+		_ = s.SetCurrentWorkspace("")
+	}
+	return nil
 }
 
 // UpdateWorkspaceMission updates the mission_why field.
@@ -120,13 +188,14 @@ func (s *Store) SetLastViewed(id int64, itemType string, seq int) error {
 	default:
 		return fmt.Errorf("unknown item type: %s", itemType)
 	}
-	_, err := s.db.Exec(fmt.Sprintf("UPDATE workspaces SET %s = ?, last_studied = datetime('now') WHERE id = ?", col), seq, id)
+	now := nowTimestamp()
+	_, err := s.db.Exec(fmt.Sprintf("UPDATE workspaces SET %s = ?, last_studied = ? WHERE id = ?", col), seq, now, id)
 	return err
 }
 
 // TouchWorkspace updates last_studied timestamp.
 func (s *Store) TouchWorkspace(id int64) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	_, err := s.db.Exec("UPDATE workspaces SET last_studied = ? WHERE id = ?", now, id)
 	return err
 }
@@ -170,4 +239,77 @@ func (s *Store) WorkspaceCount() (int, error) {
 	var count int
 	err := s.db.Get(&count, "SELECT COUNT(*) FROM workspaces")
 	return count, err
+}
+
+// Stats holds aggregate counts across all workspaces.
+type Stats struct {
+	Workspaces int
+	Lessons    int
+	Records    int
+	Refs       int
+}
+
+// Totals sums the lesson/record/ref counts across the given workspaces.
+// Callers that already have the workspace list (e.g. the dashboard handler,
+// which needs it for the grid) use this to avoid a second query.
+func Totals(ws []Workspace) Stats {
+	var t Stats
+	for _, w := range ws {
+		t.Lessons += w.LessonCount
+		t.Records += w.RecordCount
+		t.Refs += w.RefCount
+	}
+	t.Workspaces = len(ws)
+	return t
+}
+
+// ContinueItem is the "continue where you left off" recommendation for the
+// dashboard. URL is the navigational link; Label is the display text.
+type ContinueItem struct {
+	URL   string
+	Label string
+}
+
+// ContinueItem derives the "continue where you left off" recommendation: the
+// first workspace with a last-viewed lesson or reference. Returns nil if no
+// workspace has any activity. The URL/label are built here so the handler is
+// a thin caller.
+//
+// last_ref_seq stores a reference's row ID, not a sequence number — refs are
+// slug-based (migration 00006 dropped sequence_number). The > 0 guard skips
+// stale zero values from the pre-fix SetLastViewed("ref", 0) call.
+func (s *Store) ContinueItem() (*ContinueItem, error) {
+	ws, _ := s.GetWorkspaces()
+	for _, w := range ws {
+		if w.LastLessonSeq != nil && *w.LastLessonSeq > 0 {
+			wsStore, err := s.Workspace(w.Name)
+			if err != nil {
+				continue
+			}
+			lessons, _ := wsStore.GetLessons()
+			for _, l := range lessons {
+				if l.SequenceNumber == *w.LastLessonSeq {
+					return &ContinueItem{
+						URL:   urls.Lesson(w.Name, l.SequenceNumber),
+						Label: fmt.Sprintf("%s — Lesson: %s", w.Name, l.Title),
+					}, nil
+				}
+			}
+		} else if w.LastRefSeq != nil && *w.LastRefSeq > 0 {
+			wsStore, err := s.Workspace(w.Name)
+			if err != nil {
+				continue
+			}
+			refs, _ := wsStore.GetRefs()
+			for _, ref := range refs {
+				if ref.ID == int64(*w.LastRefSeq) {
+					return &ContinueItem{
+						URL:   urls.Ref(w.Name, ref.Slug),
+						Label: fmt.Sprintf("%s — Reference: %s", w.Name, ref.Title),
+					}, nil
+				}
+			}
+		}
+	}
+	return nil, nil
 }

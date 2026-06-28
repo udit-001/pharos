@@ -15,6 +15,8 @@ pharos workspace current                       # Show current workspace
 pharos workspace list                          # List all workspaces (current marked with *)
 pharos workspace delete "<name>"               # Delete workspace + directory (prompts)
 pharos workspace delete "<name>" --force       # Delete without prompt
+pharos workspace rename "<new name>"            # Rename workspace (updates display name; slug stays)
+pharos workspace rename "<new name>" -w "<name>" # Rename a specific workspace by -w
 pharos workspace stats                         # Show learning statistics
 
 pharos init                                    # Create the database
@@ -29,8 +31,8 @@ workspace on the same topic. If one exists, use `pharos workspace use` to switch
 pharos search "<query>"                    # Cross-entity search across all workspaces
 pharos search "<query>" --workspace <name> # Scope to one workspace
 pharos search "<query>" --json             # Machine-readable output
-pharos search index                        # Rebuild search index for current workspace
-pharos search index --all                  # Rebuild for all workspaces
+pharos search --rebuild-index              # Rebuild search index for current workspace
+pharos search --rebuild-index --all        # Rebuild for all workspaces
 ```
 
 Searches lessons, learning records, and references by full-text match across title, summary, and body content. Results show type badges (Lesson/Record/Reference), workspace name, and a snippet when no summary is set. Use this before creating any entity to avoid duplicates.
@@ -47,21 +49,34 @@ pharos workspace use "<name>"
 `pharos workspace create` auto-sets the new workspace as current. If only one
 workspace exists, it is used automatically.
 
-## Singletons (one per workspace, flags not subcommands)
+## Mission, Resources, Notes
 
 ```bash
-pharos mission    [--edit | --body-file <path>]
-pharos resources  [--edit | --body-file <path>]
-pharos glossary                                    # Display glossary terms
-pharos glossary add "<term>" "<definition>"        # Add or update a term
-pharos glossary delete "<term>"                    # Remove a term
-pharos notes      [--edit | --body-file <path>] [--append]
+pharos mission show                            # Print the file
+pharos mission show --json                     # Print as JSON
+pharos mission edit                            # Open in $EDITOR
+pharos mission edit --body-file <path>         # Write content from a file
+
+pharos resources show                          # Print the file
+pharos resources show --json                   # Print as JSON
+pharos resources edit                          # Open in $EDITOR
+pharos resources edit --body-file <path>       # Write content from a file
+
+pharos notes show                              # Print the file
+pharos notes show --json                       # Print as JSON
+pharos notes edit                              # Open in $EDITOR
+pharos notes edit --body-file <path>           # Write content from a file
+pharos notes edit --append --body-file <path>  # Append to file
 ```
 
-- `--edit`: open in `$EDITOR` (mission, resources, notes only)
-- `--body-file <path>`: write content from a file (mission, resources, notes only)
-- `--append` (notes only): append instead of overwrite
-- No flags: read and print
+## Glossary
+
+```bash
+pharos glossary list                              # Display glossary terms
+pharos glossary list --json                       # Display glossary terms as JSON
+pharos glossary create "<term>" "<definition>"     # Add or update a term
+pharos glossary delete "<term>"                    # Remove a term
+```
 
 ## Lessons
 

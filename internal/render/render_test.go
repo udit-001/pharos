@@ -35,11 +35,11 @@ func TestDashboardRendersStatsAndWorkspaces(t *testing.T) {
 
 func TestDashboardEmptyState(t *testing.T) {
 	out := Dashboard(DashboardData{})
-	if !strings.Contains(out, "No workspaces yet") {
-		t.Errorf("expected empty state, got:\n%s", out)
+	if !strings.Contains(out, "Your learning dashboard") {
+		t.Errorf("expected empty state heading, got:\n%s", out)
 	}
-	if !strings.Contains(out, `pharos workspace create "topic"`) {
-		t.Errorf("expected workspace create hint, got:\n%s", out)
+	if !strings.Contains(out, "Teach me about") {
+		t.Errorf("expected teach skill hint, got:\n%s", out)
 	}
 }
 

@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var glossaryAddCmd = &cobra.Command{
-	Use:   "add <term> <definition>",
+var glossaryCreateCmd = &cobra.Command{
+	Use:   "create <term> <definition>",
 	Short: "Add or update a glossary term",
 	Long: `Add a glossary term to a workspace.
 
@@ -16,9 +16,9 @@ definition is updated. Pass --category to group terms under a heading
 (e.g. "Diagnostic & Clinical") and --avoid to flag synonyms to avoid.
 
 Examples:
-  pharos glossary add "Hypertrophy" "Muscle growth from tension and stress"
-  pharos glossary add "JOIN" "Combines rows from two tables on a condition" -w "sql-for-research"
-  pharos glossary add "ASD" "Autism spectrum disorder diagnostic label" --category "Diagnostic" --avoid "Autism (without spectrum)"`,
+  pharos glossary create "Hypertrophy" "Muscle growth from tension and stress"
+  pharos glossary create "JOIN" "Combines rows from two tables on a condition" -w "sql-for-research"
+  pharos glossary create "ASD" "Autism spectrum disorder diagnostic label" --category "Diagnostic" --avoid "Autism (without spectrum)"`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -37,14 +37,16 @@ Examples:
 			return formatError("failed to add glossary term", err)
 		}
 
-		fmt.Printf("Added %q to glossary.\n", term)
+		fmt.Println()
+		fmt.Printf("  ✓ Glossary created: %s\n", term)
+		fmt.Println()
 		return nil
 	},
 }
 
 func init() {
-	glossaryCmd.AddCommand(glossaryAddCmd)
-	glossaryAddCmd.Flags().StringP("workspace", "w", "", "Workspace name")
-	glossaryAddCmd.Flags().String("category", "", "Heading to group the term under (e.g. \"Diagnostic & Clinical\")")
-	glossaryAddCmd.Flags().String("avoid", "", "Synonyms or phrasing to avoid for this term")
+	glossaryCmd.AddCommand(glossaryCreateCmd)
+	glossaryCreateCmd.Flags().StringP("workspace", "w", "", "Workspace name")
+	glossaryCreateCmd.Flags().String("category", "", "Heading to group the term under (e.g. \"Diagnostic & Clinical\")")
+	glossaryCreateCmd.Flags().String("avoid", "", "Synonyms or phrasing to avoid for this term")
 }

@@ -1,14 +1,14 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/jmoiron/sqlx"
+	"github.com/udit-001/pharos/internal/extract"
 )
 
 // WorkspaceStore is a scoped view over the database bound to a single workspace.
@@ -67,7 +67,7 @@ func (w *WorkspaceStore) SearchLessons(query string) ([]Lesson, error) {
 		return []Lesson{}, nil
 	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM lessons_fts JOIN lessons ON lessons.id = lessons_fts.rowid WHERE lessons_fts MATCH ? AND lessons.workspace_id = ? ORDER BY bm25(lessons_fts, 10.0, 5.0, 1.0), lessons.sequence_number ASC", lessonColumnsQualified),
+		fmt.Sprintf("SELECT %s FROM lessons_fts JOIN lessons ON lessons.id = lessons_fts.rowid WHERE lessons_fts MATCH ? AND lessons.workspace_id = ? ORDER BY bm25(lessons_fts, %s), lessons.sequence_number ASC", lessonColumnsQualified, bm25Weights),
 		q, w.ws.ID,
 	)
 	if err != nil {
@@ -146,7 +146,7 @@ func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 // that need body_text indexing should use CreateLesson instead.
 func (w *WorkspaceStore) AddLesson(l Lesson) (Lesson, error) {
 	l.WorkspaceID = w.ws.ID
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	// Determine next sequence number
 	var maxSeq int
@@ -203,7 +203,7 @@ func (w *WorkspaceStore) SearchRecords(query string) ([]LearningRecord, error) {
 		return []LearningRecord{}, nil
 	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM records_fts JOIN learning_records ON learning_records.id = records_fts.rowid WHERE records_fts MATCH ? AND learning_records.workspace_id = ? ORDER BY bm25(records_fts, 10.0, 5.0, 1.0), learning_records.sequence_number ASC", recordColumnsQualified),
+		fmt.Sprintf("SELECT %s FROM records_fts JOIN learning_records ON learning_records.id = records_fts.rowid WHERE records_fts MATCH ? AND learning_records.workspace_id = ? ORDER BY bm25(records_fts, %s), learning_records.sequence_number ASC", recordColumnsQualified, bm25Weights),
 		q, w.ws.ID,
 	)
 	if err != nil {
@@ -217,7 +217,7 @@ func (w *WorkspaceStore) SearchRecords(query string) ([]LearningRecord, error) {
 // set automatically from the scoped workspace.
 func (w *WorkspaceStore) AddRecord(r LearningRecord) (LearningRecord, error) {
 	r.WorkspaceID = w.ws.ID
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	var maxSeq int
 	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM learning_records WHERE workspace_id = ?", r.WorkspaceID)
@@ -282,7 +282,7 @@ func (w *WorkspaceStore) SearchRefs(query string) ([]Reference, error) {
 		return []Reference{}, nil
 	}
 	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM refs_fts JOIN references_t ON references_t.id = refs_fts.rowid WHERE refs_fts MATCH ? AND references_t.workspace_id = ? ORDER BY bm25(refs_fts, 10.0, 5.0, 1.0), references_t.title ASC", refColumnsQualified),
+		fmt.Sprintf("SELECT %s FROM refs_fts JOIN references_t ON references_t.id = refs_fts.rowid WHERE refs_fts MATCH ? AND references_t.workspace_id = ? ORDER BY bm25(refs_fts, %s), references_t.title ASC", refColumnsQualified, bm25Weights),
 		q, w.ws.ID,
 	)
 	if err != nil {
@@ -296,7 +296,7 @@ func (w *WorkspaceStore) SearchRefs(query string) ([]Reference, error) {
 // automatically from the scoped workspace.
 func (w *WorkspaceStore) AddRef(r Reference) (Reference, error) {
 	r.WorkspaceID = w.ws.ID
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	if r.Slug == "" {
 		r.Slug = Slugify(r.Title)
@@ -344,7 +344,7 @@ func (w *WorkspaceStore) UpdateTopic(topic string) error {
 // CreateLesson creates a new lesson: sequencing, slugify, filename, write file,
 // DB row — all in one method. The CLI shrinks to parse-and-call.
 func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	var maxSeq int
 	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM lessons WHERE workspace_id = ?", w.ws.ID)
@@ -357,7 +357,7 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 		return Lesson{}, fmt.Errorf("write lesson file: %w", err)
 	}
 
-	bodyText := extractText(bodyHTML)
+	bodyText := extract.FromHTML(bodyHTML)
 
 	result, err := w.db().Exec(
 		`INSERT INTO lessons (workspace_id, title, sequence_number, filename, path, summary, body_text, created_at, updated_at)
@@ -398,7 +398,7 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, s
 		return fmt.Errorf("write lesson file: %w", err)
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	t := current.Title
 	if title != nil {
 		t = *title
@@ -407,7 +407,7 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, s
 	if summary != nil {
 		s = *summary
 	}
-	bodyText := extractText(bodyHTML)
+	bodyText := extract.FromHTML(bodyHTML)
 	_, err = w.db().Exec("UPDATE lessons SET title = ?, summary = ?, body_text = ?, updated_at = ? WHERE id = ?", t, s, bodyText, now, current.ID)
 	return err
 }
@@ -415,7 +415,7 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, s
 // CreateRecord creates a new learning record: sequencing, slugify, filename,
 // write file, DB row — all in one method.
 func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRecord, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	var maxSeq int
 	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM learning_records WHERE workspace_id = ?", w.ws.ID)
@@ -428,7 +428,7 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 		return LearningRecord{}, fmt.Errorf("write record file: %w", err)
 	}
 
-	bodyText := extractTextFromMarkdown(bodyMD)
+	bodyText := extract.FromMarkdown(bodyMD)
 
 	var supersededBy interface{}
 	result, err := w.db().Exec(
@@ -471,7 +471,7 @@ func (w *WorkspaceStore) SupersedeRecord(seq int, title, bodyMD, summary string)
 		return LearningRecord{}, LearningRecord{}, err
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	_, err = w.db().Exec("UPDATE learning_records SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?", created.ID, now, old.ID)
 	if err != nil {
 		return created, LearningRecord{}, fmt.Errorf("supersede old record: %w", err)
@@ -484,9 +484,14 @@ func (w *WorkspaceStore) SupersedeRecord(seq int, title, bodyMD, summary string)
 	return created, *old, nil
 }
 
+// ErrRefSlugExists signals that a reference with the given slug already
+// exists in the workspace. Callers (e.g. the CLI) wrap it into a user-facing
+// message that hints at the revise command.
+var ErrRefSlugExists = errors.New("reference slug already exists")
+
 // CreateRef creates a new reference: slug-based filename, write file, DB row.
 func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 
 	slug := Slugify(title)
 	filename := slug + ".html"
@@ -495,7 +500,7 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 	existing, _ := w.GetRefs()
 	for _, r := range existing {
 		if r.Slug == slug {
-			return Reference{}, fmt.Errorf("reference with slug %q already exists", slug)
+			return Reference{}, fmt.Errorf("reference with slug %q already exists: %w", slug, ErrRefSlugExists)
 		}
 	}
 
@@ -503,7 +508,7 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 		return Reference{}, fmt.Errorf("write reference file: %w", err)
 	}
 
-	bodyText := extractText(bodyHTML)
+	bodyText := extract.FromHTML(bodyHTML)
 
 	result, err := w.db().Exec(
 		`INSERT INTO references_t (workspace_id, title, slug, filename, path, summary, body_text, created_at, updated_at)
@@ -543,7 +548,7 @@ func (w *WorkspaceStore) ReviseRef(slug, bodyHTML string, title *string, summary
 		return fmt.Errorf("write reference file: %w", err)
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	t := current.Title
 	if title != nil {
 		t = *title
@@ -552,7 +557,7 @@ func (w *WorkspaceStore) ReviseRef(slug, bodyHTML string, title *string, summary
 	if summary != nil {
 		s = *summary
 	}
-	bodyText := extractText(bodyHTML)
+	bodyText := extract.FromHTML(bodyHTML)
 	_, err = w.db().Exec("UPDATE references_t SET title = ?, summary = ?, body_text = ?, updated_at = ? WHERE id = ?", t, s, bodyText, now, current.ID)
 	return err
 }
@@ -590,7 +595,7 @@ func (w *WorkspaceStore) AddGlossaryTerm(term, definition, category, avoid strin
 	if definition == "" {
 		return fmt.Errorf("definition must not be empty")
 	}
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowTimestamp()
 	_, err := w.db().Exec(
 		`INSERT INTO glossary_terms (workspace_id, term, definition, category, avoid, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -661,233 +666,6 @@ func (s *Store) WorkspaceByID(id int64) (*WorkspaceStore, error) {
 	return &WorkspaceStore{store: s, ws: ws}, nil
 }
 
-// extractText parses HTML and returns the plain text content, stripping all
-// markup. Used to index lesson body content for full-text search.
-func extractText(html string) string {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
-	if err != nil {
-		return ""
-	}
-	doc.Find("head, script, style, noscript").Remove()
-	return strings.TrimSpace(doc.Text())
-}
-
-// extractTextFromMarkdown strips markdown formatting and returns plain text.
-func extractTextFromMarkdown(md string) string {
-	lines := strings.Split(md, "\n")
-	var result []string
-	inCodeBlock := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if strings.HasPrefix(trimmed, "```") {
-			inCodeBlock = !inCodeBlock
-			continue
-		}
-		if inCodeBlock {
-			continue
-		}
-
-		// Strip indented code blocks (4 spaces or tab)
-		if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
-			if trimmed == "" || strings.HasPrefix(trimmed, "```") {
-				continue
-			}
-			// Not strictly a code block, keep the text but trimmed
-		}
-
-		// Strip blockquote and heading markers
-		processed := strings.TrimLeft(line, " >")
-		processed = strings.TrimLeft(processed, "#")
-		processed = strings.TrimLeft(processed, " ")
-
-		// Strip list markers: -, *, +, 1.
-		if len(processed) > 0 {
-			c := processed[0]
-			if c == '-' || c == '+' || c == '*' {
-				if len(processed) == 1 || processed[1] == ' ' {
-					processed = strings.TrimLeft(processed[1:], " ")
-				}
-			} else if c >= '0' && c <= '9' {
-				if idx := strings.Index(processed, ". "); idx > 0 && idx < 4 {
-					processed = processed[idx+2:]
-				} else if idx := strings.Index(processed, ") "); idx > 0 && idx < 4 {
-					processed = processed[idx+2:]
-				}
-			}
-		}
-
-		// Skip horizontal rules
-		if isHorizontalRule(processed) {
-			continue
-		}
-
-		// Strip remaining inline formatting: keep text from links, strip markers
-		processed = stripInlineMarkdown(processed)
-
-		processed = strings.TrimSpace(processed)
-		if processed != "" {
-			result = append(result, processed)
-		}
-	}
-
-	return strings.TrimSpace(strings.Join(result, " "))
-}
-
-func isHorizontalRule(s string) bool {
-	s = strings.TrimSpace(s)
-	if len(s) < 3 {
-		return false
-	}
-	for _, r := range s {
-		if r != '-' && r != '*' && r != '_' {
-			return false
-		}
-	}
-	return true
-}
-
-func stripInlineMarkdown(s string) string {
-	var b strings.Builder
-	i := 0
-	runes := []rune(s)
-
-	for i < len(runes) {
-		c := runes[i]
-
-		// Skip image ![alt](url) — keep alt text
-		if c == '!' && i+1 < len(runes) && runes[i+1] == '[' {
-			end := findMatchingBracket(runes, i+1, '[', ']')
-			if end < 0 {
-				b.WriteRune(c)
-				i++
-				continue
-			}
-			altText := runes[i+2 : end]
-			// Skip the URL part
-			if end+1 < len(runes) && runes[end+1] == '(' {
-				parenEnd := findMatchingParen(runes, end+1)
-				if parenEnd >= 0 {
-					// Recurse on alt text (may contain formatting)
-					b.WriteString(stripInlineMarkdown(string(altText)))
-					b.WriteRune(' ')
-					i = parenEnd + 1
-					continue
-				}
-			}
-			b.WriteString(stripInlineMarkdown(string(altText)))
-			b.WriteRune(' ')
-			i = end + 1
-			continue
-		}
-
-		// Link [text](url) — keep text
-		if c == '[' {
-			end := findMatchingBracket(runes, i, '[', ']')
-			if end < 0 {
-				b.WriteRune(c)
-				i++
-				continue
-			}
-			text := runes[i+1 : end]
-			if end+1 < len(runes) && runes[end+1] == '(' {
-				parenEnd := findMatchingParen(runes, end+1)
-				if parenEnd >= 0 {
-					b.WriteString(stripInlineMarkdown(string(text)))
-					b.WriteRune(' ')
-					i = parenEnd + 1
-					continue
-				}
-			}
-			b.WriteString(stripInlineMarkdown(string(text)))
-			i = end + 1
-			continue
-		}
-
-		// Skip HTML tags
-		if c == '<' {
-			gt := strings.IndexRune(string(runes[i:]), '>')
-			if gt >= 0 {
-				// Check if it's a closing or opening tag
-				tag := string(runes[i : i+gt+1])
-				if !strings.Contains(tag, " ") && !strings.HasPrefix(tag, "</") && !strings.HasPrefix(tag, "<!") && !strings.HasPrefix(tag, "<?") {
-					// Simple tag like <br> or <hr>
-				}
-				i += gt + 1
-				continue
-			}
-		}
-
-		// Skip backtick code spans — keep the text inside
-		if c == '`' {
-			end := i + 1
-			for end < len(runes) && runes[end] == '`' {
-				end++
-			}
-			backtickLen := end - i
-			closing := findBacktickSequence(runes, end, backtickLen)
-			if closing >= 0 {
-				b.WriteString(string(runes[end:closing]))
-				b.WriteRune(' ')
-				i = closing + backtickLen
-				continue
-			}
-		}
-
-		b.WriteRune(c)
-		i++
-	}
-
-	return b.String()
-}
-
-func findMatchingBracket(runes []rune, start int, open, close rune) int {
-	depth := 0
-	for i := start; i < len(runes); i++ {
-		if runes[i] == open {
-			depth++
-		} else if runes[i] == close {
-			depth--
-			if depth == 0 {
-				return i
-			}
-		}
-	}
-	return -1
-}
-
-func findMatchingParen(runes []rune, start int) int {
-	depth := 0
-	for i := start; i < len(runes); i++ {
-		if runes[i] == '(' {
-			depth++
-		} else if runes[i] == ')' {
-			depth--
-			if depth == 0 {
-				return i
-			}
-		}
-	}
-	return -1
-}
-
-func findBacktickSequence(runes []rune, start int, n int) int {
-	for i := start; i <= len(runes)-n; i++ {
-		match := true
-		for j := 0; j < n; j++ {
-			if runes[i+j] != '`' {
-				match = false
-				break
-			}
-		}
-		if match {
-			return i
-		}
-	}
-	return -1
-}
-
 // truncateSnippet returns a short preview of text, breaking at a word boundary.
 // Used to show body content previews in search results when Summary is empty.
 // stripLeadingTitle removes the first line of bodyText if it matches the
@@ -935,33 +713,22 @@ func (w *WorkspaceStore) IndexLessons() (int, error) {
 		return 0, fmt.Errorf("scan lessons: %w", err)
 	}
 
-	if len(lessons) == 0 {
-		return 0, nil
-	}
-
-	var updated int
-	var errs []string
-	for _, l := range lessons {
-		path := w.Layout().LessonPath(l.Filename)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("lesson %d (%s): read file: %v", l.SequenceNumber, l.Filename, err))
-			continue
-		}
-
-		bodyText := extractText(string(data))
-		if _, err := w.db().Exec("UPDATE lessons SET body_text = ? WHERE id = ?", bodyText, l.ID); err != nil {
-			errs = append(errs, fmt.Sprintf("lesson %d (%s): update: %v", l.SequenceNumber, l.Filename, err))
-			continue
-		}
-		updated++
-	}
-
-	if len(errs) > 0 {
-		return updated, fmt.Errorf("index: %d error(s): %s", len(errs), strings.Join(errs, "; "))
-	}
-
-	return updated, nil
+	layout := w.Layout()
+	return indexItems(lessons,
+		func(l Lesson) error {
+			data, err := os.ReadFile(layout.LessonPath(l.Filename))
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			bodyText := extract.FromHTML(string(data))
+			if _, err := w.db().Exec("UPDATE lessons SET body_text = ? WHERE id = ?", bodyText, l.ID); err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			return nil
+		},
+		func(l Lesson) string { return fmt.Sprintf("%d (%s)", l.SequenceNumber, l.Filename) },
+		"lesson",
+	)
 }
 
 // IndexRefs reads all references with empty body_text, extracts plain text
@@ -983,33 +750,22 @@ func (w *WorkspaceStore) IndexRefs() (int, error) {
 		return 0, fmt.Errorf("scan references: %w", err)
 	}
 
-	if len(refs) == 0 {
-		return 0, nil
-	}
-
-	var updated int
-	var errs []string
-	for _, r := range refs {
-		path := w.Layout().RefPath(r.Filename)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("ref %s (%s): read file: %v", r.Slug, r.Filename, err))
-			continue
-		}
-
-		bodyText := extractText(string(data))
-		if _, err := w.db().Exec("UPDATE references_t SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
-			errs = append(errs, fmt.Sprintf("ref %s (%s): update: %v", r.Slug, r.Filename, err))
-			continue
-		}
-		updated++
-	}
-
-	if len(errs) > 0 {
-		return updated, fmt.Errorf("index refs: %d error(s): %s", len(errs), strings.Join(errs, "; "))
-	}
-
-	return updated, nil
+	layout := w.Layout()
+	return indexItems(refs,
+		func(r Reference) error {
+			data, err := os.ReadFile(layout.RefPath(r.Filename))
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			bodyText := extract.FromHTML(string(data))
+			if _, err := w.db().Exec("UPDATE references_t SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			return nil
+		},
+		func(r Reference) string { return fmt.Sprintf("%s (%s)", r.Slug, r.Filename) },
+		"ref",
+	)
 }
 
 // IndexRecords reads all learning records with empty body_text, extracts plain
@@ -1031,31 +787,20 @@ func (w *WorkspaceStore) IndexRecords() (int, error) {
 		return 0, fmt.Errorf("scan records: %w", err)
 	}
 
-	if len(recs) == 0 {
-		return 0, nil
-	}
-
-	var updated int
-	var errs []string
-	for _, r := range recs {
-		path := w.Layout().RecordPath(r.Filename)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("record %d (%s): read file: %v", r.SequenceNumber, r.Filename, err))
-			continue
-		}
-
-		bodyText := extractTextFromMarkdown(string(data))
-		if _, err := w.db().Exec("UPDATE learning_records SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
-			errs = append(errs, fmt.Sprintf("record %d (%s): update: %v", r.SequenceNumber, r.Filename, err))
-			continue
-		}
-		updated++
-	}
-
-	if len(errs) > 0 {
-		return updated, fmt.Errorf("index records: %d error(s): %s", len(errs), strings.Join(errs, "; "))
-	}
-
-	return updated, nil
+	layout := w.Layout()
+	return indexItems(recs,
+		func(r LearningRecord) error {
+			data, err := os.ReadFile(layout.RecordPath(r.Filename))
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			bodyText := extract.FromMarkdown(string(data))
+			if _, err := w.db().Exec("UPDATE learning_records SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			return nil
+		},
+		func(r LearningRecord) string { return fmt.Sprintf("%d (%s)", r.SequenceNumber, r.Filename) },
+		"record",
+	)
 }

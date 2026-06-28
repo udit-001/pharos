@@ -8,10 +8,16 @@ import (
 // writeToFile writes content to the given path, creating parent directories
 // as needed. Used by the deep create/revise methods.
 func writeToFile(path, content string) error {
+	return writeBytesToFile(path, []byte(content))
+}
+
+// writeBytesToFile writes binary data to the given path, creating parent
+// directories as needed. Used for seeded binary assets (fonts, etc.).
+func writeBytesToFile(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(content), 0o644)
+	return os.WriteFile(path, data, 0o644)
 }
 
 // readDirNames returns the names of files (not directories) in the given

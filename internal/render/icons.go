@@ -2,16 +2,10 @@ package render
 
 import (
 	"html"
-	"strings"
 )
 
 // esc HTML-escapes a string.
 func esc(s string) string { return html.EscapeString(s) }
-
-// urlPathEscape replaces spaces for URL path segments.
-func urlPathEscape(s string) string {
-	return strings.ReplaceAll(s, " ", "%20")
-}
 
 // shortDate returns the YYYY-MM-DD prefix of a timestamp.
 func shortDate(ts string) string {

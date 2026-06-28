@@ -5,12 +5,12 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 ## Commands
 
 - `pharos tailwind download` — download the Tailwind CLI binary to `.bin/tailwindcss`
-- `pharos build` — rebuild CSS + compile Go binary (use `--no-css` for Go-only builds)
+- `pharos build` — rebuild CSS + Go binary
 - `make test` — `go test ./...` (real SQLite temp files, no mocks)
 
 ## Conventions
 
-- HTML is rendered via `templ` components in `internal/render/`. View funcs keep a `(...) string` interface (call `component.Render` internally); callers and `render_test.go` are unchanged. `*.templ` sources compile to committed `*_templ.go` — run `templ generate` (wired into `pharos build`/`pharos dev`; install with `go install github.com/a-h/templ/cmd/templ@<templVersion>`). Raw HTML fields (`content`, `BodyHTML`) use `@templ.Raw(...)`; all else auto-escapes.
+- HTML is rendered via `templ` components in `internal/render/`. View funcs keep a `(...) string` interface (call `component.Render` internally); callers and `render_test.go` are unchanged. `*.templ` sources compile to committed `*_templ.go`. Install: `go install github.com/a-h/templ/cmd/templ@<templVersion>`. Raw HTML fields (`content`, `BodyHTML`) use `@templ.Raw(...)`; all else auto-escapes.
 - Tailwind v4 standalone CLI: edit `web/input.css`, then `pharos build`. CSS is `//go:embed`'d and committed.
 - Each Cobra command lives in its own file under `internal/cli/`.
 - Version lives in `internal/version/` as `Version`/`Commit`/`Date` vars, overridable via ldflags or auto-detected from `debug.BuildInfo` + VCS settings.
@@ -34,17 +34,19 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 ### Build workflow
 
-- **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs CSS + Go (`--no-css` for Go-only). `pharos start` detects a running server via HTTP GET and skips starting.
-- **Run `pharos tailwind download`** to get the Tailwind CLI — no need to manually download or install it.
+- **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs `templ generate` + CSS + Go (`--no-css` for Go-only). `pharos start` detects a running server via HTTP GET and skips starting.
 
 ### Edit discipline
 
-- **Check for duplicate matches before editing.** When inserting a new section, the `oldString` may match text that was just inserted by a prior edit in the same turn. Verify the file state after each edit.
-- **Read the file after editing** to confirm the result is correct, especially when inserting near existing similar content.
+- **Check for duplicate matches before editing.** When inserting a new section, the `oldString` may match text that was just inserted by a prior edit in the same turn. Read the file after each edit to confirm the result, especially when inserting near existing similar content.
+
+### Browser verification
+
+- **Playwright MCP screenshots and snapshot YAML land in `.playwright-mcp/`** (gitignored). Never commit these — they're throwaway debugging artifacts.
 
 ### Code patterns
 
 - `goquery` parses HTML and extracts text. When extracting body text from lesson HTML, **strip `<head>`, `<script>`, `<style>`, and `<noscript>` tags first** — otherwise their content contaminates the extracted text.
 - `extractText()` is the shared helper in `workspace_store.go` for HTML→plaintext. `extractTextFromMarkdown()` handles markdown→plaintext without a goldmark roundtrip.
 - `IndexLessons()` / `IndexRefs()` / `IndexRecords()` skip items that already have non-empty `body_text` — they're idempotent. To re-index after an extractText fix, clear body_text first: `UPDATE lessons SET body_text = ''`.
-- `pharos search index --all` rebuilds across all workspaces.
+- `pharos search --rebuild-index --all` rebuilds across all workspaces.

@@ -1,0 +1,249 @@
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/inter-latin.woff2') format('woff2');
+}
+
+:root {
+  --slate-900: #2e3440;
+  --slate-800: #3b4252;
+  --slate-700: #4c566a;
+  --slate-500: #6b7689;
+  --slate-400: #8891a0;
+  --slate-200: #e5e9f0;
+  --slate-100: #eceff4;
+  --slate-50:  #f8fafc;
+  --white:     #ffffff;
+  --blue-700:  #5e81ac;
+  --emerald-600: #4a7a2e;
+  --emerald-100: #e6f0e6;
+  --red-600:   #bf4e5a;
+  --red-100:   #fce4e4;
+  --amber-600: #d08770;
+}
+
+[data-theme="dark"] {
+  --slate-900: #eceff4;
+  --slate-800: #d8dee9;
+  --slate-700: #aebbcf;
+  --slate-500: #94adcb;
+  --slate-400: #81a1c1;
+  --slate-200: #434c5e;
+  --slate-100: #353b4a;
+  --slate-50:  #2e3440;
+  --white:     #3b4252;
+  --blue-700:  #81a1c1;
+  --emerald-600: #95c088;
+  --emerald-100: #2e3440;
+  --red-600:   #e8a0a0;
+  --red-100:   #4c566a;
+  --amber-600: #d08770;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  background: var(--white);
+  color: var(--slate-700);
+  line-height: 1.75;
+  font-size: 0.9375rem;
+}
+
+.container {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+h1 { font-size: 1.375rem; font-weight: 700; color: var(--slate-800); margin-top: 1.5rem; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.125rem; font-weight: 600; color: var(--slate-800); margin-top: 1.25rem; margin-bottom: 0.4rem; }
+h3 { font-size: 1rem;    font-weight: 600; color: var(--slate-700); margin-top: 1rem;    margin-bottom: 0.3rem; }
+
+p { margin: 0.6rem 0; }
+
+a { color: var(--blue-700); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { color: var(--slate-800); }
+
+ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+ul { list-style-type: disc; }
+ol { list-style-type: decimal; }
+li { margin: 0.2rem 0; }
+
+blockquote {
+  border-left: 3px solid var(--slate-200);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: var(--slate-500);
+  font-style: italic;
+}
+
+code {
+  background: var(--slate-100);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+}
+
+pre {
+  background: var(--slate-100);
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; }
+
+hr { border: none; border-top: 1px solid var(--slate-200); margin: 1.25rem 0; }
+
+strong { font-weight: 600; color: var(--slate-800); }
+
+table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.875rem; }
+th { text-align: left; font-weight: 600; padding: 0.4rem 0.75rem; border-bottom: 2px solid var(--slate-200); color: var(--slate-800); }
+td { padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--slate-100); }
+
+img { max-width: 100%; border-radius: 6px; margin: 0.75rem 0; }
+
+/* Copy code button */
+pre {
+  position: relative;
+}
+.copy-code-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #e5e9f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #4c566a;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  z-index: 10;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+pre:hover .copy-code-btn {
+  opacity: 1;
+}
+.copy-code-btn:hover {
+  background: #eceff4;
+  border-color: #8891a0;
+}
+.copy-code-btn:focus-visible {
+  outline: 2px solid #5e81ac;
+  outline-offset: 2px;
+}
+.copy-code-btn.copied {
+  color: #4a7a2e;
+  opacity: 1;
+}
+@media (hover: none) {
+  .copy-code-btn {
+    opacity: 0.7;
+  }
+}
+[data-theme="dark"] .copy-code-btn {
+  border-color: #434c5e;
+  background: #3b4252;
+  color: #aebbcf;
+}
+[data-theme="dark"] .copy-code-btn:hover {
+  background: #434c5e;
+  border-color: #81a1c1;
+}
+[data-theme="dark"] .copy-code-btn.copied {
+  color: #95c088;
+}
+
+.correct { background: var(--emerald-100); border: 1px solid var(--emerald-600); color: var(--emerald-600); padding: 0.5rem 1rem; border-radius: 6px; }
+.incorrect { background: var(--red-100); border: 1px solid var(--red-600); color: var(--red-600); padding: 0.5rem 1rem; border-radius: 6px; }
+
+button, .btn {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  background: var(--blue-700);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+button:hover, .btn:hover { opacity: 0.9; }
+
+/* Mermaid diagram containers */
+.mermaid {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 16px 8px;
+  margin: 20px 0;
+  overflow-x: auto;
+  text-align: center;
+}
+[data-theme="dark"] .mermaid {
+  background: var(--slate-50);
+}
+
+/* Glossary tooltips */
+.glossary-term {
+  cursor: help;
+  border-bottom: 1px dotted var(--blue-700);
+  position: relative;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.glossary-term:hover {
+  background: color-mix(in srgb, var(--blue-700) 8%, transparent);
+  border-radius: 2px;
+}
+.glossary-tooltip {
+  position: fixed;
+  background: var(--slate-800);
+  color: var(--slate-50);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 320px;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+}
+.glossary-tooltip.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.glossary-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  margin-left: -7px;
+  border: 7px solid transparent;
+}
+/* Arrow points down (below tooltip) when tooltip is above the term */
+.glossary-tooltip::after {
+  top: 100%;
+  border-top-color: var(--slate-800);
+}
+/* Arrow points up (above tooltip) when tooltip is below the term — toggled by JS */
+.glossary-tooltip.tooltip-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--slate-800);
+}

@@ -20,9 +20,19 @@ skills-lock.json
 # Playwright test artifacts
 .playwright-mcp/
 design/
+test-results/
+
+# Debugging screenshots
+glossary-page.png
+glossary-snapshot
+glossary-updated.png
+mermaid-toolbar-visible.png
 
 # Architecture notes (ADRs, etc.)
 .docs/
+
+# Handoff documents (session-to-session transfer, not repo artifacts)
+.handoffs/
 
 # lific issue tracker local DB
 lific.db

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 var refShowCmd = &cobra.Command{
@@ -27,7 +28,7 @@ Examples:
 		ws := wsStore.Workspace()
 
 		// TODO: start dashboard if needed (PID file logic)
-		url := fmt.Sprintf("http://127.0.0.1:9090/workspace/%s/ref/%s", urlPathEscapeCLI(ws.Name), urlPathEscapeCLI(slug))
+		url := "http://127.0.0.1:9090" + urls.Ref(ws.Name, slug)
 
 		if jsonOut {
 			printJSON(map[string]string{"url": url})
