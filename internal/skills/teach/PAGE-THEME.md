@@ -188,6 +188,8 @@ An inline knowledge check. Structure: a container `.q` with `data-answer` attrib
 
 Classes: `.correct` (green), `.incorrect` (red) — applied to buttons after answer.
 
+The `.fb` element starts empty and only fills on click — hide it with `.fb:empty{display:none}`. Without this rule the padding and background render an empty box under every quiz before any answer is selected.
+
 ### Callout
 
 A key takeaway or insight. Visually distinct from body paragraphs — uses accent border/background to draw attention.
