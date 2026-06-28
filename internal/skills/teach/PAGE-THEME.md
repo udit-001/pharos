@@ -15,6 +15,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Runtime theme sync | `postMessage` listener — dashboard sends `{type:'theme', theme:'dark'|'light'}` to iframes on toggle |
 | Shared styles | `assets/style.css` (variables, typography, layout, component classes) + `assets/quiz.css` (quiz-specific classes) |
 | Quiz interactivity | Inline `<script>` before `</body>` — binds to `.q` elements |
+| Font delivery | `@font-face` in `assets/style.css` → `assets/fonts/inter-latin.woff2` (vendored — works offline, no CDN) |
 
 ---
 
@@ -77,9 +78,6 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Page Title</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <link rel="stylesheet" href="assets/quiz.css">
 <script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
@@ -128,6 +126,58 @@ Key rules:
 
 ---
 
+## Vendored Assets
+
+Assets that ship with every workspace — no CDN required. The seed writes them to the workspace `assets/` directory at creation time.
+
+### Inter font
+
+The Inter variable font (latin subset, weight range 100–900) is bundled as `assets/fonts/inter-latin.woff2`. The `@font-face` declaration in `assets/style.css` loads it locally — no Google Fonts `<link>` needed. Just use `font-family: 'Inter'` in CSS (already the default in the boilerplate).
+
+### Mermaid (on-demand)
+
+For flowcharts, sequence diagrams, and other diagrams in lessons. Not auto-seeded — add it when needed:
+
+```
+pharos asset add mermaid
+```
+
+Include in the lesson `<head>`:
+
+```html
+<script src="assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'neutral',themeVariables:{fontFamily:'Inter,sans-serif'}})</script>
+```
+
+Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. See [Component Patterns](#component-patterns-lessons-only--design-free) for styling.
+
+### Highlight.js (on-demand)
+
+For syntax highlighting in code blocks. Add it once — the command downloads the JS and generates `highlight.css` (token colors using Nord variables that switch with light/dark mode):
+
+```
+pharos asset add highlightjs
+```
+
+Include in the lesson `<head>`:
+
+```html
+<link rel="stylesheet" href="assets/highlight.css">
+<script src="assets/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+```
+
+Code block language is auto-detected, but explicit `<pre><code class="language-js">` is recommended for accuracy.
+
+### Adding a new vendored asset
+
+1. Place the file in `internal/db/seed/` (or a subdirectory like `fonts/`).
+2. Add a `//go:embed` directive in `internal/db/seed.go`.
+3. Wire it into the seed write loop in `seedWorkspaceDefaults` (following the text-files or binary-assets pattern).
+4. For fonts, declare the corresponding `@font-face` in `seed/style.css`.
+
+---
+
 ## Component Patterns (lessons only — design free)
 
 These are the functional building blocks for interactive lessons. References typically don't need them — they're cheat sheets, not interactive content. The teach skill should create appropriate CSS for each.
@@ -153,6 +203,21 @@ A reminder at lesson end that the user can ask followup questions. Dashed border
 ### Tables
 
 Standard data tables with bordered rows, left-aligned headers, muted dividers.
+
+### Diagrams
+
+Interactive diagrams rendered with Mermaid. Wrap diagram text in a `<div class="mermaid">`:
+
+```html
+<div class="mermaid">
+flowchart TD
+  A[Start] --> B{Decision}
+  B -->|Yes| C[Result]
+  B -->|No| D[Alternate]
+</div>
+```
+
+Style overrides (light/dark aware) belong in lesson-specific `<style>` — seed Mermaid with `themeVariables.fontFamily: 'Inter,sans-serif'` to match the page font.
 
 ### Buttons
 
