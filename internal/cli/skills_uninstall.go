@@ -62,11 +62,9 @@ func uninstallSkills(baseDir string) error {
 		skillDir := filepath.Join(baseDir, skill)
 
 		var files []string
-		m, err := skills.ReadManifest(skillDir)
-		if err == nil {
-			files = m.Files
-		} else if os.IsNotExist(err) {
-			// Pre-upgrade install — no manifest. Fall back to embedded file list.
+		if _, err := os.Stat(skills.ManifestPath(skillDir)); err != nil {
+			// No manifest — Pre-upgrade install or not installed.
+			// Fall back to embedded file list.
 			embedded, err := skillFilesMap(skill)
 			if err != nil {
 				return fmt.Errorf("read embedded %s files: %w", skill, err)
@@ -76,7 +74,11 @@ func uninstallSkills(baseDir string) error {
 			}
 			sort.Strings(files)
 		} else {
-			return fmt.Errorf("read manifest for %s: %w", skill, err)
+			m, err := skills.ReadManifest(skillDir)
+			if err != nil {
+				return fmt.Errorf("read manifest for %s: %w", skill, err)
+			}
+			files = m.Files
 		}
 
 		for _, f := range files {

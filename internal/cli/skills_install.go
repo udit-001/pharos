@@ -64,12 +64,23 @@ func runSkillsInstall(cmd *cobra.Command, args []string) error {
 	var errors []string
 	for _, t := range targets {
 		baseDir := t.agent.installDir(t.project)
+
+		action := "Installed"
+		if isSkillInstalled(baseDir) {
+			if anySkillChangedForAll(baseDir) {
+				action = "Updated"
+			} else {
+				fmt.Printf("  ✓ Already current (%d skill(s)) for %s\n", len(skills.All), t.agent.name)
+				continue
+			}
+		}
+
 		n, err := installAllSkills(baseDir)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("%s: %v", t.agent.name, err))
 			continue
 		}
-		fmt.Printf("  ✓ Installed %d skill(s) to %s/ (%d files)\n", len(skills.All), baseDir, n)
+		fmt.Printf("  ✓ %s %d skill(s) to %s/ (%d files)\n", action, len(skills.All), baseDir, n)
 	}
 	fmt.Println()
 	printNextSteps()
@@ -85,8 +96,8 @@ func runSkillsInstall(cmd *cobra.Command, args []string) error {
 
 // resolveTargets resolves --agent, --all, and interactive modes into a list
 // of install targets. Callers provide a verb ("Install" or "Uninstall") for
-// prompt text and allDefault for the --all prompt's default answer.
-func resolveTargets(cmd *cobra.Command, verb string, allDefault bool) ([]installTarget, error) {
+// prompt text and installMode to control filtering and prompt defaults.
+func resolveTargets(cmd *cobra.Command, verb string, installMode bool) ([]installTarget, error) {
 	agent, _ := cmd.Flags().GetString("agent")
 	all, _ := cmd.Flags().GetBool("all")
 
@@ -98,12 +109,15 @@ func resolveTargets(cmd *cobra.Command, verb string, allDefault bool) ([]install
 	if all {
 		project, _ = cmd.Flags().GetBool("project")
 		detected := detectAgents()
+		if !installMode {
+			detected = filterInstalled(detected)
+		}
 		if len(detected) == 0 {
 			fmt.Println("  No AI coding agents detected.")
 			return nil, nil
 		}
 		fmt.Printf("  %s pharos skills for all detected agents? ", verb)
-		if allDefault {
+		if installMode {
 			fmt.Print("[Y/n] ")
 			if !promptDefaultYes() {
 				fmt.Println("  Skipped.")
@@ -129,12 +143,42 @@ func resolveTargets(cmd *cobra.Command, verb string, allDefault bool) ([]install
 		if err != nil {
 			return nil, err
 		}
+		if !installMode {
+			baseDir := selected.installDir(project)
+			if !isSkillInstalled(baseDir) {
+				fmt.Printf("  Skills not installed for %s at this scope.\n", selected.name)
+				return nil, nil
+			}
+		}
 		return []installTarget{{selected, project}}, nil
 	}
 
-	selected := pickAgent()
-	project = promptScope()
+	selected := pickAgent(!installMode)
+	var cancelled bool
+	project, cancelled = promptScope(verb, selected, installMode)
+	if cancelled {
+		fmt.Println("  Cancelled.")
+		return nil, nil
+	}
+	if !installMode {
+		baseDir := selected.installDir(project)
+		if !isSkillInstalled(baseDir) {
+			fmt.Printf("  Skills not installed for %s at this scope.\n", selected.name)
+			return nil, nil
+		}
+	}
 	return []installTarget{{selected, project}}, nil
+}
+
+// filterInstalled filters agents to only those that have the skill installed.
+func filterInstalled(detected []agentTarget) []agentTarget {
+	var filtered []agentTarget
+	for _, a := range detected {
+		if isSkillInstalled(a.globalDir()) || isSkillInstalled(a.localDir()) {
+			filtered = append(filtered, a)
+		}
+	}
+	return filtered
 }
 
 func resolveAgent(name string) (agentTarget, error) {
@@ -155,12 +199,31 @@ func resolveAgent(name string) (agentTarget, error) {
 	return agentTarget{}, fmt.Errorf("unknown agent %q\n  Supported: %s\n  If %q is a new AI coding agent, open an issue at https://github.com/udit-001/pharos/issues/new", name, strings.Join(supported, ", "), name)
 }
 
+// scopeStatusLabel returns a short status label for a scope directory.
+func scopeStatusLabel(baseDir string, installMode bool) string {
+	if isSkillInstalled(baseDir) {
+		if installMode {
+			if anySkillChangedForAll(baseDir) {
+				return "outdated"
+			}
+			return "current"
+		}
+		return "present"
+	}
+	return "not installed"
+}
+
 // promptScope asks the user whether to install globally or at project level.
-func promptScope() bool {
+// Returns (project, cancelled).
+func promptScope(verb string, agent agentTarget, installMode bool) (bool, bool) {
+	globalStatus := scopeStatusLabel(agent.globalDir(), installMode)
+	localStatus := scopeStatusLabel(agent.localDir(), installMode)
+
 	fmt.Println()
-	fmt.Println("  Install location:")
-	fmt.Println("    1. Globally — available to all projects (~/.agent/skills/)")
-	fmt.Println("    2. This project — only in current directory (./.agent/skills/)")
+	fmt.Printf("  %s location:\n", verb)
+	fmt.Printf("    1. Globally — %s\n", globalStatus)
+	fmt.Printf("    2. This project — %s\n", localStatus)
+	fmt.Println("    0. Cancel")
 	fmt.Println()
 	fmt.Print("  Enter number [1]: ")
 
@@ -168,10 +231,14 @@ func promptScope() bool {
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
-	if input == "2" {
-		return true // project-level
+	switch input {
+	case "0":
+		return false, true
+	case "2":
+		return true, false
+	default:
+		return false, false
 	}
-	return false // global (default)
 }
 
 // installAllSkills installs every embedded skill (teach, ...) into
@@ -227,8 +294,11 @@ func writeSkillFiles(files map[string][]byte, destDir string) (int, error) {
 	return len(files), nil
 }
 
-func pickAgent() agentTarget {
+func pickAgent(installedOnly bool) agentTarget {
 	detected := detectAgents()
+	if installedOnly {
+		detected = filterInstalled(detected)
+	}
 
 	switch len(detected) {
 	case 0:
@@ -318,7 +388,7 @@ func offerSkillInstall() {
 		fmt.Println()
 		fmt.Print("  No AI coding agent detected. Install the pharos skills anyway? [y/N] ")
 		if promptYes() {
-			installForAgent(pickAgent(), false)
+			installForAgent(pickAgent(false), false)
 		}
 		return
 	}
@@ -337,7 +407,7 @@ func offerSkillInstall() {
 	if !promptDefaultYes() {
 		return
 	}
-	installForAgent(pickAgent(), false)
+	installForAgent(pickAgent(false), false)
 }
 
 func installForAgent(a agentTarget, project bool) {
@@ -396,6 +466,21 @@ func skillFilesMap(skill string) (map[string][]byte, error) {
 		return nil
 	})
 	return files, err
+}
+
+// anySkillChangedForAll reports whether any embedded skill differs from its
+// installed copy under baseDir.
+func anySkillChangedForAll(baseDir string) bool {
+	for _, skill := range skills.All {
+		embedded, err := skillFilesMap(skill)
+		if err != nil {
+			return true
+		}
+		if anySkillChanged(baseDir, skill, embedded) {
+			return true
+		}
+	}
+	return false
 }
 
 // anySkillChanged reports whether the installed copy of `skill` under baseDir
