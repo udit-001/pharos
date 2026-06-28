@@ -109,7 +109,7 @@ func docCommand(kind string) string {
 	case "resources":
 		return "pharos resources --edit"
 	case "glossary":
-		return "pharos glossary add \"<term>\" \"<definition>\""
+		return "pharos glossary create \"<term>\" \"<definition>\""
 	case "notes":
 		return "# edit NOTES.md directly"
 	}

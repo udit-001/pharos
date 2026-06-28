@@ -15,7 +15,7 @@ Treat the current directory as a teaching workspace. The state of their learning
 
 - `MISSION.md`: The _reason_ the user is learning. Update with `pharos mission --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
 - `RESOURCES.md`: Curated knowledge sources and communities. Update with `pharos resources --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
-- **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary add "<term>" "<definition>"`, display with `pharos glossary` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
+- **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary create "<term>" "<definition>"`, display with `pharos glossary` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
 - `NOTES.md`: Scratchpad for preferences and working notes. Update with `pharos notes --body-file <path>` or `pharos notes --append --body-file <path>`.
 - `./lessons/*.html`: Self-contained lesson HTML files. Create with `pharos lesson create "<title>" --body-file <path>`.
 - `./learning-records/*.md`: ADR-style records of what was learned. Create with `pharos record create "<title>" --body-file <path>`.
@@ -170,7 +170,7 @@ Some learning topics lend themselves to reference:
 - Exercises and routines for fitness
 - Glossaries for any topic with its own nomenclature
 
-Glossaries, in particular, are an essential reference. Once one is created, it should be adhered to in every lesson. When writing a lesson, fetch the glossary terms from `GET /api/workspaces/{id}/glossary-terms` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — see [PAGE-THEME.md](./PAGE-THEME.md) for the tooltip convention.
+Glossaries, in particular, are an essential reference. Once one is created, it should be adhered to in every lesson. When writing a lesson, fetch the glossary terms with `pharos glossary list --json` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — see [PAGE-THEME.md](./PAGE-THEME.md) for the tooltip convention.
 
 ## `NOTES.md`
 

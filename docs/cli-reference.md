@@ -96,10 +96,11 @@ pharos resources -w "<workspace>"                  # Show resources
 pharos resources -w "<workspace>" --edit / -e      # Edit resources
 pharos resources -w "<workspace>" --body-file <path>
 
-pharos glossary -w "<workspace>"                   # Show glossary
-pharos glossary add "<term>" "<definition>" -w "<workspace>"              # Add or update a term
-pharos glossary add "<term>" "<definition>" --category "<name>"          # Group under a heading
-pharos glossary add "<term>" "<definition>" --avoid "<synonym>"          # Flag a synonym to avoid
+pharos glossary list                              # Show glossary
+pharos glossary list --json                       # Show glossary as JSON
+pharos glossary create "<term>" "<definition>" -w "<workspace>"           # Add or update a term
+pharos glossary create "<term>" "<definition>" --category "<name>"       # Group under a heading
+pharos glossary create "<term>" "<definition>" --avoid "<synonym>"       # Flag a synonym to avoid
 pharos glossary delete "<term>" -w "<workspace>"                          # Remove a term (idempotent)
 
 pharos notes -w "<workspace>"                      # Show notes (scratchpad)
@@ -130,8 +131,8 @@ pharos migrate status                 # Show migration status
 ```bash
 pharos search "<query>"                          # Search across all workspaces
 pharos search "<query>" -w "<workspace>"         # Search within one workspace
-pharos search index                               # Index the current workspace's content
-pharos search index --all                         # Rebuild index across all workspaces
+pharos search --rebuild-index                     # Index the current workspace's content
+pharos search --rebuild-index --all               # Rebuild index across all workspaces
 ```
 
 ## Configuration

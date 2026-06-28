@@ -29,8 +29,8 @@ workspace on the same topic. If one exists, use `pharos workspace use` to switch
 pharos search "<query>"                    # Cross-entity search across all workspaces
 pharos search "<query>" --workspace <name> # Scope to one workspace
 pharos search "<query>" --json             # Machine-readable output
-pharos search index                        # Rebuild search index for current workspace
-pharos search index --all                  # Rebuild for all workspaces
+pharos search --rebuild-index              # Rebuild search index for current workspace
+pharos search --rebuild-index --all        # Rebuild for all workspaces
 ```
 
 Searches lessons, learning records, and references by full-text match across title, summary, and body content. Results show type badges (Lesson/Record/Reference), workspace name, and a snippet when no summary is set. Use this before creating any entity to avoid duplicates.
@@ -52,9 +52,6 @@ workspace exists, it is used automatically.
 ```bash
 pharos mission    [--edit | --body-file <path>]
 pharos resources  [--edit | --body-file <path>]
-pharos glossary                                    # Display glossary terms
-pharos glossary add "<term>" "<definition>"        # Add or update a term
-pharos glossary delete "<term>"                    # Remove a term
 pharos notes      [--edit | --body-file <path>] [--append]
 ```
 
@@ -62,6 +59,15 @@ pharos notes      [--edit | --body-file <path>] [--append]
 - `--body-file <path>`: write content from a file (mission, resources, notes only)
 - `--append` (notes only): append instead of overwrite
 - No flags: read and print
+
+## Glossary
+
+```bash
+pharos glossary list                              # Display glossary terms
+pharos glossary list --json                       # Display glossary terms as JSON
+pharos glossary create "<term>" "<definition>"     # Add or update a term
+pharos glossary delete "<term>"                    # Remove a term
+```
 
 ## Lessons
 

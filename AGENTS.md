@@ -49,4 +49,4 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 - `goquery` parses HTML and extracts text. When extracting body text from lesson HTML, **strip `<head>`, `<script>`, `<style>`, and `<noscript>` tags first** — otherwise their content contaminates the extracted text.
 - `extractText()` is the shared helper in `workspace_store.go` for HTML→plaintext. `extractTextFromMarkdown()` handles markdown→plaintext without a goldmark roundtrip.
 - `IndexLessons()` / `IndexRefs()` / `IndexRecords()` skip items that already have non-empty `body_text` — they're idempotent. To re-index after an extractText fix, clear body_text first: `UPDATE lessons SET body_text = ''`.
-- `pharos search index --all` rebuilds across all workspaces.
+- `pharos search --rebuild-index --all` rebuilds across all workspaces.
