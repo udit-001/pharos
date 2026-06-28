@@ -51,6 +51,11 @@ func sidebarBody(f Frame) string {
 			b.WriteString(sidebarLink(urls.Lesson(ws.Name, l.Seq), iconBook(), l.Title, active))
 		}
 	}
+	// Quizzes: single link to the library page (not per-item, to avoid
+	// clutter as the collection grows — matches the Glossary pattern).
+	b.WriteString(`<div class="sidebar-section-label">Quizzes</div>`)
+	quizActive := f.ActiveType == "quiz" || f.ActiveType == "quiz-library"
+	b.WriteString(sidebarLink(urls.QuizLibrary(ws.Name), iconClipboardList(), "All quizzes", quizActive))
 	if len(f.Sidebar.Records) > 0 {
 		b.WriteString(`<div class="sidebar-section-label">Records</div>`)
 		for _, r := range f.Sidebar.Records {
@@ -161,11 +166,26 @@ func breadcrumbs(f Frame) string {
 			title = f.ActiveSlug
 		}
 		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, esc(title))
+	case "quiz":
+		title := ""
+		for _, q := range f.Sidebar.Quizzes {
+			if q.Slug == f.ActiveSlug {
+				title = q.Title
+				break
+			}
+		}
+		if title == "" {
+			title = f.ActiveSlug
+		}
+		quizzesLink := fmt.Sprintf(`<a href="%s" class="text-slate-400 hover:text-slate-600 no-underline text-sm truncate max-w-[40vw] block">Quizzes</a>`, urls.QuizLibrary(f.ActiveWS))
+		pageCrumb = sep + quizzesLink + sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, esc(title))
 	case "mission", "resources", "glossary", "notes":
 		docLabels := map[string]string{"mission": "Mission", "resources": "Resources", "glossary": "Glossary", "notes": "Notes"}
 		if label, ok := docLabels[f.ActiveType]; ok {
 			pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, label)
 		}
+	case "quiz-library":
+		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, "Quizzes")
 	}
 
 	return fmt.Sprintf(`<nav class="flex items-center gap-0 text-sm min-w-0">%s%s</nav>`,

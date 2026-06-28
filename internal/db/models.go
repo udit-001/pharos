@@ -1,5 +1,10 @@
 package db
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // Workspace represents a learning workspace.
 type Workspace struct {
 	ID            int64  `db:"id" json:"id"`
@@ -59,6 +64,102 @@ type Reference struct {
 	BodyText    string `db:"body_text" json:"bodyText,omitempty"`
 	CreatedAt   string `db:"created_at" json:"createdAt"`
 	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
+}
+
+// Question represents a single question in a workspace. Questions are
+// DB-only (no file on disk). Config holds the mode-specific JSON; use
+// ParseConfig for typed access.
+type Question struct {
+	ID          int64  `db:"id" json:"id"`
+	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
+	Title       string `db:"title" json:"title"`
+	Slug        string `db:"slug" json:"slug"`
+	Mode        string `db:"mode" json:"mode"` // "choice" | "recall"
+	Config      string `db:"config" json:"config"` // raw JSON; use ParseConfig for typed access
+	CreatedAt   string `db:"created_at" json:"createdAt"`
+	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
+}
+
+// Quiz represents an ordered list of question slugs grouped under a title.
+// Items is the raw JSON slug array; use ParseItems for typed access.
+type Quiz struct {
+	ID          int64  `db:"id" json:"id"`
+	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
+	Title       string `db:"title" json:"title"`
+	Slug        string `db:"slug" json:"slug"`
+	Description string `db:"description" json:"description"`
+	Items       string `db:"items" json:"items"` // raw JSON array of question slugs
+	CreatedAt   string `db:"created_at" json:"createdAt"`
+	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
+}
+
+// QuestionConfig is the typed, mode-specific shape of a Question's config.
+// Each concrete config validates its own invariants.
+type QuestionConfig interface {
+	Validate() error
+}
+
+// ChoiceConfig is the config for a choice-mode question: a list of options
+// and the 0-based index of the correct answer.
+type ChoiceConfig struct {
+	Options []string `json:"options"`
+	Key     int      `json:"key"`
+}
+
+// Validate checks that a choice config has at least two options and an
+// in-range correct-answer index.
+func (c ChoiceConfig) Validate() error {
+	if len(c.Options) < 2 {
+		return fmt.Errorf("need at least 2 options")
+	}
+	if c.Key < 0 || c.Key >= len(c.Options) {
+		return fmt.Errorf("key out of range")
+	}
+	return nil
+}
+
+// RecallConfig is the config for a recall-mode question: the text revealed
+// after the learner self-grades.
+type RecallConfig struct {
+	RevealText string `json:"reveal_text"`
+}
+
+// Validate checks that a recall config has non-empty reveal text.
+func (c RecallConfig) Validate() error {
+	if c.RevealText == "" {
+		return fmt.Errorf("reveal_text must not be empty")
+	}
+	return nil
+}
+
+// ParseConfig parses a Question's raw config JSON into the typed config
+// selected by the question's mode.
+func (q Question) ParseConfig() (QuestionConfig, error) {
+	switch q.Mode {
+	case "choice":
+		var c ChoiceConfig
+		if err := json.Unmarshal([]byte(q.Config), &c); err != nil {
+			return nil, fmt.Errorf("parse choice config: %w", err)
+		}
+		return c, nil
+	case "recall":
+		var c RecallConfig
+		if err := json.Unmarshal([]byte(q.Config), &c); err != nil {
+			return nil, fmt.Errorf("parse recall config: %w", err)
+		}
+		return c, nil
+	default:
+		return nil, fmt.Errorf("unknown question mode %q", q.Mode)
+	}
+}
+
+// ParseItems parses a Quiz's raw items JSON into an ordered slug slice.
+func (q Quiz) ParseItems() ([]string, error) {
+	var items []string
+	if err := json.Unmarshal([]byte(q.Items), &items); err != nil {
+		return nil, fmt.Errorf("parse quiz items: %w", err)
+	}
+	return items, nil
 }
 
 // DisplayName returns the user-friendly topic if set, else the directory name.

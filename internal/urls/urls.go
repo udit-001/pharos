@@ -34,6 +34,16 @@ func Ref(ws, slug string) string {
 	return fmt.Sprintf("/workspace/%s/ref/%s", PathEscape(ws), PathEscape(slug))
 }
 
+// QuizLibrary returns the quiz library page URL: /workspace/{name}/quizzes.
+func QuizLibrary(ws string) string {
+	return fmt.Sprintf("/workspace/%s/quizzes", PathEscape(ws))
+}
+
+// Quiz returns a quiz detail page URL: /workspace/{name}/quiz/{slug}.
+func Quiz(ws, slug string) string {
+	return fmt.Sprintf("/workspace/%s/quiz/%s", PathEscape(ws), PathEscape(slug))
+}
+
 // Doc returns a workspace document page URL (mission/resources/notes/glossary):
 // /workspace/{name}/{kind}. kind is a fixed literal, so it is not escaped.
 func Doc(ws, kind string) string {

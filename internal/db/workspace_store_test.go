@@ -176,6 +176,94 @@ func TestGetRefBySlug(t *testing.T) {
 	}
 }
 
+func TestAddQuestionAndQuiz(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	// AddQuestion derives the slug and sets WorkspaceID/timestamps.
+	q, err := alpha.AddQuestion(Question{
+		Title:  "Strongest ASD Risk Gene",
+		Mode:   "choice",
+		Config: `{"options":["CHD8","FMR1"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	if q.Slug != "strongest-asd-risk-gene" {
+		t.Errorf("slug = %q, want strongest-asd-risk-gene", q.Slug)
+	}
+	if q.WorkspaceID != alpha.Workspace().ID {
+		t.Errorf("workspaceID not set from scope")
+	}
+
+	// GetQuestions returns the seeded question.
+	questions, err := alpha.GetQuestions()
+	if err != nil {
+		t.Fatalf("GetQuestions: %v", err)
+	}
+	if len(questions) != 1 || questions[0].Slug != q.Slug {
+		t.Errorf("questions = %+v, want 1 with slug %q", questions, q.Slug)
+	}
+
+	// GetQuestionBySlug round-trips.
+	got, err := alpha.GetQuestionBySlug(q.Slug)
+	if err != nil {
+		t.Fatalf("GetQuestionBySlug: %v", err)
+	}
+	if got.Mode != "choice" {
+		t.Errorf("mode = %q, want choice", got.Mode)
+	}
+	if _, err := alpha.GetQuestionBySlug("nonexistent"); err == nil {
+		t.Error("expected error for nonexistent question slug")
+	}
+
+	// ParseConfig returns the typed config selected by mode.
+	cfg, err := got.ParseConfig()
+	if err != nil {
+		t.Fatalf("ParseConfig: %v", err)
+	}
+	cc, ok := cfg.(ChoiceConfig)
+	if !ok {
+		t.Fatalf("config type = %T, want ChoiceConfig", cfg)
+	}
+	if cc.Key != 0 || len(cc.Options) != 2 {
+		t.Errorf("choice config = %+v, want key=0 options=2", cc)
+	}
+
+	// AddQuiz stores the slug array and derives the slug.
+	quiz, err := alpha.AddQuiz(Quiz{
+		Title:       "Genetics Foundations",
+		Description: "Core factors",
+		Items:       `["strongest-asd-risk-gene"]`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	if quiz.Slug != "genetics-foundations" {
+		t.Errorf("quiz slug = %q, want genetics-foundations", quiz.Slug)
+	}
+
+	// GetQuizzes + GetQuizBySlug round-trip and ParseItems works.
+	quizzes, err := alpha.GetQuizzes()
+	if err != nil {
+		t.Fatalf("GetQuizzes: %v", err)
+	}
+	if len(quizzes) != 1 || quizzes[0].Slug != quiz.Slug {
+		t.Errorf("quizzes = %+v, want 1 with slug %q", quizzes, quiz.Slug)
+	}
+	gotQuiz, err := alpha.GetQuizBySlug(quiz.Slug)
+	if err != nil {
+		t.Fatalf("GetQuizBySlug: %v", err)
+	}
+	items, err := gotQuiz.ParseItems()
+	if err != nil {
+		t.Fatalf("ParseItems: %v", err)
+	}
+	if len(items) != 1 || items[0] != "strongest-asd-risk-gene" {
+		t.Errorf("items = %+v, want [strongest-asd-risk-gene]", items)
+	}
+}
+
 // TestGetSidebarData proves GetSidebarData returns the lightweight sidebar
 // projections (not full model structs) with correct fields and workspace
 // scoping. One call replaces three separate Get* calls.
@@ -186,6 +274,7 @@ func TestGetSidebarData(t *testing.T) {
 	alpha.AddLesson(Lesson{Title: "a2", Filename: "a2.html"})
 	alpha.AddRecord(LearningRecord{Title: "r1", Filename: "r1.md", Status: "active", Summary: "sum"})
 	alpha.AddRef(Reference{Title: "Ref1", Slug: "ref1", Filename: "ref1.html"})
+	alpha.AddQuiz(Quiz{Title: "Quiz1", Slug: "quiz1", Items: `["q1"]`})
 
 	// Empty workspace
 	beta := seedWorkspace(t, store, "beta")
@@ -216,15 +305,21 @@ func TestGetSidebarData(t *testing.T) {
 	if sd.Refs[0].Slug != "ref1" || sd.Refs[0].Title != "Ref1" {
 		t.Errorf("ref[0] = %+v, want {ref1, Ref1}", sd.Refs[0])
 	}
+	if len(sd.Quizzes) != 1 {
+		t.Fatalf("quizzes = %d, want 1", len(sd.Quizzes))
+	}
+	if sd.Quizzes[0].Slug != "quiz1" || sd.Quizzes[0].Title != "Quiz1" {
+		t.Errorf("quiz[0] = %+v, want {quiz1, Quiz1}", sd.Quizzes[0])
+	}
 
 	// Beta: empty workspace — no items leaked from alpha
 	sdBeta, err := beta.GetSidebarData()
 	if err != nil {
 		t.Fatalf("beta GetSidebarData: %v", err)
 	}
-	if len(sdBeta.Lessons) != 0 || len(sdBeta.Records) != 0 || len(sdBeta.Refs) != 0 {
-		t.Errorf("beta should be empty, got L%d R%d Ref%d",
-			len(sdBeta.Lessons), len(sdBeta.Records), len(sdBeta.Refs))
+	if len(sdBeta.Lessons) != 0 || len(sdBeta.Records) != 0 || len(sdBeta.Refs) != 0 || len(sdBeta.Quizzes) != 0 {
+		t.Errorf("beta should be empty, got L%d R%d Ref%d Q%d",
+			len(sdBeta.Lessons), len(sdBeta.Records), len(sdBeta.Refs), len(sdBeta.Quizzes))
 	}
 }
 

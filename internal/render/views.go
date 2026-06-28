@@ -28,6 +28,8 @@ func WorkspacePage(d WorkspaceData) string  { return renderComponent(workspacePa
 func Lesson(d LessonData) string            { return renderComponent(lesson(d)) }
 func Record(d RecordData) string            { return renderComponent(record(d)) }
 func Ref(d RefData) string                  { return renderComponent(ref(d)) }
+func QuizLibrary(d QuizLibraryData) string  { return renderComponent(quizLibrary(d)) }
+func Quiz(d QuizData) string                { return renderComponent(quiz(d)) }
 func Document(d DocumentData) string        { return renderComponent(documentView(d)) }
 func NotFound(title, message string) string { return renderComponent(notFound(title, message)) }
 func Search(d SearchData) string            { return renderComponent(search(d)) }

@@ -134,6 +134,7 @@ func TestSmokePageRoutes(t *testing.T) {
 		{"lesson", "/workspace/alpha/lesson/1"},
 		{"record", "/workspace/alpha/record/1"},
 		{"ref", "/workspace/alpha/ref/ref-one"},
+		{"quiz-library", "/workspace/alpha/quizzes"},
 		{"search-page", "/search?q=Lesson"},
 		{"lesson-html", "/api/lesson-html/alpha/0001-lesson-one.html"},
 		{"ref-html", "/api/ref-html/alpha/ref-one.html"},
@@ -335,5 +336,71 @@ func TestLessonNotFound(t *testing.T) {
 	rec := env.get(t, "/workspace/alpha/lesson/999")
 	if rec.Code != 404 {
 		t.Errorf("nonexistent lesson should 404; got %d", rec.Code)
+	}
+}
+
+func TestQuizLibraryAndDetailPages(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Seed questions and a quiz containing them.
+	if _, err := wsStore.AddQuestion(db.Question{
+		Title: "Strongest ASD risk gene",
+		Mode:  "choice",
+		Config: `{"options":["CHD8","FMR1"],"key":0}`,
+	}); err != nil {
+		t.Fatalf("seed question: %v", err)
+	}
+	if _, err := wsStore.AddQuestion(db.Question{
+		Title: "ASD heritability range",
+		Mode:  "recall",
+		Config: `{"reveal_text":"60-90%"}`,
+	}); err != nil {
+		t.Fatalf("seed question: %v", err)
+	}
+	if _, err := wsStore.AddQuiz(db.Quiz{
+		Title:       "Genetics foundations",
+		Description: "Core genetic factors in ASD",
+		Items:       `["strongest-asd-risk-gene","asd-heritability-range"]`,
+	}); err != nil {
+		t.Fatalf("seed quiz: %v", err)
+	}
+
+	// Library page lists the quiz.
+	rec := env.get(t, "/workspace/alpha/quizzes")
+	if rec.Code != 200 {
+		t.Fatalf("quiz library status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"Genetics foundations", "Core genetic factors in ASD", "2 items"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("quiz library missing %q", want)
+		}
+	}
+	// Sidebar should show a Quizzes section.
+	if !strings.Contains(body, `sidebar-section-label">Quizzes`) {
+		t.Error("quiz library sidebar missing Quizzes section")
+	}
+
+	// Detail page shows title, description, item count, and Start button.
+	rec = env.get(t, "/workspace/alpha/quiz/genetics-foundations")
+	if rec.Code != 200 {
+		t.Fatalf("quiz detail status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+	body = rec.Body.String()
+	for _, want := range []string{"Genetics foundations", "Core genetic factors in ASD", "2 questions", "Start assessment"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("quiz detail missing %q", want)
+		}
+	}
+	// Breadcrumb should carry the quiz title.
+	if !strings.Contains(body, ">Genetics foundations<") {
+		t.Error("quiz detail breadcrumb missing quiz title")
+	}
+
+	// Nonexistent quiz 404s.
+	rec = env.get(t, "/workspace/alpha/quiz/no-such-quiz")
+	if rec.Code != 404 {
+		t.Errorf("nonexistent quiz should 404; got %d", rec.Code)
 	}
 }

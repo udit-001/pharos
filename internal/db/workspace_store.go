@@ -247,6 +247,113 @@ func (w *WorkspaceStore) AddRecord(r LearningRecord) (LearningRecord, error) {
 	return r, nil
 }
 
+// ── Questions ──
+
+// GetQuestions returns all questions in this workspace, ordered by title.
+func (w *WorkspaceStore) GetQuestions() ([]Question, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM questions WHERE workspace_id = ? ORDER BY title ASC", questionColumns),
+		w.ws.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanQuestions(rows)
+}
+
+// GetQuestionBySlug returns a single question by its slug, or an error if not found.
+func (w *WorkspaceStore) GetQuestionBySlug(slug string) (*Question, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM questions WHERE workspace_id = ? AND slug = ?", questionColumns),
+		w.ws.ID, slug,
+	)
+	question, err := scanQuestion(row)
+	if err != nil {
+		return nil, fmt.Errorf("question %q not found: %w", slug, err)
+	}
+	return &question, nil
+}
+
+// AddQuestion creates a new question in this workspace. WorkspaceID is set
+// automatically and the slug is derived from the title if empty. The caller
+// is responsible for validating the config (see Question.ParseConfig).
+func (w *WorkspaceStore) AddQuestion(q Question) (Question, error) {
+	q.WorkspaceID = w.ws.ID
+	now := nowTimestamp()
+
+	if q.Slug == "" {
+		q.Slug = Slugify(q.Title)
+	}
+
+	result, err := w.db().Exec(
+		`INSERT INTO questions (workspace_id, title, slug, mode, config, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		q.WorkspaceID, q.Title, q.Slug, q.Mode, q.Config, now, now,
+	)
+	if err != nil {
+		return Question{}, fmt.Errorf("add question: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	q.ID = id
+	q.CreatedAt = now
+	q.UpdatedAt = now
+	return q, nil
+}
+
+// ── Quizzes ──
+
+// GetQuizzes returns all quizzes in this workspace, ordered by title.
+func (w *WorkspaceStore) GetQuizzes() ([]Quiz, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM quizzes WHERE workspace_id = ? ORDER BY title ASC", quizColumns),
+		w.ws.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanQuizzes(rows)
+}
+
+// GetQuizBySlug returns a single quiz by its slug, or an error if not found.
+func (w *WorkspaceStore) GetQuizBySlug(slug string) (*Quiz, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM quizzes WHERE workspace_id = ? AND slug = ?", quizColumns),
+		w.ws.ID, slug,
+	)
+	quiz, err := scanQuiz(row)
+	if err != nil {
+		return nil, fmt.Errorf("quiz %q not found: %w", slug, err)
+	}
+	return &quiz, nil
+}
+
+// AddQuiz creates a new quiz in this workspace. WorkspaceID is set
+// automatically and the slug is derived from the title if empty.
+func (w *WorkspaceStore) AddQuiz(q Quiz) (Quiz, error) {
+	q.WorkspaceID = w.ws.ID
+	now := nowTimestamp()
+
+	if q.Slug == "" {
+		q.Slug = Slugify(q.Title)
+	}
+
+	result, err := w.db().Exec(
+		`INSERT INTO quizzes (workspace_id, title, slug, description, items, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		q.WorkspaceID, q.Title, q.Slug, q.Description, q.Items, now, now,
+	)
+	if err != nil {
+		return Quiz{}, fmt.Errorf("add quiz: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	q.ID = id
+	q.CreatedAt = now
+	q.UpdatedAt = now
+	return q, nil
+}
+
 // ── References ──
 
 // GetRefs returns all references in this workspace.

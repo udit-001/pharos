@@ -43,6 +43,14 @@ type RefEntry struct {
 	Title string
 }
 
+// QuizEntry is the render-owned projection of a quiz.
+type QuizEntry struct {
+	Slug        string
+	Title       string
+	Description string
+	ItemCount   int
+}
+
 // Sidebar is the workspace tree shown in the left rail. When Workspace is
 // nil, an empty-state prompt is shown instead.
 type Sidebar struct {
@@ -50,6 +58,7 @@ type Sidebar struct {
 	Lessons   []LessonEntry
 	Records   []RecordEntry
 	Refs      []RefEntry
+	Quizzes   []QuizEntry
 }
 
 // FrameContent reports whether the page body should fill the viewport as an
@@ -113,6 +122,22 @@ type RecordData struct {
 type RefData struct {
 	Title  string
 	RawURL string
+}
+
+// QuizLibraryData drives the quiz library page: a list of quizzes.
+type QuizLibraryData struct {
+	Workspace Workspace
+	Quizzes   []QuizEntry
+}
+
+// QuizData drives a quiz detail page: title, description, item count, and a
+// Start button. Attempt display is deferred to a later slice.
+type QuizData struct {
+	Workspace   Workspace
+	Slug        string
+	Title       string
+	Description string
+	ItemCount   int
 }
 
 // GlossaryTermRow is one term in the glossary page.

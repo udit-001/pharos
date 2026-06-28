@@ -82,6 +82,8 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /workspace/{name}/lesson/{seq}", handleLessonPage(store))
 	mux.HandleFunc("GET /workspace/{name}/record/{seq}", handleRecordPage(store))
 	mux.HandleFunc("GET /workspace/{name}/ref/{slug}", handleRefPage(store))
+	mux.HandleFunc("GET /workspace/{name}/quizzes", handleQuizLibraryPage(store))
+	mux.HandleFunc("GET /workspace/{name}/quiz/{slug}", handleQuizPage(store))
 	mux.HandleFunc("GET /about", handleAboutPage(store))
 	mux.HandleFunc("GET /search", handleSearchPage(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/{file}", handleLessonHTML(store))
@@ -133,6 +135,7 @@ func toRenderSidebar(sd *db.SidebarData) render.Sidebar {
 		Lessons:   toRenderLessons(sd.Lessons),
 		Records:   toRenderRecords(sd.Records),
 		Refs:      toRenderRefs(sd.Refs),
+		Quizzes:   toRenderQuizzes(sd.Quizzes),
 	}
 }
 
@@ -166,6 +169,14 @@ func toRenderRefs(refs []db.SidebarRef) []render.RefEntry {
 	out := make([]render.RefEntry, len(refs))
 	for i, ref := range refs {
 		out[i] = render.RefEntry{Slug: ref.Slug, Title: ref.Title}
+	}
+	return out
+}
+
+func toRenderQuizzes(qs []db.SidebarQuiz) []render.QuizEntry {
+	out := make([]render.QuizEntry, len(qs))
+	for i, q := range qs {
+		out[i] = render.QuizEntry{Slug: q.Slug, Title: q.Title}
 	}
 	return out
 }
@@ -615,6 +626,80 @@ func handleRefPage(store *db.Store) http.HandlerFunc {
 		wsStore.SetLastViewed("ref", int(current.ID))
 		sd, _ := wsStore.GetSidebarData()
 		writePage(w, &sd, current.Title, name, "ref", 0, slug, "", render.Ref(data))
+	}
+}
+
+// ── Quiz Pages ──
+
+func handleQuizLibraryPage(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
+			return
+		}
+		ws := wsStore.Workspace()
+
+		sd, err := wsStore.GetSidebarData()
+		if err != nil {
+			writeNotFound(w, nil, "Workspace not found", "This workspace could not be loaded.")
+			return
+		}
+
+		quizzes, err := wsStore.GetQuizzes()
+		if err != nil {
+			writeNotFound(w, nil, "Quizzes not found", "This workspace's quizzes could not be loaded.")
+			return
+		}
+
+		entries := make([]render.QuizEntry, len(quizzes))
+		for i, q := range quizzes {
+			items, _ := q.ParseItems()
+			entries[i] = render.QuizEntry{
+				Slug:        q.Slug,
+				Title:       q.Title,
+				Description: q.Description,
+				ItemCount:   len(items),
+			}
+		}
+
+		data := render.QuizLibraryData{
+			Workspace: toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
+			Quizzes:   entries,
+		}
+		writePage(w, &sd, "Quizzes", ws.Name, "quiz-library", 0, "", "", render.QuizLibrary(data))
+	}
+}
+
+func handleQuizPage(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		slug := r.PathValue("slug")
+
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			writeNotFound(w, nil, "Workspace not found", fmt.Sprintf("Workspace %q doesn't exist.", name))
+			return
+		}
+
+		current, err := wsStore.GetQuizBySlug(slug)
+		if err != nil {
+			sd, _ := wsStore.GetSidebarData()
+			writeNotFound(w, &sd, "Quiz not found", fmt.Sprintf("Quiz %q doesn't exist in this workspace.", slug))
+			return
+		}
+
+		items, _ := current.ParseItems()
+		sd, _ := wsStore.GetSidebarData()
+		data := render.QuizData{
+			Workspace:   toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
+			Slug:        current.Slug,
+			Title:       current.Title,
+			Description: current.Description,
+			ItemCount:   len(items),
+		}
+		writePage(w, &sd, current.Title, name, "quiz", 0, slug, "", render.Quiz(data))
 	}
 }
 

@@ -109,3 +109,51 @@ func TestPageEscapesTitle(t *testing.T) {
 		t.Errorf("expected title to be HTML-escaped, got:\n%s", out)
 	}
 }
+
+func TestQuizLibraryRendersQuizzes(t *testing.T) {
+	d := QuizLibraryData{
+		Workspace: Workspace{Name: "alpha"},
+		Quizzes: []QuizEntry{
+			{Slug: "genetics-foundations", Title: "Genetics foundations", Description: "Core factors", ItemCount: 5},
+		},
+	}
+	out := QuizLibrary(d)
+	for _, want := range []string{
+		"Genetics foundations",
+		"Core factors",
+		"5 items",
+		"/workspace/alpha/quiz/genetics-foundations",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected output to contain %q, got:\n%s", want, out)
+		}
+	}
+}
+
+func TestQuizLibraryEmptyState(t *testing.T) {
+	out := QuizLibrary(QuizLibraryData{Workspace: Workspace{Name: "alpha"}})
+	if !strings.Contains(out, "No quizzes yet.") {
+		t.Errorf("expected empty state, got:\n%s", out)
+	}
+}
+
+func TestQuizDetailRendersStartButton(t *testing.T) {
+	d := QuizData{
+		Workspace:   Workspace{Name: "alpha"},
+		Slug:        "genetics-foundations",
+		Title:       "Genetics foundations",
+		Description: "Core genetic factors in ASD",
+		ItemCount:   5,
+	}
+	out := Quiz(d)
+	for _, want := range []string{
+		"Genetics foundations",
+		"Core genetic factors in ASD",
+		"5 questions",
+		"Start assessment",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected output to contain %q, got:\n%s", want, out)
+		}
+	}
+}
