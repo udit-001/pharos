@@ -15,6 +15,8 @@ pharos workspace current                       # Show current workspace
 pharos workspace list                          # List all workspaces (current marked with *)
 pharos workspace delete "<name>"               # Delete workspace + directory (prompts)
 pharos workspace delete "<name>" --force       # Delete without prompt
+pharos workspace rename "<new name>"            # Rename workspace (updates display name; slug stays)
+pharos workspace rename "<new name>" -w "<name>" # Rename a specific workspace by -w
 pharos workspace stats                         # Show learning statistics
 
 pharos init                                    # Create the database
