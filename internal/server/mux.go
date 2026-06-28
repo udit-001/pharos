@@ -401,6 +401,28 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 			})
 		}
 
+		// Quiz widget — recent completed + in-progress.
+		if qd, _ := store.GetQuizDashboardData(); qd.RecentCompleted != nil || len(qd.InProgress) > 0 {
+			widget := &render.QuizWidgetData{}
+			if qd.RecentCompleted != nil {
+				widget.RecentCompleted = &render.QuizWidgetItem{
+					WorkspaceName: qd.RecentCompleted.WorkspaceName,
+					QuizTitle:     qd.RecentCompleted.QuizTitle,
+					URL:           urls.Workspace(qd.RecentCompleted.WorkspaceName) + "/quizzes",
+					Score:         qd.RecentCompleted.Score,
+					Total:         qd.RecentCompleted.Total,
+				}
+			}
+			for _, ip := range qd.InProgress {
+				widget.InProgress = append(widget.InProgress, render.QuizWidgetItem{
+					WorkspaceName: ip.WorkspaceName,
+					QuizTitle:     ip.QuizTitle,
+					URL:           urls.Workspace(ip.WorkspaceName) + "/quizzes",
+				})
+			}
+			data.QuizWidget = widget
+		}
+
 		writePage(w, nil, "Dashboard", "", "", 0, "", "", render.Dashboard(data))
 	}
 }

@@ -28,6 +28,26 @@ templ dashboard(d DashboardData) {
 			</a>
 		</div>
 	}
+	if d.QuizWidget != nil {
+		<div class="mb-6 space-y-2">
+			if d.QuizWidget.RecentCompleted != nil {
+				<a href={ d.QuizWidget.RecentCompleted.URL } class="group flex items-center gap-2 text-sm no-underline py-2 px-3 -mx-3 rounded-md hover:bg-slate-100 transition-colors">
+					<span class="shrink-0 text-slate-300">@templ.Raw(iconClipboardList())</span>
+					<span class="text-slate-500 group-hover:text-slate-600 transition-colors">Recent quiz:</span>
+					<span class="font-medium text-slate-800 group-hover:text-blue-700 transition-colors">{ d.QuizWidget.RecentCompleted.QuizTitle }</span>
+					<span class="font-medium text-emerald-600 tabular-nums">{ d.QuizWidget.RecentCompleted.Score }/{ d.QuizWidget.RecentCompleted.Total }</span>
+				</a>
+			}
+			for _, ip := range d.QuizWidget.InProgress {
+				<a href={ ip.URL } class="group flex items-center gap-2 text-sm no-underline py-2 px-3 -mx-3 rounded-md hover:bg-slate-100 transition-colors">
+					<span class="shrink-0 text-slate-300">@templ.Raw(iconClipboardList())</span>
+					<span class="text-blue-700">In progress:</span>
+					<span class="font-medium text-slate-800 group-hover:text-blue-700 transition-colors">{ ip.QuizTitle }</span>
+					<span class="text-slate-400">{ ip.WorkspaceName }</span>
+				</a>
+			}
+		</div>
+	}
 	if len(d.Workspaces) > 0 {
 		<div class="divide-y divide-slate-100">
 			for _, w := range d.Workspaces {

@@ -244,6 +244,16 @@ type SearchResult struct {
 	Slug           string `json:"slug,omitempty"`           // refs only
 }
 
+// WeakQuestionResult is a question with its accuracy from completed attempts.
+// Accuracy is null (nil) when the question has never been answered in a
+// completed attempt — these sort first (most urgent to assess).
+type WeakQuestionResult struct {
+	Question
+	Correct int  `json:"correct"`
+	Total   int  `json:"total"`
+	HasData bool `json:"hasData"` // false = never answered in a completed attempt
+}
+
 // Settings holds user preferences.
 type Settings struct {
 	ID                  int64  `db:"id" json:"id"`

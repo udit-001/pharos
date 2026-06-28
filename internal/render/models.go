@@ -92,6 +92,22 @@ type DashboardData struct {
 	Stats      Stats
 	Continue   *ContinueItem
 	Workspaces []WorkspaceCard
+	QuizWidget *QuizWidgetData
+}
+
+// QuizWidgetData drives the dashboard quiz widget.
+type QuizWidgetData struct {
+	RecentCompleted *QuizWidgetItem
+	InProgress      []QuizWidgetItem
+}
+
+// QuizWidgetItem is one entry in the dashboard quiz widget.
+type QuizWidgetItem struct {
+	WorkspaceName string
+	QuizTitle     string
+	URL           string
+	Score         int
+	Total         int
 }
 
 // WorkspaceData drives a workspace landing page.

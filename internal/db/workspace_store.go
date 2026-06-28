@@ -329,6 +329,19 @@ func (w *WorkspaceStore) GetQuizBySlug(slug string) (*Quiz, error) {
 	return &quiz, nil
 }
 
+// GetQuizByID returns a single quiz by its primary key.
+func (w *WorkspaceStore) GetQuizByID(id int64) (*Quiz, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM quizzes WHERE workspace_id = ? AND id = ?", quizColumns),
+		w.ws.ID, id,
+	)
+	quiz, err := scanQuiz(row)
+	if err != nil {
+		return nil, fmt.Errorf("quiz %d not found: %w", id, err)
+	}
+	return &quiz, nil
+}
+
 // AddQuiz creates a new quiz in this workspace. WorkspaceID is set
 // automatically and the slug is derived from the title if empty.
 func (w *WorkspaceStore) AddQuiz(q Quiz) (Quiz, error) {
@@ -355,6 +368,120 @@ func (w *WorkspaceStore) AddQuiz(q Quiz) (Quiz, error) {
 }
 
 // ── Quiz Attempts ──
+
+// GetWeakQuestions returns questions sorted by accuracy ascending, using
+// only completed quiz attempts. Questions with zero attempts (null accuracy)
+// sort first. The limit caps the result count.
+func (w *WorkspaceStore) GetWeakQuestions(limit int) ([]WeakQuestionResult, error) {
+	// Fetch all questions for this workspace.
+	questions, err := w.GetQuestions()
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch accuracy per question from completed attempts only.
+	type acc struct {
+		QuestionID int64
+		Correct    int
+		Total      int
+	}
+	var accs []acc
+	rows, err := w.db().Query(
+		`SELECT a.question_id,
+		   SUM(CASE WHEN a.correct = 1 THEN 1 ELSE 0 END) AS correct,
+		   COUNT(*) AS total
+		 FROM attempts a
+		 JOIN quiz_attempts qa ON a.quiz_attempt_id = qa.id
+		 WHERE qa.workspace_id = ? AND qa.status = 'completed'
+		 GROUP BY a.question_id`,
+		w.ws.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query question accuracy: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var a acc
+		if err := rows.Scan(&a.QuestionID, &a.Correct, &a.Total); err != nil {
+			return nil, fmt.Errorf("scan accuracy: %w", err)
+		}
+		accs = append(accs, a)
+	}
+
+	accMap := map[int64]acc{}
+	for _, a := range accs {
+		accMap[a.QuestionID] = a
+	}
+
+	// Build results.
+	out := make([]WeakQuestionResult, len(questions))
+	for i, q := range questions {
+		out[i] = WeakQuestionResult{Question: q}
+		if a, ok := accMap[q.ID]; ok {
+			out[i].Correct = a.Correct
+			out[i].Total = a.Total
+			out[i].HasData = true
+		}
+	}
+
+	// Sort: null accuracy (HasData=false) first, then by accuracy ascending.
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0; j-- {
+			if !out[j-1].HasData && out[j].HasData {
+				break
+			}
+			if out[j-1].HasData && out[j].HasData {
+				prevAcc := float64(out[j-1].Correct) / float64(out[j-1].Total)
+				curAcc := float64(out[j].Correct) / float64(out[j].Total)
+				if prevAcc <= curAcc {
+					break
+				}
+			}
+			out[j-1], out[j] = out[j], out[j-1]
+		}
+	}
+
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// ErrQuizHasInProgress signals that a quiz has in-progress attempts and
+// cannot be revised until they complete or are abandoned.
+var ErrQuizHasInProgress = errors.New("quiz has in-progress attempts")
+
+// UpdateQuizItems updates a quiz's items JSON. Rejects if any in-progress
+// quiz attempts exist for this quiz.
+func (w *WorkspaceStore) UpdateQuizItems(slug string, items string) error {
+	quiz, err := w.GetQuizBySlug(slug)
+	if err != nil {
+		return err
+	}
+
+	// Block if in-progress attempts exist.
+	attempts, err := w.GetQuizAttempts(quiz.ID)
+	if err != nil {
+		return fmt.Errorf("check in-progress attempts: %w", err)
+	}
+	for _, a := range attempts {
+		if a.Status == "in_progress" {
+			return fmt.Errorf("cannot revise quiz %q: %w", slug, ErrQuizHasInProgress)
+		}
+	}
+
+	now := nowTimestamp()
+	_, err = w.db().Exec(
+		"UPDATE quizzes SET items = ?, updated_at = ? WHERE id = ?",
+		items, now, quiz.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update quiz items: %w", err)
+	}
+	return nil
+}
+
+// ── Quiz Attempt lifecycle ──
 
 // CreateQuizAttempt starts a new attempt for the given quiz. The attempt is
 // created with status in_progress.
@@ -967,6 +1094,100 @@ func (s *Store) QuizAttemptWorkspace(attemptID int64) (*WorkspaceStore, error) {
 		return nil, fmt.Errorf("quiz attempt %d not found: %w", attemptID, err)
 	}
 	return s.WorkspaceByID(wsID)
+}
+
+// QuizDashboardData is the cross-workspace quiz summary for the dashboard.
+type QuizDashboardData struct {
+	RecentCompleted *CompletedQuizSummary
+	InProgress      []InProgressSummary
+}
+
+type CompletedQuizSummary struct {
+	WorkspaceName string
+	QuizTitle     string
+	Score         int
+	Total         int
+}
+
+type InProgressSummary struct {
+	WorkspaceName string
+	QuizTitle     string
+	AttemptID     int64
+}
+
+// GetQuizDashboardData returns the latest completed quiz across all
+// workspaces and any in-progress attempts. This is a cross-workspace
+// query on Store (not WorkspaceStore).
+func (s *Store) GetQuizDashboardData() (QuizDashboardData, error) {
+	var data QuizDashboardData
+
+	// Latest completed quiz attempt across all workspaces.
+	var rc struct {
+		AttemptID    int64
+		WorkspaceID  int64
+		QuizID       int64
+		CompletedAt  string
+	}
+	row := s.db.QueryRow(
+		`SELECT qa.id, qa.workspace_id, qa.quiz_id, qa.completed_at
+		 FROM quiz_attempts qa
+		 WHERE qa.status = 'completed'
+		 ORDER BY qa.completed_at DESC
+		 LIMIT 1`,
+	)
+	if err := row.Scan(&rc.AttemptID, &rc.WorkspaceID, &rc.QuizID, &rc.CompletedAt); err == nil {
+		wsStore, err := s.WorkspaceByID(rc.WorkspaceID)
+		if err == nil {
+			ws := wsStore.Workspace()
+			quiz, err := wsStore.GetQuizByID(rc.QuizID)
+			if err == nil {
+				correct, total := wsStore.ScoreAttempt(rc.AttemptID)
+				data.RecentCompleted = &CompletedQuizSummary{
+					WorkspaceName: ws.Name,
+					QuizTitle:     quiz.Title,
+					Score:         correct,
+					Total:         total,
+				}
+			}
+		}
+	}
+
+	// In-progress attempts across all workspaces.
+	rows, err := s.db.Query(
+		`SELECT qa.id, qa.workspace_id, qa.quiz_id
+		 FROM quiz_attempts qa
+		 WHERE qa.status = 'in_progress'
+		 ORDER BY qa.started_at DESC`,
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var ip struct {
+				AttemptID   int64
+				WorkspaceID int64
+				QuizID      int64
+			}
+			if err := rows.Scan(&ip.AttemptID, &ip.WorkspaceID, &ip.QuizID); err != nil {
+				continue
+			}
+			wsStore, err := s.WorkspaceByID(ip.WorkspaceID)
+			if err != nil {
+				continue
+			}
+			ws := wsStore.Workspace()
+			quiz, err := wsStore.GetQuizByID(ip.QuizID)
+			if err != nil {
+				continue
+			}
+			data.InProgress = append(data.InProgress, InProgressSummary{
+				WorkspaceName: ws.Name,
+				QuizTitle:     quiz.Title,
+				AttemptID:     ip.AttemptID,
+			})
+		}
+	}
+
+	return data, nil
 }
 
 // truncateSnippet returns a short preview of text, breaking at a word boundary.
