@@ -57,6 +57,21 @@ templ document(f Frame, content string) {
 					sb.classList.toggle('sidebar-hidden');
 					ov.classList.toggle('hidden');
 				}
+				function toggleSection(label) {
+					var items = label.nextElementSibling;
+					var chevron = label.querySelector('.sidebar-chevron');
+					if (!items) return;
+					var isCollapsed = items.classList.toggle('collapsed');
+					if (chevron) {
+						chevron.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
+					}
+					try {
+						var nav = label.closest('[data-workspace]');
+						var ws = nav ? nav.dataset.workspace : '';
+						var key = 'sidebar_' + ws + '_' + label.dataset.section;
+						localStorage.setItem(key, isCollapsed ? '1' : '0');
+					} catch(e) {}
+				}
 				function toggleTheme() {
 					var html = document.documentElement;
 					var isDark = html.dataset.theme === 'dark';
@@ -92,6 +107,23 @@ templ document(f Frame, content string) {
 				}
 			});
 			(function(){
+				var nav = document.querySelector('[data-workspace]');
+				var ws = nav ? nav.dataset.workspace : '';
+				document.querySelectorAll('.sidebar-section-label').forEach(function(label) {
+					var key = 'sidebar_' + ws + '_' + label.dataset.section;
+					var val = localStorage.getItem(key);
+					if (val === null) return; // no override — keep server-rendered state
+					var items = label.nextElementSibling;
+					var chevron = label.querySelector('.sidebar-chevron');
+					if (!items) return;
+					if (val === '1') {
+						items.classList.add('collapsed');
+						if (chevron) chevron.style.transform = 'rotate(90deg)';
+					} else {
+						items.classList.remove('collapsed');
+						if (chevron) chevron.style.transform = 'rotate(0deg)';
+					}
+				});
 				var c = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 				var k = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 				document.querySelectorAll('.prose pre:not([data-no-copy])').forEach(function(pre){
