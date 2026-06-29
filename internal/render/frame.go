@@ -178,7 +178,8 @@ func breadcrumbs(f Frame) string {
 			title = f.ActiveSlug
 		}
 		quizzesLink := fmt.Sprintf(`<a href="%s" class="text-slate-400 hover:text-slate-600 no-underline text-sm truncate max-w-[40vw] block">Quizzes</a>`, urls.QuizLibrary(f.ActiveWS))
-		pageCrumb = sep + quizzesLink + sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, esc(title))
+		quizLink := fmt.Sprintf(`<a href="%s" class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block hover:text-slate-800 no-underline">%s</a>`, urls.Quiz(f.ActiveWS, f.ActiveSlug), esc(title))
+		pageCrumb = sep + quizzesLink + sep + quizLink
 	case "mission", "resources", "glossary", "notes":
 		docLabels := map[string]string{"mission": "Mission", "resources": "Resources", "glossary": "Glossary", "notes": "Notes"}
 		if label, ok := docLabels[f.ActiveType]; ok {
@@ -224,7 +225,7 @@ func sidebarBlock(f Frame) string {
 	}
 	return `<aside id="sidebar" class="fixed md:relative z-40 md:z-auto flex flex-col border-r border-slate-200 shadow-sm bg-slate-100 w-60 min-w-60 overflow-hidden transition-[left] duration-200 left-0 sidebar-hidden h-full">` +
 		sidebarHeader(f) +
-		`<nav class="flex flex-col flex-1 overflow-y-auto">` +
+		`<nav class="flex flex-col flex-1 overflow-y-auto pb-6">` +
 		sidebarDashLink(f) +
 		sidebarBody(f) +
 		`</nav></aside>`

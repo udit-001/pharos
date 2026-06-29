@@ -15,11 +15,11 @@
   --color-stone-50:  #f8fafc;
 
   --color-red-100:   #fce4e4;
-  --color-red-600:   #bf616a;   /* nord11 */
+  --color-red-600:   #bf4e5a;   /* matches PAGE-THEME.md */
   --color-blue-100:  #e3edf7;
   --color-blue-700:  #5e81ac;   /* nord9 */
   --color-emerald-100: #e6f0e6;
-  --color-emerald-600: #a3be8c; /* nord14 */
+  --color-emerald-600: #4a7a2e; /* matches PAGE-THEME.md */
   --color-amber-100: #fff4e0;
   --color-amber-500: #ebcb8b;   /* nord13 */
   --color-amber-600: #d08770;   /* nord12 */
@@ -40,14 +40,14 @@
   --color-slate-900: #eceff4;
   --color-slate-950: #dfe7ee;
   --color-emerald-100: #2e3440;
-  --color-emerald-600: #a3be8c;
+  --color-emerald-600: #95c088;
   --color-emerald-700: #8fbcbb;
   --color-amber-100: #434c5e;
   --color-amber-200: #4c566a;
   --color-amber-500: #ebcb8b;
   --color-amber-600: #d08770;
   --color-red-100: #4c566a;
-  --color-red-600: #bf616a;
+  --color-red-600: #e8a0a0;
   --color-red-700: #d35f5f;
   --color-blue-100: #4c566a;
   --color-blue-700: #81a1c1;
