@@ -595,6 +595,9 @@ func (w *WorkspaceStore) SubmitAttempt(quizAttemptID, questionID int64, response
 	}
 
 	now := nowTimestamp()
+	// Replace any existing answer for this question in this quiz attempt
+	// so re-answering doesn't accumulate duplicate rows.
+	w.db().Exec(`DELETE FROM attempts WHERE quiz_attempt_id = ? AND question_id = ?`, quizAttemptID, questionID)
 	result, err := w.db().Exec(
 		`INSERT INTO attempts (quiz_attempt_id, question_id, correct, response, latency_ms, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -645,8 +648,12 @@ func (w *WorkspaceStore) transitionQuizAttempt(id int64, fromStatus, toStatus st
 
 // ScoreAttempt returns (correct, total) for a quiz attempt via SQL aggregation.
 func (w *WorkspaceStore) ScoreAttempt(quizAttemptID int64) (correct, total int) {
+	// Deduplicate by question_id — take the latest answer per question.
 	row := w.db().QueryRow(
-		"SELECT COUNT(CASE WHEN correct = 1 THEN 1 END), COUNT(*) FROM attempts WHERE quiz_attempt_id = ?",
+		`SELECT COUNT(CASE WHEN correct = 1 THEN 1 END), COUNT(DISTINCT question_id)
+		 FROM attempts a
+		 WHERE quiz_attempt_id = ?
+		   AND id = (SELECT MAX(id) FROM attempts WHERE quiz_attempt_id = a.quiz_attempt_id AND question_id = a.question_id)`,
 		quizAttemptID,
 	)
 	_ = row.Scan(&correct, &total)
@@ -1104,13 +1111,16 @@ type QuizDashboardData struct {
 
 type CompletedQuizSummary struct {
 	WorkspaceName string
+	QuizSlug      string
 	QuizTitle     string
+	AttemptID     int64
 	Score         int
 	Total         int
 }
 
 type InProgressSummary struct {
 	WorkspaceName string
+	QuizSlug      string
 	QuizTitle     string
 	AttemptID     int64
 }
@@ -1142,12 +1152,14 @@ func (s *Store) GetQuizDashboardData() (QuizDashboardData, error) {
 			quiz, err := wsStore.GetQuizByID(rc.QuizID)
 			if err == nil {
 				correct, total := wsStore.ScoreAttempt(rc.AttemptID)
-				data.RecentCompleted = &CompletedQuizSummary{
-					WorkspaceName: ws.Name,
-					QuizTitle:     quiz.Title,
-					Score:         correct,
-					Total:         total,
-				}
+			data.RecentCompleted = &CompletedQuizSummary{
+				WorkspaceName: ws.Name,
+				QuizSlug:      quiz.Slug,
+				QuizTitle:     quiz.Title,
+				AttemptID:     rc.AttemptID,
+				Score:         correct,
+				Total:         total,
+			}
 			}
 		}
 	}
@@ -1181,6 +1193,7 @@ func (s *Store) GetQuizDashboardData() (QuizDashboardData, error) {
 			}
 			data.InProgress = append(data.InProgress, InProgressSummary{
 				WorkspaceName: ws.Name,
+				QuizSlug:      quiz.Slug,
 				QuizTitle:     quiz.Title,
 				AttemptID:     ip.AttemptID,
 			})
