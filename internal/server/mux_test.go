@@ -387,7 +387,7 @@ func TestQuizLibraryAndDetailPages(t *testing.T) {
 		}
 	}
 	// Sidebar should show a Quizzes section.
-	if !strings.Contains(body, `sidebar-section-label">Quizzes`) {
+	if !strings.Contains(body, `Quizzes</span>`) {
 		t.Error("quiz library sidebar missing Quizzes section")
 	}
 

@@ -260,8 +260,42 @@
   font-size: 0.6875rem;
   font-weight: 500;
   color: #94a3b8;
-  padding: 0.75rem 1rem 0.375rem;
+  padding: 0.75rem 1rem 0.375rem 0.375rem;
   letter-spacing: 0.04em;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: color 0.1s;
+}
+.sidebar-section-label:hover {
+  color: #64748b;
+}
+.sidebar-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.sidebar-section-count {
+  font-size: 0.625rem;
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.15);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+[data-theme="dark"] .sidebar-section-count {
+  color: var(--color-slate-400, #81a1c1);
+  background: rgba(129, 161, 193, 0.15);
+}
+.sidebar-section-items {
+  padding-left: 0.75rem;
+}
+.sidebar-section-items.collapsed {
+  display: none;
 }
 
 .sidebar-link {
@@ -316,6 +350,9 @@
 /* ── Dark theme overrides for hardcoded colors ── */
 [data-theme="dark"] .sidebar-section-label {
   color: var(--color-slate-400, #81a1c1);
+}
+[data-theme="dark"] .sidebar-section-label:hover {
+  color: var(--color-slate-600, #88c0d0);
 }
 [data-theme="dark"] .sidebar-link {
   color: var(--color-slate-400, #81a1c1);
