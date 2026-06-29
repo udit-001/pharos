@@ -160,6 +160,7 @@ func toRenderWorkspace(ws db.Workspace, lessonCount, recordCount, refCount int) 
 		LessonCount: lessonCount,
 		RecordCount: recordCount,
 		RefCount:    refCount,
+		QuizCount:   ws.QuizCount,
 	}
 }
 
@@ -385,7 +386,7 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 		totals := db.Totals(ws)
 
 		data := render.DashboardData{
-			Stats: render.Stats{Workspaces: totals.Workspaces, Lessons: totals.Lessons, Records: totals.Records, Refs: totals.Refs},
+			Stats: render.Stats{Workspaces: totals.Workspaces, Lessons: totals.Lessons, Records: totals.Records, Refs: totals.Refs, Quizzes: totals.Quizzes},
 		}
 
 		// Continue card
@@ -397,7 +398,7 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 		for _, w := range ws {
 			data.Workspaces = append(data.Workspaces, render.WorkspaceCard{
 				Name: w.Name, Topic: w.Topic, LessonCount: w.LessonCount, RecordCount: w.RecordCount,
-				RefCount: w.RefCount, LastStudied: w.LastStudied,
+				RefCount: w.RefCount, QuizCount: w.QuizCount, LastStudied: w.LastStudied,
 			})
 		}
 
@@ -408,7 +409,7 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 				widget.RecentCompleted = &render.QuizWidgetItem{
 					WorkspaceName: qd.RecentCompleted.WorkspaceName,
 					QuizTitle:     qd.RecentCompleted.QuizTitle,
-					URL:           urls.Workspace(qd.RecentCompleted.WorkspaceName) + "/quizzes",
+					URL:           urls.QuizReview(qd.RecentCompleted.WorkspaceName, qd.RecentCompleted.QuizSlug, qd.RecentCompleted.AttemptID),
 					Score:         qd.RecentCompleted.Score,
 					Total:         qd.RecentCompleted.Total,
 				}
@@ -417,7 +418,7 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 				widget.InProgress = append(widget.InProgress, render.QuizWidgetItem{
 					WorkspaceName: ip.WorkspaceName,
 					QuizTitle:     ip.QuizTitle,
-					URL:           urls.Workspace(ip.WorkspaceName) + "/quizzes",
+					URL:           urls.QuizAttemptPage(ip.WorkspaceName, ip.QuizSlug, ip.AttemptID),
 				})
 			}
 			data.QuizWidget = widget
@@ -693,26 +694,50 @@ func handleQuizLibraryPage(store *db.Store) http.HandlerFunc {
 		var inProgress *render.QuizResumeLink
 		for i, q := range quizzes {
 			items, _ := q.ParseItems()
+			total := len(items)
 			entries[i] = render.QuizEntry{
 				Slug:        q.Slug,
 				Title:       q.Title,
 				Description: q.Description,
-				ItemCount:   len(items),
+				ItemCount:   total,
+				BestScore:   -1,
 			}
-			// Check for in-progress attempt.
-			if inProgress == nil {
-				if attempts, err := wsStore.GetQuizAttempts(q.ID); err == nil {
-					for _, a := range attempts {
-						if a.Status == "in_progress" {
-							scored, _ := wsStore.GetAttempts(a.ID)
-							inProgress = &render.QuizResumeLink{
-								AttemptID: a.ID,
-								QuizSlug:  q.Slug,
-								QuizTitle: q.Title,
-								Scored:    len(scored),
-								Total:     len(items),
+			if attempts, err := wsStore.GetQuizAttempts(q.ID); err == nil {
+				for _, a := range attempts {
+					if a.Status == "in_progress" && inProgress == nil {
+						scored, _ := wsStore.GetAttempts(a.ID)
+						inProgress = &render.QuizResumeLink{
+							AttemptID: a.ID,
+							QuizSlug:  q.Slug,
+							QuizTitle: q.Title,
+							Scored:    len(scored),
+							Total:     total,
+						}
+					} else if a.Status == "completed" {
+						answers, _ := wsStore.GetAttempts(a.ID)
+						// Build set of current question IDs for this quiz.
+						currentQ := map[int64]bool{}
+						for _, slug := range items {
+							if q, err := wsStore.GetQuestionBySlug(slug); err == nil {
+								currentQ[q.ID] = true
 							}
-							break
+						}
+						// Count unique correct answers for current questions only.
+						latestByQ := map[int64]db.Attempt{}
+						for _, ans := range answers {
+							if currentQ[ans.QuestionID] {
+								latestByQ[ans.QuestionID] = ans
+							}
+						}
+						correct := 0
+						for _, ans := range latestByQ {
+							if ans.Correct != nil && *ans.Correct {
+								correct++
+							}
+						}
+						if correct > entries[i].BestScore {
+							entries[i].BestScore = correct
+							entries[i].BestTotal = total
 						}
 					}
 				}

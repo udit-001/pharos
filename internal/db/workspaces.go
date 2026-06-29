@@ -32,8 +32,7 @@ func (s *Store) GetWorkspaces() ([]Workspace, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Enrich with counts — 3 grouped queries instead of 3N per-workspace
-	// queries (the previous N+1).
+	// Enrich with counts — grouped queries instead of N+1 per-workspace queries.
 	lessonCounts, err := s.countByWorkspace("lessons")
 	if err != nil {
 		return nil, fmt.Errorf("count lessons: %w", err)
@@ -46,10 +45,15 @@ func (s *Store) GetWorkspaces() ([]Workspace, error) {
 	if err != nil {
 		return nil, fmt.Errorf("count refs: %w", err)
 	}
+	quizCounts, err := s.countByWorkspace("quizzes")
+	if err != nil {
+		return nil, fmt.Errorf("count quizzes: %w", err)
+	}
 	for i, w := range ws {
 		ws[i].LessonCount = lessonCounts[w.ID]
 		ws[i].RecordCount = recordCounts[w.ID]
 		ws[i].RefCount = refCounts[w.ID]
+		ws[i].QuizCount = quizCounts[w.ID]
 	}
 	return ws, nil
 }
@@ -64,6 +68,7 @@ func (s *Store) GetWorkspace(id int64) (Workspace, error) {
 	w.LessonCount = s.lessonCount(w.ID)
 	w.RecordCount = s.recordCount(w.ID)
 	w.RefCount = s.refCount(w.ID)
+	w.QuizCount = s.quizCount(w.ID)
 	return w, nil
 }
 
@@ -77,6 +82,7 @@ func (s *Store) GetWorkspaceByName(name string) (Workspace, error) {
 	w.LessonCount = s.lessonCount(w.ID)
 	w.RecordCount = s.recordCount(w.ID)
 	w.RefCount = s.refCount(w.ID)
+	w.QuizCount = s.quizCount(w.ID)
 	return w, nil
 }
 
@@ -247,17 +253,17 @@ type Stats struct {
 	Lessons    int
 	Records    int
 	Refs       int
+	Quizzes    int
 }
 
-// Totals sums the lesson/record/ref counts across the given workspaces.
-// Callers that already have the workspace list (e.g. the dashboard handler,
-// which needs it for the grid) use this to avoid a second query.
+// Totals sums counts across the given workspaces.
 func Totals(ws []Workspace) Stats {
 	var t Stats
 	for _, w := range ws {
 		t.Lessons += w.LessonCount
 		t.Records += w.RecordCount
 		t.Refs += w.RefCount
+		t.Quizzes += w.QuizCount
 	}
 	t.Workspaces = len(ws)
 	return t

@@ -19,6 +19,7 @@ type Workspace struct {
 	LessonCount   int    `db:"-" json:"lessonCount"` // computed
 	RecordCount   int    `db:"-" json:"recordCount"` // computed
 	RefCount      int    `db:"-" json:"refCount"`    // computed
+	QuizCount     int    `db:"-" json:"quizCount"`   // computed
 	CreatedAt     string `db:"created_at" json:"createdAt"`
 	LastStudied   string `db:"last_studied" json:"lastStudied"`
 }

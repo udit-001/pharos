@@ -13,3 +13,10 @@ func scanQuiz(row interface{ Scan(...any) error }) (Quiz, error) {
 func scanQuizzes(rows RowScanner) ([]Quiz, error) {
 	return scanRows(rows, "quiz", scanQuiz)
 }
+
+// quizCount returns the number of quizzes in a workspace.
+func (s *Store) quizCount(workspaceID int64) int {
+	var count int
+	s.db.Get(&count, "SELECT COUNT(*) FROM quizzes WHERE workspace_id = ?", workspaceID)
+	return count
+}

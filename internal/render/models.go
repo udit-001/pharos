@@ -17,9 +17,9 @@ type Frame struct {
 // the fields render needs (name, topic, counts) — the server adapter copies
 // from db.Workspace so render never imports db.
 type Workspace struct {
-	Name                               string
-	Topic                              string
-	LessonCount, RecordCount, RefCount int
+	Name                                           string
+	Topic                                          string
+	LessonCount, RecordCount, RefCount, QuizCount int
 }
 
 // LessonEntry is the render-owned projection of a lesson for sidebar and
@@ -49,6 +49,10 @@ type QuizEntry struct {
 	Title       string
 	Description string
 	ItemCount   int
+	// BestScore is the highest score across all completed attempts, or -1 if none.
+	BestScore int
+	// BestTotal is the total questions for the best attempt.
+	BestTotal int
 }
 
 // Sidebar is the workspace tree shown in the left rail. When Workspace is
@@ -71,7 +75,7 @@ func (f Frame) FrameContent() bool {
 
 // Stats is the dashboard totals row.
 type Stats struct {
-	Workspaces, Lessons, Records, Refs int
+	Workspaces, Lessons, Records, Refs, Quizzes int
 }
 
 // ContinueItem is the "continue where you left off" card. Nil = hidden.
@@ -81,10 +85,10 @@ type ContinueItem struct {
 
 // WorkspaceCard is one tile in the dashboard workspace grid.
 type WorkspaceCard struct {
-	Name                               string
-	Topic                              string // friendly display title; empty falls back to Name
-	LessonCount, RecordCount, RefCount int
-	LastStudied                        string
+	Name                                           string
+	Topic                                          string
+	LessonCount, RecordCount, RefCount, QuizCount int
+	LastStudied                                    string
 }
 
 // DashboardData drives the dashboard page.

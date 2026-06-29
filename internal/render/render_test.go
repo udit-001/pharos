@@ -9,10 +9,10 @@ import (
 // a pure function of its view model — the seam created in LEARN-10.
 func TestDashboardRendersStatsAndWorkspaces(t *testing.T) {
 	d := DashboardData{
-		Stats: Stats{Workspaces: 2, Lessons: 5, Records: 3, Refs: 1},
+		Stats: Stats{Workspaces: 2, Lessons: 5, Records: 3, Refs: 1, Quizzes: 2},
 		Workspaces: []WorkspaceCard{
-			{Name: "sql-basics", LessonCount: 3, RecordCount: 1, RefCount: 1, LastStudied: "2026-06-21"},
-			{Name: "golang", LessonCount: 2, RecordCount: 2, RefCount: 0, LastStudied: "2026-06-20"},
+			{Name: "sql-basics", LessonCount: 3, RecordCount: 1, RefCount: 1, QuizCount: 1, LastStudied: "2026-06-21"},
+			{Name: "golang", LessonCount: 2, RecordCount: 2, RefCount: 0, QuizCount: 1, LastStudied: "2026-06-20"},
 		},
 	}
 	out := Dashboard(d)
@@ -23,9 +23,11 @@ func TestDashboardRendersStatsAndWorkspaces(t *testing.T) {
 		">5<", // lessons count
 		">3<", // records count
 		">1<", // refs count
+		">2<", // quizzes count
 		"sql-basics",
 		"golang",
 		"3 lessons",
+		"1 quizzes",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected output to contain %q, got:\n%s", want, out)

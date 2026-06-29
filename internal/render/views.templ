@@ -17,35 +17,17 @@ templ dashboard(d DashboardData) {
 			<span><span class="font-semibold text-emerald-600 tabular-nums">{ d.Stats.Records }</span> records</span>
 			<span class="text-slate-200">·</span>
 			<span><span class="font-semibold text-amber-600 tabular-nums">{ d.Stats.Refs }</span> references</span>
+			<span class="text-slate-200">·</span>
+			<span><span class="font-semibold text-slate-600 tabular-nums">{ d.Stats.Quizzes }</span> quizzes</span>
 		</div>
 	}
 	if d.Continue != nil {
 		<div class="mb-6">
 			<a href={ d.Continue.URL } class="group inline-flex items-center gap-2 text-sm no-underline py-2 px-3 -mx-3 rounded-md hover:bg-slate-100 transition-colors">
-				<span class="text-slate-500 group-hover:text-blue-700 transition-colors">→</span>
-				<span class="text-slate-500 group-hover:text-slate-600 transition-colors">Continue:</span>
-				<span class="font-medium text-blue-700 group-hover:text-blue-900 transition-colors">{ d.Continue.Label }</span>
+				<span class="text-slate-400 group-hover:text-blue-700 transition-colors">→</span>
+				<span class="text-slate-400 group-hover:text-slate-500 transition-colors">Continue:</span>
+				<span class="font-medium text-slate-700 group-hover:text-blue-700 transition-colors">{ d.Continue.Label }</span>
 			</a>
-		</div>
-	}
-	if d.QuizWidget != nil {
-		<div class="mb-6 space-y-2">
-			if d.QuizWidget.RecentCompleted != nil {
-				<a href={ d.QuizWidget.RecentCompleted.URL } class="group flex items-center gap-2 text-sm no-underline py-2 px-3 -mx-3 rounded-md hover:bg-slate-100 transition-colors">
-					<span class="shrink-0 text-slate-300">@templ.Raw(iconClipboardList())</span>
-					<span class="text-slate-500 group-hover:text-slate-600 transition-colors">Recent quiz:</span>
-					<span class="font-medium text-slate-800 group-hover:text-blue-700 transition-colors">{ d.QuizWidget.RecentCompleted.QuizTitle }</span>
-					<span class="font-medium text-emerald-600 tabular-nums">{ d.QuizWidget.RecentCompleted.Score }/{ d.QuizWidget.RecentCompleted.Total }</span>
-				</a>
-			}
-			for _, ip := range d.QuizWidget.InProgress {
-				<a href={ ip.URL } class="group flex items-center gap-2 text-sm no-underline py-2 px-3 -mx-3 rounded-md hover:bg-slate-100 transition-colors">
-					<span class="shrink-0 text-slate-300">@templ.Raw(iconClipboardList())</span>
-					<span class="text-blue-700">In progress:</span>
-					<span class="font-medium text-slate-800 group-hover:text-blue-700 transition-colors">{ ip.QuizTitle }</span>
-					<span class="text-slate-400">{ ip.WorkspaceName }</span>
-				</a>
-			}
 		</div>
 	}
 	if len(d.Workspaces) > 0 {
@@ -212,6 +194,8 @@ templ ref(d RefData) {
 
 templ quizLibrary(d QuizLibraryData) {
 	{{ ws := d.Workspace }}
+	<h1 class="text-xl font-semibold text-slate-800 tracking-tight">Quizzes</h1>
+	<p class="text-sm text-slate-400 mt-0.5 mb-5">{ len(d.Quizzes) } quizzes</p>
 	if d.InProgress != nil {
 		<div class="flex items-center gap-3 p-3 rounded-lg border border-blue-700/20 bg-blue-100 text-sm mb-4">
 			<span class="text-xs text-blue-700">In progress: <a href={ urls.QuizAttemptPage(ws.Name, d.InProgress.QuizSlug, d.InProgress.AttemptID) } class="font-medium underline">{ d.InProgress.QuizTitle }</a> ({ d.InProgress.Scored }/{ d.InProgress.Total })</span>
@@ -219,25 +203,25 @@ templ quizLibrary(d QuizLibraryData) {
 	}
 	if len(d.Quizzes) == 0 {
 		<div class="text-center py-20">
-			<div class="flex justify-center mb-3 text-slate-300">@templ.Raw(bigIcon(iconClipboardList(), 40))</div>
 			<p class="text-sm text-slate-500">No quizzes yet.</p>
 			<p class="text-xs text-slate-400 mt-1">Ask your learning agent to create one.</p>
 		</div>
 	} else {
-		<p class="text-sm text-slate-400 mb-4">{ len(d.Quizzes) } quizzes</p>
 		for _, q := range d.Quizzes {
-			<div class="py-2 border-b border-slate-100 last:border-0">
-				<a href={ urls.Quiz(ws.Name, q.Slug) } class="no-underline text-slate-800 flex items-center gap-2 group">
-					<span class="shrink-0 text-slate-300">@templ.Raw(iconClipboardList())</span>
+			<div class="py-3 border-b border-slate-100 last:border-0">
+				<a href={ urls.Quiz(ws.Name, q.Slug) } class="no-underline text-slate-800 flex items-center gap-4 group">
 					<div class="flex-1 min-w-0">
-						<div class="flex items-center justify-between">
-							<span class="font-medium text-sm group-hover:text-blue-700 transition-colors">{ q.Title }</span>
-							<span class="text-xs text-slate-400 tabular-nums">{ q.ItemCount } questions</span>
-						</div>
+						<span class="font-medium text-sm group-hover:text-blue-700 transition-colors">{ q.Title }</span>
 						if q.Description != "" {
-							<div class="text-xs text-slate-400 mt-0.5">{ q.Description }</div>
+							<div class="text-xs text-slate-400 mt-0.5">{ q.ItemCount } questions · { q.Description }</div>
+						} else {
+							<div class="text-xs text-slate-400 mt-0.5">{ q.ItemCount } questions</div>
 						}
 					</div>
+					if q.BestScore >= 0 {
+						<span class={ "text-xs font-medium px-2 py-0.5 rounded shrink-0", quizBadgeClass(q) }>{ q.BestScoreText() }</span>
+					}
+					<span class="text-slate-300 group-hover:text-blue-700 transition-colors text-sm shrink-0">›</span>
 				</a>
 			</div>
 		}
@@ -245,73 +229,97 @@ templ quizLibrary(d QuizLibraryData) {
 }
 
 templ quiz(d QuizData) {
-	<div class="flex flex-col" style="min-height:calc(100dvh - 102px)">
-		<div class="flex-1 flex items-center justify-center">
-			<div class="max-w-md mx-auto text-center w-full px-4">
-				<div class="flex justify-center mb-4 text-slate-300">@templ.Raw(bigIcon(iconClipboardList(), 40))</div>
-				<h1 class="text-xl font-semibold text-slate-800 tracking-tight">{ d.Title }</h1>
-				if d.Description != "" {
-					<p class="text-sm text-slate-500 mt-1">{ d.Description }</p>
-				}
-				<p class="text-sm text-slate-400 mt-0.5 mb-6">{ d.ItemCount } questions</p>
-				<form method="POST" action={ urls.QuizStart(d.Workspace.Name, d.Slug) }>
-					if d.InProgressAttempt > 0 {
-						<button type="submit" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
-							Resume quiz
-						</button>
-						<input type="hidden" name="attempt_id" value={ strconv.FormatInt(d.InProgressAttempt, 10) }/>
-					} else {
-						<button type="submit" class="w-full bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-lg hover:bg-slate-700 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
-							Start quiz
-						</button>
-					}
-				</form>
-			if len(d.PastAttempts) > 0 {
-				<div class="mt-8 text-left space-y-2">
-					<div class="text-xs font-medium text-slate-500 uppercase tracking-wider">Previous attempts</div>
-					for _, a := range d.PastAttempts {
-						<a href={ urls.QuizReview(d.Workspace.Name, d.Slug, a.ID) } class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs no-underline hover:bg-slate-100 transition-colors">
-							<span class="text-slate-600 flex-1">{ a.CompletedAt }</span>
-							<span class="font-medium text-emerald-600">{ a.Score }/{ a.Total }</span>
-							<span class="text-slate-400">Review</span>
-						</a>
-					}
-					if d.ExtraAttemptCount > 0 {
-						<p class="text-xs text-slate-400 pl-3">and { d.ExtraAttemptCount } more</p>
-					}
-				</div>
+	<h1 class="text-xl font-semibold text-slate-800 tracking-tight">{ d.Title }</h1>
+	if d.Description != "" {
+		<p class="text-sm text-slate-400 mt-0.5 mb-5">{ d.ItemCount } questions · { d.Description }</p>
+	} else {
+		<p class="text-sm text-slate-400 mt-0.5 mb-5">{ d.ItemCount } questions</p>
+	}
+	<form method="POST" action={ urls.QuizStart(d.Workspace.Name, d.Slug) }>
+		if d.InProgressAttempt > 0 {
+			<button type="submit" class="bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-blue-700/90 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
+				Resume quiz
+			</button>
+			<input type="hidden" name="attempt_id" value={ strconv.FormatInt(d.InProgressAttempt, 10) }/>
+		} else {
+			<button type="submit" class="bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-blue-700/90 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
+				Start quiz
+			</button>
+		}
+	</form>
+	if len(d.PastAttempts) > 0 {
+		<div class="mt-8 space-y-2">
+			<div class="text-xs font-medium text-slate-400 uppercase tracking-wider">Previous attempts</div>
+			for _, a := range d.PastAttempts {
+				<a href={ urls.QuizReview(d.Workspace.Name, d.Slug, a.ID) } class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs no-underline hover:bg-slate-100 transition-colors">
+					<span class="text-slate-600 flex-1">{ a.CompletedAt }</span>
+					<span class="font-medium text-emerald-600">{ a.Score }/{ a.Total }</span>
+					<span class="text-slate-400">Review</span>
+				</a>
 			}
-			</div>
+			if d.ExtraAttemptCount > 0 {
+				<p class="text-xs text-slate-400 pl-3">and { d.ExtraAttemptCount } more</p>
+			}
 		</div>
-	</div>
+	}
 }
 
 templ quizAttempt(d AttemptData) {
-	<div class="max-w-md mx-auto space-y-4" style="min-height:calc(100dvh - 102px);display:flex;flex-direction:column;justify-content:center">
-		<div class="flex items-center justify-between">
-			<span class="text-xs font-medium text-slate-500" id="progress-label"></span>
-			<button onclick="abandonQuiz()" class="text-xs text-slate-400 hover:text-slate-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700 rounded">Quit</button>
+	<div class="min-h-80" id="question-area"></div>
+	<div class="flex items-center justify-between mt-6" id="attempt-nav-row">
+		<div class="flex items-center gap-3">
+			<button id="attempt-prev" class="text-sm text-slate-500 border border-slate-200 hover:border-slate-300 hover:text-slate-700 py-2 px-4 rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700" style="visibility:hidden">← Previous</button>
+			<div class="flex gap-1.5" id="attempt-dots"></div>
 		</div>
-		<div class="flex gap-1" id="progress-dots"></div>
-		<div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5" id="question-card"></div>
+		<div class="flex items-center gap-3">
+			<div id="attempt-actions" class="flex items-center gap-3"></div>
+			<button onclick="abandonQuiz()" class="text-sm text-slate-400 border border-slate-200 hover:border-slate-300 hover:text-slate-600 py-2 px-4 rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">Quit</button>
+		</div>
+	</div>
+	<div class="flex mt-4">
+		<span class="text-xs text-slate-500" id="score-line"></span>
 	</div>
 }
 
 templ quizReview(d QuizReviewData) {
-	<div class="max-w-md mx-auto space-y-4">
-		<a href={ urls.Quiz(d.Workspace.Name, d.QuizSlug) } class="inline-flex items-center gap-1 text-xs text-slate-400 no-underline hover:text-slate-600">
-			@templ.Raw(iconChevronLeft())
-			Back to { d.QuizTitle }
-		</a>
-		<div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-			<div class="flex items-center justify-between">
-				<span class="text-xs font-medium text-slate-500" id="progress-label"></span>
-				<span class="text-xs font-medium text-slate-600">{ d.Score }/{ d.Total } correct</span>
+	<h1 class="text-xl font-semibold text-slate-800 tracking-tight">{ d.QuizTitle }</h1>
+	<p class="text-sm text-slate-400 mt-0.5 mb-4">{ d.Score }/{ d.Total } correct</p>
+	<div class="space-y-2" id="review-list">
+		for _, item := range d.Items {
+			<div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+				<button type="button" onclick="var d=this.nextElementSibling;d.classList.toggle('hidden')" class="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-100 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">
+					if item.IsCorrect {
+						<span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs shrink-0 font-medium">✓</span>
+					} else {
+						<span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs shrink-0 font-medium">✗</span>
+					}
+					<span class="text-sm font-medium text-slate-800 flex-1">{ item.QuestionTitle }</span>
+					<span class="text-xs text-slate-400">{ answerSummary(item) }</span>
+				</button>
+				if item.IsCorrect {
+					<div class="hidden border-t border-slate-100 bg-slate-100 p-4 space-y-2">
+						if item.Mode == "choice" {
+							@templ.Raw(choiceReviewDetail(item))
+						} else {
+							@templ.Raw(recallReviewDetail(item))
+						}
+					</div>
+				} else {
+					<div class="border-t border-slate-100 bg-slate-100 p-4 space-y-2">
+						if item.Mode == "choice" {
+							@templ.Raw(choiceReviewDetail(item))
+						} else {
+							@templ.Raw(recallReviewDetail(item))
+						}
+					</div>
+				}
 			</div>
-			<div class="flex gap-1" id="review-dots"></div>
-			<div id="review-card"></div>
-			<div class="flex items-center justify-between" id="review-nav"></div>
-		</div>
+		}
+	</div>
+	<div class="flex justify-center mt-8">
+		<form method="POST" action={ urls.QuizStart(d.Workspace.Name, d.QuizSlug) }>
+			<button type="submit" class="bg-blue-700 text-white text-sm font-medium py-2 px-5 rounded-lg hover:bg-blue-700/90 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">Retake quiz</button>
+		</form>
 	</div>
 }
 

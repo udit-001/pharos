@@ -7,11 +7,11 @@ import (
 
 func TestTotals(t *testing.T) {
 	ws := []Workspace{
-		{Name: "a", LessonCount: 2, RecordCount: 1, RefCount: 3},
-		{Name: "b", LessonCount: 0, RecordCount: 4, RefCount: 1},
+		{Name: "a", LessonCount: 2, RecordCount: 1, RefCount: 3, QuizCount: 1},
+		{Name: "b", LessonCount: 0, RecordCount: 4, RefCount: 1, QuizCount: 2},
 	}
 	got := Totals(ws)
-	want := Stats{Workspaces: 2, Lessons: 2, Records: 5, Refs: 4}
+	want := Stats{Workspaces: 2, Lessons: 2, Records: 5, Refs: 4, Quizzes: 3}
 	if got != want {
 		t.Errorf("Totals = %+v, want %+v", got, want)
 	}
