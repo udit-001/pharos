@@ -13,7 +13,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Palette | CSS custom properties on `:root` / `[data-theme="dark"]` |
 | FOUC prevention | Blocking `<script>` in `<head>` reads `localStorage('pharos_theme')`, falls back to `prefers-color-scheme`, sets `data-theme` |
 | Runtime theme sync | `postMessage` listener — dashboard sends `{type:'theme', theme:'dark'|'light'}` to iframes on toggle |
-| Shared styles | `assets/style.css` (variables, typography, layout, component classes) + `assets/quiz.css` (quiz-specific classes) |
+| Shared styles | `assets/style.css` (variables, typography, layout, component classes); `assets/quiz.css` added per-workspace when a lesson has quizzes |
 | Quiz interactivity | Inline `<script>` before `</body>` — binds to `.q` elements |
 | Font delivery | `@font-face` in `assets/style.css` → `assets/fonts/inter-latin.woff2` (vendored — works offline, no CDN) |
 | Copy code | `assets/copy-code.js` — adds copy button to `<pre>` on hover; opt-out per block via `data-no-copy` |
@@ -80,7 +80,6 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Page Title</title>
 <link rel="stylesheet" href="assets/style.css">
-<link rel="stylesheet" href="assets/quiz.css">
 <script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 </head>
 <body>
@@ -311,4 +310,4 @@ Blocks where typing builds storage strength — skill-phase exercise code — us
 2. **Dark mode is free** — switching `data-theme` toggles all variable values; using variables makes it work automatically
 3. **No dashboard chrome in pages** — the dashboard owns navigation
 4. **Reusable components live in `assets/`** — extract shared CSS with `pharos asset create`
-5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css`, `assets/quiz.css`, and `assets/glossary-tooltip.js` should be purely presentational/behavioural, not theme-detection
+5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css` and `assets/glossary-tooltip.js` should be purely presentational/behavioural, not theme-detection

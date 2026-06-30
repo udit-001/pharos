@@ -81,13 +81,13 @@ A lesson is the main thing you produce — the unit in which knowledge and skill
 
 Before creating a lesson, search for an existing one on the same topic: `pharos search "<topic>"`. Same principle — if a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate under a new number. The sequence stays tight; the learner isn't served two lessons on the same thing.
 
-A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`) — see [Assets](#assets) for the path rules.
+A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`).
 
 The lesson should be short, and completable very quickly. Learners' working memory is very small, and we need to stay within it. But each lesson should give the user a single tangible win that they can build on. It should be directly tied to the mission, and should be in the user's zone of proximal development.
 
 A lesson isn't done when the file is written — it's done when the user is looking at it in the dashboard. After creating or revising a lesson, **present** it: `pharos lesson show <seq>`. This starts the dashboard if needed and opens the lesson in the browser. The dashboard renders the lesson with correct assets, navigation, and styling — the user should never open the raw HTML file directly.
 
-The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/next. Don't rebuild that chrome inside the lesson: a `← Previous` / `Next →` footer duplicates the dashboard and goes stale the moment lessons are reordered or inserted. What a lesson *does* carry is **contextual links** — mid-prose anchors to another lesson or a reference document that illuminates the point being made, placed where the reader would want it, not where it falls in the sequence. These links need special routing because a lesson renders inside an iframe — see [Assets](#assets) for the mechanism.
+The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/next. Don't rebuild that chrome inside the lesson: a `← Previous` / `Next →` footer duplicates the dashboard and goes stale the moment lessons are reordered or inserted. What a lesson *does* carry is **contextual links** — mid-prose anchors to another lesson or a reference document that illuminates the point being made, placed where the reader would want it, not where it falls in the sequence. These links need special routing because a lesson renders inside an iframe — see [references/pharos-cli.md](references/pharos-cli.md) for the route table.
 
 Each lesson should recommend a primary source for the user to read or watch. This should be the most high-quality, high-trust resource you found on the topic.
 
@@ -96,16 +96,32 @@ Every external link in a lesson must use `target="_blank" rel="noopener noreferr
 
 ## Assets
 
-HTML pages (lessons and references) are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second page could reuse.
+HTML pages (lessons and references) are built from reusable **assets** in
+`./assets/`. Two kinds:
 
-Reuse is the default, not the exception. Before authoring a lesson or reference, check what assets already exist: `pharos asset list`. Build from the components already there. When a page needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future page would duplicate.
+- **User components** — stylesheets, quiz widgets, simulators you author with
+  `pharos asset create <filename> --body-file <path>`.
+- **Vendored or seeded assets** — third-party libraries: **mermaid** for
+  diagrams, **highlightjs** for code highlighting (plus mermaid-lightbox for
+  full-size diagram view); and the framework's universal files (style.css,
+  glossary-tooltip.js, copy-code.js, the Inter font). Install with
+  `pharos asset add <name>`; force-sync to the current binary with
+  `pharos asset redeploy <name>`.
 
-A shared stylesheet is the first component every workspace earns: every HTML page — lessons and references alike — links it, so the workspace looks like one consistent course rather than a pile of one-offs. See [PAGE-THEME.md](./PAGE-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
+Reuse is the default, not the exception. Before authoring a lesson or
+reference, run `pharos asset list` and reuse an existing asset for every
+shared concern rather than inlining code a second page would duplicate.
 
-Each HTML page renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>` or `/api/ref-html/<workspace>/<file>`, so two link types resolve differently from inside it:
+A shared stylesheet ships with every workspace (`assets/style.css`, seeded) —
+extend it rather than creating per-page styles. See [PAGE-THEME.md](./PAGE-THEME.md)
+for the design system (Nord palette, component patterns, theming
+conventions). As the workspace grows, so should the component library.
 
-- **Asset references** (a stylesheet, script, or image the page loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
-- **Contextual links** (clicking to another dashboard page) must escape the iframe with an absolute route and `target="_top"`. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table covering mission, glossary, resources, notes, lessons, records, and references — never guess a URL pattern. A bare `lessons/0002.html` link would load inside the iframe and break the sidebar.
+Asset paths are **root-relative** — `assets/style.css`, never
+`../assets/style.css` (the iframe serves pages from
+`/api/lesson-html/…`). Contextual links to other dashboard pages use
+absolute routes with `target="_top"`; see [references/pharos-cli.md](references/pharos-cli.md)
+for the route table.
 
 ## The Mission
 

@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/db"
 )
 
 var assetCmd = &cobra.Command{
@@ -25,11 +26,17 @@ Examples:
 
 var assetListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List workspace assets and available vendored assets",
-	Long: `List all assets in the workspace's assets/ directory, plus known
-vendored assets (mermaid, highlightjs) and whether they are present.
+	Short: "List workspace assets (seeded, vendored, user)",
+	Long: `List assets in the workspace's assets/ directory, grouped by source:
 
-Use 'pharos asset add <name>' to download a vendored asset.`,
+  Seeded   — universal defaults every workspace starts with (style.css,
+             glossary-tooltip.js, copy-code.js, the Inter font).
+  Vendored — third-party libraries added on demand (mermaid, highlightjs,
+             mermaid-lightbox).
+  User     — components authored with 'pharos asset create'.
+
+Each row shows whether the asset is fully present and the command that acts
+on it: 'pharos asset add' when absent, 'pharos asset redeploy' when present.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -49,41 +56,55 @@ Use 'pharos asset add <name>' to download a vendored asset.`,
 			presentSet[f] = true
 		}
 
-		// Registry entries sorted by name
+		// Registry names sorted, split by source.
 		names := make([]string, 0, len(knownAssets))
 		for k := range knownAssets {
 			names = append(names, k)
 		}
 		sort.Strings(names)
 
-		type regEntry struct {
-			Name     string `json:"name"`
-			Filename string `json:"filename"`
-			Present  bool   `json:"present"`
-			Version  string `json:"default_version"`
-		}
-		registry := make([]regEntry, 0, len(names))
-		covered := make(map[string]bool, len(names))
-		for _, n := range names {
-			spec := knownAssets[n]
-			_, found := presentSet[spec.Filename]
-			registry = append(registry, regEntry{n, spec.Filename, found, spec.DefaultVersion})
-			covered[spec.Filename] = true
-		}
-
-		// Files in assets/ that aren't from the registry
-		extras := make([]string, 0, len(present))
-		for _, f := range present {
-			if !covered[f] {
-				extras = append(extras, f)
+		// owned = every file the registry claims (lib Filename + embedded
+		// Files), so present files left over are user-authored.
+		owned := make(map[string]bool)
+		for _, spec := range knownAssets {
+			if spec.Filename != "" {
+				owned[spec.Filename] = true
+			}
+			for f := range spec.Files {
+				owned[f] = true
 			}
 		}
-		sort.Strings(extras)
+
+		seeded := make([]regEntry, 0, len(names))
+		vendored := make([]regEntry, 0, len(names))
+		for _, n := range names {
+			spec := knownAssets[n]
+			p := specPresent(spec, presentSet)
+			hint := "pharos asset redeploy " + n
+			if !p {
+				hint = "pharos asset add " + n
+			}
+			entry := regEntry{Name: n, Present: p, Hint: hint}
+			if spec.Source == "seeded" {
+				seeded = append(seeded, entry)
+			} else {
+				vendored = append(vendored, entry)
+			}
+		}
+
+		user := make([]string, 0, len(present))
+		for _, f := range present {
+			if !owned[f] {
+				user = append(user, f)
+			}
+		}
+		sort.Strings(user)
 
 		if jsonOut {
 			printJSON(map[string]any{
-				"vendored": registry,
-				"user":     extras,
+				"seeded":   seeded,
+				"vendored": vendored,
+				"user":     user,
 			})
 			return nil
 		}
@@ -92,34 +113,64 @@ Use 'pharos asset add <name>' to download a vendored asset.`,
 		fmt.Printf("  Assets for %s:\n", ws.DisplayName())
 		fmt.Println()
 
-		regRows := make([][]string, 0, len(registry))
-		for _, r := range registry {
-			status := "absent"
-			if r.Present {
-				status = "present"
-			}
-			regRows = append(regRows, []string{r.Name, status, "pharos asset add " + r.Name})
-		}
-		fmt.Println("  Vendored assets:")
-		fmt.Print(formatTable([]string{"Name", "Status", "Add command"}, regRows))
+		fmt.Println("  Seeded assets:")
+		fmt.Print(formatTable([]string{"Name", "Status", "Command"}, regRows(seeded)))
 		fmt.Println()
 
-		if len(extras) > 0 {
-			fmt.Println("  Other assets:")
-			extraRows := make([][]string, 0, len(extras))
-			for _, f := range extras {
-				extraRows = append(extraRows, []string{f, filepath.Join("assets", f)})
+		fmt.Println("  Vendored assets:")
+		fmt.Print(formatTable([]string{"Name", "Status", "Command"}, regRows(vendored)))
+		fmt.Println()
+
+		if len(user) > 0 {
+			fmt.Println("  User assets:")
+			userRows := make([][]string, 0, len(user))
+			for _, f := range user {
+				userRows = append(userRows, []string{f, filepath.Join("assets", f)})
 			}
-			fmt.Print(formatTable([]string{"Name", "Path"}, extraRows))
+			fmt.Print(formatTable([]string{"Name", "Path"}, userRows))
 			fmt.Println()
 		}
 
-		if len(registry)+len(extras) == 0 {
+		if len(seeded)+len(vendored)+len(user) == 0 {
 			fmt.Println("  No assets yet.")
 			fmt.Println()
 		}
 		return nil
 	},
+}
+
+// regEntry is a registry asset row in the list output (seeded or vendored).
+type regEntry struct {
+	Name    string `json:"name"`
+	Present bool   `json:"present"`
+	Hint    string `json:"hint"`
+}
+
+// specPresent reports whether every file a spec owns (its lib Filename plus
+// all embedded Files) is present on disk.
+func specPresent(spec db.AssetSpec, presentSet map[string]bool) bool {
+	if spec.Filename != "" && !presentSet[spec.Filename] {
+		return false
+	}
+	for f := range spec.Files {
+		if !presentSet[f] {
+			return false
+		}
+	}
+	return true
+}
+
+// regRows builds table rows for a slice of registry entries.
+func regRows(entries []regEntry) [][]string {
+	rows := make([][]string, 0, len(entries))
+	for _, e := range entries {
+		status := "absent"
+		if e.Present {
+			status = "present"
+		}
+		rows = append(rows, []string{e.Name, status, e.Hint})
+	}
+	return rows
 }
 
 var assetCreateCmd = &cobra.Command{
@@ -151,7 +202,7 @@ Examples:
 			return fmt.Errorf("read body file: %w", err)
 		}
 
-		if err := wsStore.CreateAsset(filename, string(data)); err != nil {
+		if err := wsStore.WriteAsset(filename, data); err != nil {
 			return fmt.Errorf("create asset: %w", err)
 		}
 

@@ -135,12 +135,15 @@ Two workspaces can each have a reference with the same slug.
 ## Assets
 
 ```bash
-pharos asset list                     # List assets with absolute paths
-pharos asset create <filename> --body-file <path>  # Create or overwrite an asset
+pharos asset list                      # seeded / vendored / user, with add/redeploy hints
+pharos asset create <filename> --body-file <path>  # author or overwrite a user component
+pharos asset add <name>                # install a vendored or seeded asset (skip if present)
+pharos asset redeploy <name>           # force-sync to the binary (overwrites)
+pharos asset delete <filename>         # remove a file (no prompt)
 ```
 
-Assets are raw files (CSS, JS, images) with no database tracking.
-Use `pharos asset create` for all mutations — don't write directly.
+Assets are raw files (CSS, JS, images, fonts) with no database tracking.
+`redeploy` overwrites user edits to a file.
 
 ## Dashboard
 

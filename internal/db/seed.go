@@ -12,18 +12,22 @@ import (
 // at compile time; one source of truth for what a new workspace contains.
 // See PAGE-THEME.md in the teach skill for the design conventions these
 // files follow.
+//
+// The four asset embeds are exported so the CLI's asset registry can offer
+// them via `pharos asset add <name>` (install-if-absent) and `redeploy`
+// (force-sync) — see internal/cli/asset_add.go.
 
 //go:embed seed/style.css
-var seedStyleCSS string
+var SeedStyleCSS string
 
 //go:embed seed/fonts/inter-latin.woff2
-var seedInterLatinWOFF2 []byte
+var SeedInterLatinWOFF2 []byte
 
 //go:embed seed/glossary-tooltip.js
-var seedGlossaryTooltipJS string
+var SeedGlossaryTooltipJS string
 
 //go:embed seed/copy-code.js
-var seedCopyCodeJS string
+var SeedCopyCodeJS string
 
 //go:embed seed/MISSION.md
 var seedMissionMD string
@@ -44,9 +48,9 @@ func seedWorkspaceDefaults(layout Layout, displayName string) error {
 		path    string
 		content string
 	}{
-		{layout.AssetPath("style.css"), seedStyleCSS},
-		{layout.AssetPath("glossary-tooltip.js"), seedGlossaryTooltipJS},
-		{layout.AssetPath("copy-code.js"), seedCopyCodeJS},
+		{layout.AssetPath("style.css"), SeedStyleCSS},
+		{layout.AssetPath("glossary-tooltip.js"), SeedGlossaryTooltipJS},
+		{layout.AssetPath("copy-code.js"), SeedCopyCodeJS},
 		{layout.MissionPath(), strings.ReplaceAll(seedMissionMD, "{{DISPLAY_NAME}}", displayName)},
 		{layout.ResourcesPath(), strings.ReplaceAll(seedResourcesMD, "{{DISPLAY_NAME}}", displayName)},
 		{layout.NotesPath(), seedNotesMD},
@@ -65,7 +69,7 @@ func seedWorkspaceDefaults(layout Layout, displayName string) error {
 		path string
 		data []byte
 	}{
-		{layout.AssetPath(filepath.Join("fonts", "inter-latin.woff2")), seedInterLatinWOFF2},
+		{layout.AssetPath(filepath.Join("fonts", "inter-latin.woff2")), SeedInterLatinWOFF2},
 	}
 	for _, f := range bins {
 		if _, err := os.Stat(f.path); err == nil {

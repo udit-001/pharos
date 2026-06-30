@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -1055,20 +1054,6 @@ func (w *WorkspaceStore) DeleteGlossaryTerm(term string) error {
 	return nil
 }
 
-// CreateAsset writes a file to the workspace's assets directory.
-func (w *WorkspaceStore) CreateAsset(filename, content string) error {
-	return writeToFile(w.Layout().AssetPath(filename), content)
-}
-
-// ListAssets returns the filenames in the workspace's assets directory.
-func (w *WorkspaceStore) ListAssets() ([]string, error) {
-	entries, err := readDirNames(filepath.Join(w.ws.Path, "assets"))
-	if err != nil {
-		return nil, err
-	}
-	return entries, nil
-}
-
 // ── Construction ──
 
 // Workspace returns a WorkspaceStore scoped to the named workspace. The
@@ -1133,10 +1118,10 @@ func (s *Store) GetQuizDashboardData() (QuizDashboardData, error) {
 
 	// Latest completed quiz attempt across all workspaces.
 	var rc struct {
-		AttemptID    int64
-		WorkspaceID  int64
-		QuizID       int64
-		CompletedAt  string
+		AttemptID   int64
+		WorkspaceID int64
+		QuizID      int64
+		CompletedAt string
 	}
 	row := s.db.QueryRow(
 		`SELECT qa.id, qa.workspace_id, qa.quiz_id, qa.completed_at
@@ -1152,14 +1137,14 @@ func (s *Store) GetQuizDashboardData() (QuizDashboardData, error) {
 			quiz, err := wsStore.GetQuizByID(rc.QuizID)
 			if err == nil {
 				correct, total := wsStore.ScoreAttempt(rc.AttemptID)
-			data.RecentCompleted = &CompletedQuizSummary{
-				WorkspaceName: ws.Name,
-				QuizSlug:      quiz.Slug,
-				QuizTitle:     quiz.Title,
-				AttemptID:     rc.AttemptID,
-				Score:         correct,
-				Total:         total,
-			}
+				data.RecentCompleted = &CompletedQuizSummary{
+					WorkspaceName: ws.Name,
+					QuizSlug:      quiz.Slug,
+					QuizTitle:     quiz.Title,
+					AttemptID:     rc.AttemptID,
+					Score:         correct,
+					Total:         total,
+				}
 			}
 		}
 	}
