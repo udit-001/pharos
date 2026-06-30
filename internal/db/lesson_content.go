@@ -16,7 +16,7 @@ var ErrLessonNotFound = errors.New("lesson not found")
 // LEARN-57). Methods validate their inputs and enforce invariants at the
 // store seam.
 type LessonContentStore struct {
-	ws  *WorkspaceStore
+	ws *WorkspaceStore
 }
 
 // LessonContent returns the LessonContentStore for this workspace.

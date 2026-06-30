@@ -354,15 +354,15 @@ func TestQuizLibraryAndDetailPages(t *testing.T) {
 
 	// Seed questions and a quiz containing them.
 	if _, err := wsStore.AddQuestion(db.Question{
-		Title: "Strongest ASD risk gene",
-		Mode:  "choice",
+		Title:  "Strongest ASD risk gene",
+		Mode:   "choice",
 		Config: `{"options":["CHD8","FMR1"],"key":0}`,
 	}); err != nil {
 		t.Fatalf("seed question: %v", err)
 	}
 	if _, err := wsStore.AddQuestion(db.Question{
-		Title: "ASD heritability range",
-		Mode:  "recall",
+		Title:  "ASD heritability range",
+		Mode:   "recall",
 		Config: `{"reveal_text":"60-90%"}`,
 	}); err != nil {
 		t.Fatalf("seed question: %v", err)

@@ -386,5 +386,3 @@ const quizAttemptJS = `
   renderQuestion();
 })();
 `
-
-

@@ -76,7 +76,7 @@ type Question struct {
 	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
 	Title       string `db:"title" json:"title"`
 	Slug        string `db:"slug" json:"slug"`
-	Mode        string `db:"mode" json:"mode"` // "choice" | "recall"
+	Mode        string `db:"mode" json:"mode"`     // "choice" | "recall"
 	Config      string `db:"config" json:"config"` // raw JSON; use ParseConfig for typed access
 	CreatedAt   string `db:"created_at" json:"createdAt"`
 	UpdatedAt   string `db:"updated_at" json:"updatedAt"`

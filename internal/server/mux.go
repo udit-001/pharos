@@ -798,7 +798,7 @@ func handleQuizPage(store *db.Store) http.HandlerFunc {
 			ItemCount:         len(items),
 			InProgressAttempt: inProgress,
 			PastAttempts:      pastAttempts,
-			ExtraAttemptCount:  len(allCompleted) - len(pastAttempts),
+			ExtraAttemptCount: len(allCompleted) - len(pastAttempts),
 		}
 		writePage(w, &sd, current.Title, name, "quiz", 0, slug, "", render.Quiz(data))
 	}
@@ -1006,11 +1006,11 @@ func handleQuizReviewPage(store *db.Store) http.HandlerFunc {
 func handleSubmitAttempt(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			QuizAttemptID  int64  `json:"quiz_attempt_id"`
-			QuestionID     int64  `json:"question_id"`
-			Response       string `json:"response"`
-			LatencyMs      int    `json:"latency_ms"`
-			ClientCorrect  *bool  `json:"correct"`
+			QuizAttemptID int64  `json:"quiz_attempt_id"`
+			QuestionID    int64  `json:"question_id"`
+			Response      string `json:"response"`
+			LatencyMs     int    `json:"latency_ms"`
+			ClientCorrect *bool  `json:"correct"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			jsonError(w, "invalid request body", http.StatusBadRequest)

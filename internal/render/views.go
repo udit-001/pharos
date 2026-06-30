@@ -23,14 +23,14 @@ func renderComponent(c templ.Component) string {
 	return buf.String()
 }
 
-func Dashboard(d DashboardData) string      { return renderComponent(dashboard(d)) }
-func About() string                         { return renderComponent(about()) }
-func WorkspacePage(d WorkspaceData) string  { return renderComponent(workspacePage(d)) }
-func Lesson(d LessonData) string            { return renderComponent(lesson(d)) }
-func Record(d RecordData) string            { return renderComponent(record(d)) }
-func Ref(d RefData) string                  { return renderComponent(ref(d)) }
-func QuizLibrary(d QuizLibraryData) string  { return renderComponent(quizLibrary(d)) }
-func Quiz(d QuizData) string                { return renderComponent(quiz(d)) }
+func Dashboard(d DashboardData) string     { return renderComponent(dashboard(d)) }
+func About() string                        { return renderComponent(about()) }
+func WorkspacePage(d WorkspaceData) string { return renderComponent(workspacePage(d)) }
+func Lesson(d LessonData) string           { return renderComponent(lesson(d)) }
+func Record(d RecordData) string           { return renderComponent(record(d)) }
+func Ref(d RefData) string                 { return renderComponent(ref(d)) }
+func QuizLibrary(d QuizLibraryData) string { return renderComponent(quizLibrary(d)) }
+func Quiz(d QuizData) string               { return renderComponent(quiz(d)) }
 func QuizAttempt(d AttemptData) string {
 	out := renderComponent(quizAttempt(d))
 
@@ -110,7 +110,7 @@ func choiceReviewDetail(item ReviewItem) string {
 	return b.String()
 }
 
-func 	recallReviewDetail(item ReviewItem) string {
+func recallReviewDetail(item ReviewItem) string {
 	var b strings.Builder
 	b.WriteString(`<div class="p-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-700 leading-relaxed">`)
 	b.WriteString(esc(item.RevealText))

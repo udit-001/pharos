@@ -54,9 +54,9 @@ Examples:
 			for _, l := range lessons {
 				entry := map[string]any{
 					"sequenceNumber": l.SequenceNumber,
-					"title":           l.Title,
-					"filename":        l.Filename,
-					"summary":         l.Summary,
+					"title":          l.Title,
+					"filename":       l.Filename,
+					"summary":        l.Summary,
 				}
 				if slugs, ok := quizByLesson[l.SequenceNumber]; ok {
 					entry["quizzes"] = slugs

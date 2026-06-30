@@ -17,8 +17,8 @@ type Frame struct {
 // the fields render needs (name, topic, counts) — the server adapter copies
 // from db.Workspace so render never imports db.
 type Workspace struct {
-	Name                                           string
-	Topic                                          string
+	Name                                          string
+	Topic                                         string
 	LessonCount, RecordCount, RefCount, QuizCount int
 }
 
@@ -85,10 +85,10 @@ type ContinueItem struct {
 
 // WorkspaceCard is one tile in the dashboard workspace grid.
 type WorkspaceCard struct {
-	Name                                           string
-	Topic                                          string
+	Name                                          string
+	Topic                                         string
 	LessonCount, RecordCount, RefCount, QuizCount int
-	LastStudied                                    string
+	LastStudied                                   string
 }
 
 // DashboardData drives the dashboard page.
@@ -179,9 +179,9 @@ type QuizData struct {
 
 // QuizAttemptSummary is one row in the quiz detail attempt list.
 type QuizAttemptSummary struct {
-	ID         int64
-	Score      int
-	Total      int
+	ID          int64
+	Score       int
+	Total       int
 	CompletedAt string
 }
 
@@ -198,11 +198,11 @@ type AttemptQuestion struct {
 
 // AttemptData drives the quiz attempt page.
 type AttemptData struct {
-	Workspace  Workspace
-	QuizSlug   string
-	QuizTitle  string
-	AttemptID  int64
-	Questions  []AttemptQuestion
+	Workspace Workspace
+	QuizSlug  string
+	QuizTitle string
+	AttemptID int64
+	Questions []AttemptQuestion
 	// AnsweredIDs is the set of question IDs already answered (for resume).
 	AnsweredIDs map[int64]bool
 	// AnsweredResults maps answered question ID → correct/incorrect.
