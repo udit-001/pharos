@@ -10,7 +10,7 @@ import (
 var refShowCmd = &cobra.Command{
 	Use:   "show <slug>",
 	Short: "Show a reference in the dashboard",
-	Long: `Open a reference document in the web dashboard. Starts the dashboard if not running.
+	Long: `Print the dashboard URL for a reference document. The dashboard must be running (use 'pharos start').
 
 Examples:
   pharos reference show sql-syntax
@@ -37,6 +37,7 @@ Examples:
 
 		fmt.Println()
 		fmt.Printf("  View reference %s at: %s\n", slug, url)
+		fmt.Printf("  Dashboard must be running (use 'pharos start').\n")
 		fmt.Println()
 		return nil
 	},

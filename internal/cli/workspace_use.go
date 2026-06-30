@@ -46,7 +46,7 @@ Examples:
 var workspaceCurrentCmd = &cobra.Command{
 	Use:   "current",
 	Short: "Show the current workspace",
-	Long:  `Print the name of the current workspace, or nothing if none is set.`,
+	Long:  `Print the current workspace name. When none is set, show a hint to pick one.`,
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)

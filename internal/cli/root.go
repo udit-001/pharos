@@ -58,7 +58,9 @@ reference/, assets/, RESOURCES.md, and NOTES.md.
 Use 'pharos init' to set up pharos, then 'pharos workspace create'
 to start a workspace.
 
-Most commands support --json for machine-readable output.`,
+Most commands support --json for machine-readable output.
+When only one workspace exists, most commands use it automatically
+without needing --workspace.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "init" || cmd.Name() == "config" || cmd.Name() == "migrate" || cmd.Name() == "dev" || cmd.Name() == "upgrade" || cmd.Name() == "tailwind" || cmd.Name() == "build" {
 			return nil
@@ -102,11 +104,20 @@ Most commands support --json for machine-readable output.`,
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
 }
 
 // Execute runs the root command.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	cmd, err := rootCmd.ExecuteC()
+	if err != nil {
+		if jsonOut {
+			printJSON(map[string]any{"error": err.Error()})
+		} else {
+			cmd.PrintErrln(cmd.ErrPrefix(), err.Error())
+			cmd.Println(cmd.UsageString())
+		}
 		os.Exit(1)
 	}
 }

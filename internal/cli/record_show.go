@@ -10,7 +10,7 @@ import (
 var recordShowCmd = &cobra.Command{
 	Use:   "show <seq>",
 	Short: "Show a learning record in the dashboard",
-	Long: `Open a learning record in the web dashboard. Starts the dashboard if not running.
+	Long: `Print the dashboard URL for a learning record. The dashboard must be running (use 'pharos start').
 
 Examples:
   pharos record show 5
@@ -40,6 +40,7 @@ Examples:
 
 		fmt.Println()
 		fmt.Printf("  View record #%d at: %s\n", seq, url)
+		fmt.Printf("  Dashboard must be running (use 'pharos start').\n")
 		fmt.Println()
 		return nil
 	},

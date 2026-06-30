@@ -16,9 +16,6 @@ var lessonCreateCmd = &cobra.Command{
 The lesson is created as an HTML file in the workspace's lessons/
 directory with sequential numbering and a linked stylesheet.
 
-If no workspace is specified and only one exists, it is used
-automatically. If multiple exist, --workspace is required.
-
 Examples:
   pharos lesson create "SQL Joins" --workspace "sql-for-research"
   pharos lesson create "The Connection Sequence" --workspace "jump-start-a-car"

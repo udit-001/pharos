@@ -59,9 +59,8 @@ Examples:
 		fmt.Println()
 
 		if len(terms) == 0 {
-			fmt.Println("  (no glossary terms yet)")
-			fmt.Println()
-			fmt.Println("  Add one with: pharos glossary create \"<term>\" \"<definition>\"")
+			fmt.Printf("  No glossary terms yet.\n")
+			fmt.Printf("  Use 'pharos glossary create \"<term>\" \"<definition>\"' to add one.\n")
 			fmt.Println()
 			return nil
 		}

@@ -132,7 +132,8 @@ on it: 'pharos asset add' when absent, 'pharos asset redeploy' when present.`,
 		}
 
 		if len(seeded)+len(vendored)+len(user) == 0 {
-			fmt.Println("  No assets yet.")
+			fmt.Printf("  No assets yet.\n")
+			fmt.Printf("  Use 'pharos asset create <filename> --body-file <path>' to add one.\n")
 			fmt.Println()
 		}
 		return nil

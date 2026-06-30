@@ -31,10 +31,14 @@ Examples:
 			return runRebuildIndex(cmd)
 		}
 
-		if len(args) == 0 {
+		query := ""
+		if len(args) > 0 {
+			query = args[0]
+		}
+		if query == "" {
 			return fmt.Errorf("requires a search query\n  Usage: pharos search <query>")
 		}
-		return runSearch(cmd, args[0])
+		return runSearch(cmd, query)
 	},
 }
 

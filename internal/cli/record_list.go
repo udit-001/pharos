@@ -27,7 +27,7 @@ Examples:
 			},
 			errLabel:   "failed to list learning records",
 			emptyMsg:   "No learning records yet.",
-			createHint: `pharos record add "What you learned" --workspace %q`,
+			createHint: `pharos record create "What you learned" --workspace %q --body-file <path>`,
 			headers:    []string{"#", "Title", "File"},
 			buildRow: func(r db.LearningRecord) []string {
 				status := ""

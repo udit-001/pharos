@@ -10,7 +10,7 @@ import (
 var lessonShowCmd = &cobra.Command{
 	Use:   "show <seq>",
 	Short: "Show a lesson in the dashboard",
-	Long: `Open a lesson in the web dashboard. Starts the dashboard if not running.
+	Long: `Print the dashboard URL for a lesson. The dashboard must be running (use 'pharos start').
 
 Examples:
   pharos lesson show 3
@@ -40,6 +40,7 @@ Examples:
 
 		fmt.Println()
 		fmt.Printf("  View lesson #%d at: %s\n", seq, url)
+		fmt.Printf("  Dashboard must be running (use 'pharos start').\n")
 		fmt.Println()
 		return nil
 	},
