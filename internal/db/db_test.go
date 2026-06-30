@@ -54,3 +54,19 @@ func TestOpenPoolSurvivesOneLeakedConnection(t *testing.T) {
 			"pool is sized so a single leak wedges everything (see maxOpenConns in db.go)")
 	}
 }
+
+// TestOpenSetsSynchronousNormal asserts the WAL-recommended synchronous=NORMAL
+// pragma is set on Open. NORMAL skips the per-commit fsync (fsync happens at
+// checkpoint instead), shortening each write-lock hold — smaller collision
+// window between agent CLI writes and human web writes on the shared file
+// (LEARN-103). Values: 0=OFF, 1=NORMAL, 2=FULL, 3=EXTRA.
+func TestOpenSetsSynchronousNormal(t *testing.T) {
+	store := newTestStore(t)
+	var sync int
+	if err := store.SQL().QueryRow("PRAGMA synchronous").Scan(&sync); err != nil {
+		t.Fatalf("query synchronous: %v", err)
+	}
+	if sync != 1 {
+		t.Fatalf("PRAGMA synchronous = %d, want 1 (NORMAL)", sync)
+	}
+}
