@@ -62,6 +62,17 @@ Examples:
 			return formatError("failed to save quiz", err)
 		}
 
+		// Optional link to the lesson whose skill this quiz practices.
+		lessonSeq, hasLesson, err := parseLessonFlag(cmd)
+		if err != nil {
+			return err
+		}
+		if hasLesson {
+			if err := wsStore.LessonContent().SetQuizLesson(created.Slug, lessonSeq); err != nil {
+				return formatError("failed to link quiz to lesson", err)
+			}
+		}
+
 		if jsonOut {
 			printJSON(created)
 			return nil
@@ -83,4 +94,5 @@ func init() {
 	quizCreateCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	quizCreateCmd.Flags().String("items", "", "Comma-separated list of question slugs in order (required)")
 	quizCreateCmd.Flags().String("description", "", "Short description of the quiz")
+	quizCreateCmd.Flags().String("lesson", "", "Link this quiz to a lesson by sequence number")
 }

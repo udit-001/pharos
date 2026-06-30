@@ -81,17 +81,20 @@ func runWeakList(cmd *cobra.Command) error {
 	rows := make([][]string, 0, len(results))
 	for _, r := range results {
 		acc := "—"
+		last := "—"
 		if r.HasData {
 			acc = fmt.Sprintf("%d/%d", r.Correct, r.Total)
+			last = formatDateShort(r.LastAttempted)
 		}
 		rows = append(rows, []string{
 			r.Slug,
 			truncate(r.Title, 40),
 			r.Mode,
 			acc,
+			last,
 		})
 	}
-	fmt.Println(formatTable([]string{"Slug", "Title", "Mode", "Accuracy"}, rows))
+	fmt.Println(formatTable([]string{"Slug", "Title", "Mode", "Accuracy", "Last"}, rows))
 	fmt.Println()
 	return nil
 }

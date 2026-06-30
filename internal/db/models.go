@@ -84,6 +84,9 @@ type Question struct {
 
 // Quiz represents an ordered list of question slugs grouped under a title.
 // Items is the raw JSON slug array; use ParseItems for typed access.
+// LessonSeq optionally links the quiz to the lesson whose skill it practices
+// (nil = unlinked). It is a soft reference by (workspace, sequence_number),
+// not a FK — resolved at read time.
 type Quiz struct {
 	ID          int64  `db:"id" json:"id"`
 	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
@@ -91,6 +94,7 @@ type Quiz struct {
 	Slug        string `db:"slug" json:"slug"`
 	Description string `db:"description" json:"description"`
 	Items       string `db:"items" json:"items"` // raw JSON array of question slugs
+	LessonSeq   *int   `db:"lesson_seq" json:"lessonSeq,omitempty"`
 	CreatedAt   string `db:"created_at" json:"createdAt"`
 	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
 }
@@ -245,14 +249,40 @@ type SearchResult struct {
 	Slug           string `json:"slug,omitempty"`           // refs only
 }
 
+// QuizScore is a Quiz with its best score across completed attempts.
+// BestScore counts correct answers for questions still in the quiz's item
+// list (so removed items don't inflate it); BestTotal is the current item
+// count. Attempted is false when no completed attempt exists — the CLI shows
+// "—" in that case.
+type QuizScore struct {
+	Quiz
+	BestScore int  `json:"bestScore"`
+	BestTotal int  `json:"bestTotal"`
+	Attempted bool `json:"attempted"`
+}
+
+// QuizAttemptScore is one completed attempt scored against the quiz's current
+// questions. Correct counts unique correct answers (latest per question wins)
+// for questions still in the quiz; Total is the current item count. These
+// scores use the same computation as QuizScore.BestScore, so the trend
+// reconciles with `quiz list`'s best-score column.
+type QuizAttemptScore struct {
+	QuizAttempt
+	Correct int `json:"correct"`
+	Total   int `json:"total"`
+}
+
 // WeakQuestionResult is a question with its accuracy from completed attempts.
 // Accuracy is null (nil) when the question has never been answered in a
 // completed attempt — these sort first (most urgent to assess).
+// LastAttempted is the timestamp of the most recent answer ("" when never
+// attempted) so the agent can tell stale weakness from fresh.
 type WeakQuestionResult struct {
 	Question
-	Correct int  `json:"correct"`
-	Total   int  `json:"total"`
-	HasData bool `json:"hasData"` // false = never answered in a completed attempt
+	Correct       int    `json:"correct"`
+	Total         int    `json:"total"`
+	HasData       bool   `json:"hasData"` // false = never answered in a completed attempt
+	LastAttempted string `json:"lastAttempted,omitempty"`
 }
 
 // Settings holds user preferences.

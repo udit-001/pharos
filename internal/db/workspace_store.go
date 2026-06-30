@@ -380,15 +380,17 @@ func (w *WorkspaceStore) GetWeakQuestions(limit int) ([]WeakQuestionResult, erro
 
 	// Fetch accuracy per question from completed attempts only.
 	type acc struct {
-		QuestionID int64
-		Correct    int
-		Total      int
+		QuestionID    int64
+		Correct       int
+		Total         int
+		LastAttempted string
 	}
 	var accs []acc
 	rows, err := w.db().Query(
 		`SELECT a.question_id,
 		   SUM(CASE WHEN a.correct = 1 THEN 1 ELSE 0 END) AS correct,
-		   COUNT(*) AS total
+		   COUNT(*) AS total,
+		   MAX(a.created_at) AS last_attempted
 		 FROM attempts a
 		 JOIN quiz_attempts qa ON a.quiz_attempt_id = qa.id
 		 WHERE qa.workspace_id = ? AND qa.status = 'completed'
@@ -401,7 +403,7 @@ func (w *WorkspaceStore) GetWeakQuestions(limit int) ([]WeakQuestionResult, erro
 	defer rows.Close()
 	for rows.Next() {
 		var a acc
-		if err := rows.Scan(&a.QuestionID, &a.Correct, &a.Total); err != nil {
+		if err := rows.Scan(&a.QuestionID, &a.Correct, &a.Total, &a.LastAttempted); err != nil {
 			return nil, fmt.Errorf("scan accuracy: %w", err)
 		}
 		accs = append(accs, a)
@@ -420,6 +422,7 @@ func (w *WorkspaceStore) GetWeakQuestions(limit int) ([]WeakQuestionResult, erro
 			out[i].Correct = a.Correct
 			out[i].Total = a.Total
 			out[i].HasData = true
+			out[i].LastAttempted = a.LastAttempted
 		}
 	}
 

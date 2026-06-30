@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -328,6 +329,285 @@ func TestQuizAttemptLifecycle(t *testing.T) {
 	// State machine: cannot complete again.
 	if err := alpha.CompleteQuizAttempt(qa.ID); err == nil {
 		t.Error("expected error completing already-completed attempt")
+	}
+}
+
+func TestGetQuizScores(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	// Question + quiz that will be attempted.
+	q, err := alpha.AddQuestion(Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	attempted, err := alpha.AddQuiz(Quiz{
+		Title: "Geography",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	// Second quiz sharing the question, never attempted.
+	fresh, err := alpha.AddQuiz(Quiz{Title: "Fresh", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
+	if err != nil {
+		t.Fatalf("AddQuiz fresh: %v", err)
+	}
+
+	// Complete an attempt on "Geography" with the correct answer.
+	qa, err := alpha.CreateQuizAttempt(attempted.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt: %v", err)
+	}
+	if _, err := alpha.SubmitAttempt(qa.ID, q.ID, "1", 100, nil); err != nil {
+		t.Fatalf("SubmitAttempt: %v", err)
+	}
+	if err := alpha.CompleteQuizAttempt(qa.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt: %v", err)
+	}
+
+	scores, err := alpha.GetQuizScores()
+	if err != nil {
+		t.Fatalf("GetQuizScores: %v", err)
+	}
+	bySlug := map[string]QuizScore{}
+	for _, s := range scores {
+		bySlug[s.Slug] = s
+	}
+
+	got := bySlug[attempted.Slug]
+	if !got.Attempted || got.BestScore != 1 || got.BestTotal != 1 {
+		t.Errorf("attempted quiz score = %d/%d (attempted=%v), want 1/1 (attempted=true)", got.BestScore, got.BestTotal, got.Attempted)
+	}
+
+	freshScore := bySlug[fresh.Slug]
+	if freshScore.Attempted || freshScore.BestScore != 0 || freshScore.BestTotal != 1 {
+		t.Errorf("fresh quiz score = %d/%d (attempted=%v), want 0/1 (attempted=false)", freshScore.BestScore, freshScore.BestTotal, freshScore.Attempted)
+	}
+}
+
+func TestGetQuizAttemptHistory(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	q, err := alpha.AddQuestion(Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := alpha.AddQuiz(Quiz{
+		Title: "Geography",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	// First attempt: wrong (London, index 0).
+	qa1, err := alpha.CreateQuizAttempt(quiz.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt 1: %v", err)
+	}
+	if _, err := alpha.SubmitAttempt(qa1.ID, q.ID, "0", 100, nil); err != nil {
+		t.Fatalf("SubmitAttempt 1: %v", err)
+	}
+	if err := alpha.CompleteQuizAttempt(qa1.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt 1: %v", err)
+	}
+
+	// Second attempt: correct (Paris, index 1).
+	qa2, err := alpha.CreateQuizAttempt(quiz.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt 2: %v", err)
+	}
+	if _, err := alpha.SubmitAttempt(qa2.ID, q.ID, "1", 100, nil); err != nil {
+		t.Fatalf("SubmitAttempt 2: %v", err)
+	}
+	if err := alpha.CompleteQuizAttempt(qa2.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt 2: %v", err)
+	}
+
+	history, err := alpha.GetQuizAttemptHistory(quiz.ID)
+	if err != nil {
+		t.Fatalf("GetQuizAttemptHistory: %v", err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("history len = %d, want 2", len(history))
+	}
+	// Chronological by completed_at: first wrong (0/1), then correct (1/1).
+	if history[0].Correct != 0 || history[0].Total != 1 {
+		t.Errorf("first attempt = %d/%d, want 0/1", history[0].Correct, history[0].Total)
+	}
+	if history[1].Correct != 1 || history[1].Total != 1 {
+		t.Errorf("second attempt = %d/%d, want 1/1", history[1].Correct, history[1].Total)
+	}
+	if history[0].CompletedAt > history[1].CompletedAt {
+		t.Error("history is not chronological by completed_at")
+	}
+
+	// Reconciles with GetQuizScores: best = max of the series = 1/1.
+	scores, _ := alpha.GetQuizScores()
+	var best QuizScore
+	for _, s := range scores {
+		if s.Slug == quiz.Slug {
+			best = s
+		}
+	}
+	if !best.Attempted || best.BestScore != 1 || best.BestTotal != 1 {
+		t.Errorf("best = %d/%d (attempted=%v), want 1/1 — trend must reconcile with best", best.BestScore, best.BestTotal, best.Attempted)
+	}
+}
+
+func TestQuizLessonLink(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	lesson, err := alpha.AddLesson(Lesson{Title: "JOINs", Filename: "0001-joins.html"})
+	if err != nil {
+		t.Fatalf("AddLesson: %v", err)
+	}
+	q, err := alpha.AddQuestion(Question{
+		Title:  "What is a JOIN?",
+		Mode:   "choice",
+		Config: `{"options":["a","b"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	seq := lesson.SequenceNumber
+	linked, err := alpha.AddQuiz(Quiz{
+		Title: "JOINs quiz",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	if linked.LessonSeq != nil {
+		t.Errorf("created quiz LessonSeq = %v, want nil (not linked yet)", linked.LessonSeq)
+	}
+
+	// Link via the seam.
+	lc := alpha.LessonContent()
+	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+		t.Fatalf("SetQuizLesson: %v", err)
+	}
+
+	// Forward: read back the link.
+	got, err := alpha.GetQuizBySlug(linked.Slug)
+	if err != nil {
+		t.Fatalf("GetQuizBySlug: %v", err)
+	}
+	if got.LessonSeq == nil || *got.LessonSeq != seq {
+		t.Errorf("read-back LessonSeq = %v, want %d", got.LessonSeq, seq)
+	}
+
+	// Reverse: QuizzesForLesson finds it.
+	rev, err := lc.QuizzesForLesson(seq)
+	if err != nil {
+		t.Fatalf("QuizzesForLesson: %v", err)
+	}
+	if len(rev) != 1 || rev[0].Slug != linked.Slug {
+		t.Errorf("reverse lookup = %d quizzes, want 1 with slug %q", len(rev), linked.Slug)
+	}
+
+	// An unlinked quiz has nil LessonSeq and is excluded from the reverse lookup.
+	unlinked, _ := alpha.AddQuiz(Quiz{Title: "General", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
+	if unlinked.LessonSeq != nil {
+		t.Errorf("unlinked quiz LessonSeq = %v, want nil", unlinked.LessonSeq)
+	}
+	rev2, _ := lc.QuizzesForLesson(seq)
+	if len(rev2) != 1 {
+		t.Errorf("reverse lookup after adding unlinked = %d, want 1", len(rev2))
+	}
+
+	// ClearQuizLesson removes the link. Idempotent — clear twice is fine.
+	if err := lc.ClearQuizLesson(linked.Slug); err != nil {
+		t.Fatalf("ClearQuizLesson: %v", err)
+	}
+	cleared, _ := alpha.GetQuizBySlug(linked.Slug)
+	if cleared.LessonSeq != nil {
+		t.Errorf("after clear, LessonSeq = %v, want nil", cleared.LessonSeq)
+	}
+	if err := lc.ClearQuizLesson(linked.Slug); err != nil {
+		t.Fatalf("ClearQuizLesson (idempotent): %v", err)
+	}
+
+	// SetQuizLesson re-links. Overwrites existing link.
+	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+		t.Fatalf("SetQuizLesson: %v", err)
+	}
+	reset, _ := alpha.GetQuizBySlug(linked.Slug)
+	if reset.LessonSeq == nil || *reset.LessonSeq != seq {
+		t.Errorf("after re-set, LessonSeq = %v, want %d", reset.LessonSeq, seq)
+	}
+	// Setting the same lesson again works (idempotent overwrite).
+	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+		t.Fatalf("SetQuizLesson (overwrite): %v", err)
+	}
+}
+
+func TestQuizLessonLinkErrors(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	lesson, err := alpha.AddLesson(Lesson{Title: "JOINs", Filename: "0001-joins.html"})
+	if err != nil {
+		t.Fatalf("AddLesson: %v", err)
+	}
+	q, err := alpha.AddQuestion(Question{
+		Title:  "What is a JOIN?",
+		Mode:   "choice",
+		Config: `{"options":["a","b"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := alpha.AddQuiz(Quiz{Title: "Quiz", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	lc := alpha.LessonContent()
+
+	// SetQuizLesson with stale quiz slug.
+	if err := lc.SetQuizLesson("nonexistent", 1); !errors.Is(err, ErrQuizNotFound) {
+		t.Errorf("SetQuizLesson with bad slug: got %v, want ErrQuizNotFound", err)
+	}
+
+	// SetQuizLesson with nonexistent lesson sequence.
+	if err := lc.SetQuizLesson(quiz.Slug, 999); !errors.Is(err, ErrLessonNotFound) {
+		t.Errorf("SetQuizLesson with bad lesson: got %v, want ErrLessonNotFound", err)
+	}
+
+	// SetQuizLesson with valid inputs succeeds.
+	seq := lesson.SequenceNumber
+	if err := lc.SetQuizLesson(quiz.Slug, seq); err != nil {
+		t.Fatalf("SetQuizLesson valid: %v", err)
+	}
+
+	// ClearQuizLesson with stale quiz slug.
+	if err := lc.ClearQuizLesson("nonexistent"); !errors.Is(err, ErrQuizNotFound) {
+		t.Errorf("ClearQuizLesson with bad slug: got %v, want ErrQuizNotFound", err)
+	}
+
+	// ClearQuizLesson when already unlinked is idempotent (no error).
+	if err := lc.ClearQuizLesson(quiz.Slug); err != nil {
+		t.Fatalf("ClearQuizLesson (unlinked): %v", err)
+	}
+
+	// QuizzesForLesson with no matches returns empty, not error.
+	empty, err := lc.QuizzesForLesson(999)
+	if err != nil {
+		t.Fatalf("QuizzesForLesson unknown lesson: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Errorf("QuizzesForLesson unknown lesson: got %d quizzes, want 0", len(empty))
 	}
 }
 
