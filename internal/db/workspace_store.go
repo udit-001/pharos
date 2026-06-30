@@ -1219,41 +1219,75 @@ func truncateSnippet(s string, maxLen int) string {
 	return strings.TrimSpace(trimmed[:cut]) + "..."
 }
 
+// indexSpec parameterises indexEntity for a specific entity type T.
+type indexSpec[T any] struct {
+	table    string
+	columns  string
+	scan     func(RowScanner) ([]T, error)
+	extract  func(string) string
+	path     func(Layout, string) string
+	ident    func(T) string
+	label    string
+	filename func(T) string
+	id       func(T) int64
+}
+
+// indexEntity is a generic indexer replacing IndexLessons, IndexRefs, and
+// IndexRecords. It queries rows with empty body_text, scans them, reads
+// each file from disk, extracts plain text, and updates the DB row. Errors
+// are collected per-item; processing continues with remaining items.
+func indexEntity[T any](w *WorkspaceStore, spec indexSpec[T]) (int, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM %s WHERE workspace_id = ? AND body_text = ''", spec.columns, spec.table),
+		w.ws.ID,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("query %s: %w", spec.label, err)
+	}
+	defer rows.Close()
+
+	items, err := spec.scan(rows)
+	if err != nil {
+		return 0, fmt.Errorf("scan %s: %w", spec.label, err)
+	}
+
+	layout := w.Layout()
+	return indexItems(items,
+		func(item T) error {
+			data, err := os.ReadFile(spec.path(layout, spec.filename(item)))
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			bodyText := spec.extract(string(data))
+			if _, err := w.db().Exec(
+				fmt.Sprintf("UPDATE %s SET body_text = ? WHERE id = ?", spec.table),
+				bodyText, spec.id(item),
+			); err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			return nil
+		},
+		spec.ident,
+		spec.label,
+	)
+}
+
 // IndexLessons reads all lessons with empty body_text, extracts plain text
 // from their HTML files on disk, and updates the DB so the FTS index captures
 // lesson body content. Returns the number of lessons updated and any errors.
 // If one file fails, processing continues with the remaining lessons.
 func (w *WorkspaceStore) IndexLessons() (int, error) {
-	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM lessons WHERE workspace_id = ? AND body_text = ''", lessonColumns),
-		w.ws.ID,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("query lessons: %w", err)
-	}
-	defer rows.Close()
-
-	lessons, err := scanLessons(rows)
-	if err != nil {
-		return 0, fmt.Errorf("scan lessons: %w", err)
-	}
-
-	layout := w.Layout()
-	return indexItems(lessons,
-		func(l Lesson) error {
-			data, err := os.ReadFile(layout.LessonPath(l.Filename))
-			if err != nil {
-				return fmt.Errorf("read file: %w", err)
-			}
-			bodyText := extract.FromHTML(string(data))
-			if _, err := w.db().Exec("UPDATE lessons SET body_text = ? WHERE id = ?", bodyText, l.ID); err != nil {
-				return fmt.Errorf("update: %w", err)
-			}
-			return nil
-		},
-		func(l Lesson) string { return fmt.Sprintf("%d (%s)", l.SequenceNumber, l.Filename) },
-		"lesson",
-	)
+	return indexEntity(w, indexSpec[Lesson]{
+		table:    "lessons",
+		columns:  lessonColumns,
+		scan:     scanLessons,
+		extract:  extract.FromHTML,
+		path:     func(l Layout, f string) string { return l.LessonPath(f) },
+		ident:    func(l Lesson) string { return fmt.Sprintf("%d (%s)", l.SequenceNumber, l.Filename) },
+		label:    "lesson",
+		filename: func(l Lesson) string { return l.Filename },
+		id:       func(l Lesson) int64 { return l.ID },
+	})
 }
 
 // IndexRefs reads all references with empty body_text, extracts plain text
@@ -1261,36 +1295,17 @@ func (w *WorkspaceStore) IndexLessons() (int, error) {
 // reference body content. Returns the number of references updated and any
 // errors. If one file fails, processing continues with the remaining refs.
 func (w *WorkspaceStore) IndexRefs() (int, error) {
-	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM references_t WHERE workspace_id = ? AND body_text = ''", refColumns),
-		w.ws.ID,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("query references: %w", err)
-	}
-	defer rows.Close()
-
-	refs, err := scanRefs(rows)
-	if err != nil {
-		return 0, fmt.Errorf("scan references: %w", err)
-	}
-
-	layout := w.Layout()
-	return indexItems(refs,
-		func(r Reference) error {
-			data, err := os.ReadFile(layout.RefPath(r.Filename))
-			if err != nil {
-				return fmt.Errorf("read file: %w", err)
-			}
-			bodyText := extract.FromHTML(string(data))
-			if _, err := w.db().Exec("UPDATE references_t SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
-				return fmt.Errorf("update: %w", err)
-			}
-			return nil
-		},
-		func(r Reference) string { return fmt.Sprintf("%s (%s)", r.Slug, r.Filename) },
-		"ref",
-	)
+	return indexEntity(w, indexSpec[Reference]{
+		table:    "references_t",
+		columns:  refColumns,
+		scan:     scanRefs,
+		extract:  extract.FromHTML,
+		path:     func(l Layout, f string) string { return l.RefPath(f) },
+		ident:    func(r Reference) string { return fmt.Sprintf("%s (%s)", r.Slug, r.Filename) },
+		label:    "ref",
+		filename: func(r Reference) string { return r.Filename },
+		id:       func(r Reference) int64 { return r.ID },
+	})
 }
 
 // IndexRecords reads all learning records with empty body_text, extracts plain
@@ -1298,34 +1313,15 @@ func (w *WorkspaceStore) IndexRefs() (int, error) {
 // captures record body content. Returns the number of records updated and any
 // errors. If one file fails, processing continues with the remaining records.
 func (w *WorkspaceStore) IndexRecords() (int, error) {
-	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM learning_records WHERE workspace_id = ? AND body_text = ''", recordColumns),
-		w.ws.ID,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("query records: %w", err)
-	}
-	defer rows.Close()
-
-	recs, err := scanRecords(rows)
-	if err != nil {
-		return 0, fmt.Errorf("scan records: %w", err)
-	}
-
-	layout := w.Layout()
-	return indexItems(recs,
-		func(r LearningRecord) error {
-			data, err := os.ReadFile(layout.RecordPath(r.Filename))
-			if err != nil {
-				return fmt.Errorf("read file: %w", err)
-			}
-			bodyText := extract.FromMarkdown(string(data))
-			if _, err := w.db().Exec("UPDATE learning_records SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
-				return fmt.Errorf("update: %w", err)
-			}
-			return nil
-		},
-		func(r LearningRecord) string { return fmt.Sprintf("%d (%s)", r.SequenceNumber, r.Filename) },
-		"record",
-	)
+	return indexEntity(w, indexSpec[LearningRecord]{
+		table:    "learning_records",
+		columns:  recordColumns,
+		scan:     scanRecords,
+		extract:  extract.FromMarkdown,
+		path:     func(l Layout, f string) string { return l.RecordPath(f) },
+		ident:    func(r LearningRecord) string { return fmt.Sprintf("%d (%s)", r.SequenceNumber, r.Filename) },
+		label:    "record",
+		filename: func(r LearningRecord) string { return r.Filename },
+		id:       func(r LearningRecord) int64 { return r.ID },
+	})
 }
