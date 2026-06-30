@@ -15,14 +15,14 @@ Resources are the curated set of trusted sources for this topic.
 Knowledge comes from high-quality resources listed here.
 
 Examples:
-  pharos resources show --workspace "sql-for-research"
+  pharos resources read --workspace "sql-for-research"
   pharos resources edit --body-file /tmp/resources.md
   pharos resources edit`,
 }
 
-var resourcesShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show the workspace resources",
+var resourcesReadCmd = &cobra.Command{
+	Use:   "read",
+	Short: "Read the workspace resources",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -70,9 +70,9 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(resourcesCmd)
-	resourcesCmd.AddCommand(resourcesShowCmd)
+	resourcesCmd.AddCommand(resourcesReadCmd)
 	resourcesCmd.AddCommand(resourcesEditCmd)
-	resourcesShowCmd.Flags().StringP("workspace", "w", "", "Workspace name")
+	resourcesReadCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	resourcesEditCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	resourcesEditCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
 }

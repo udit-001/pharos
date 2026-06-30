@@ -88,18 +88,18 @@ pharos reference revise <slug> -w "<workspace>" --summary "<new>"      # Update 
 ## Workspace Documents
 
 ```bash
-pharos mission show -w "<workspace>"                                 # Show mission
-pharos mission show -w "<workspace>" --json                          # Show mission as JSON
+pharos mission read -w "<workspace>"                                 # Read mission
+pharos mission read -w "<workspace>" --json                          # Read mission as JSON
 pharos mission edit -w "<workspace>"                                 # Edit mission in $EDITOR
 pharos mission edit -w "<workspace>" --body-file <path>               # Write mission from file
 
-pharos resources show -w "<workspace>"                                # Show resources
-pharos resources show -w "<workspace>" --json                         # Show resources as JSON
+pharos resources read -w "<workspace>"                                # Read resources
+pharos resources read -w "<workspace>" --json                         # Read resources as JSON
 pharos resources edit -w "<workspace>"                                # Edit resources in $EDITOR
 pharos resources edit -w "<workspace>" --body-file <path>             # Write resources from file
 
-pharos notes show -w "<workspace>"                                    # Show notes
-pharos notes show -w "<workspace>" --json                             # Show notes as JSON
+pharos notes read -w "<workspace>"                                    # Read notes
+pharos notes read -w "<workspace>" --json                             # Read notes as JSON
 pharos notes edit -w "<workspace>"                                    # Edit notes in $EDITOR
 pharos notes edit -w "<workspace>" --body-file <path>                 # Write notes from file
 pharos notes edit -w "<workspace>" --append --body-file <path>        # Append to notes
@@ -141,7 +141,7 @@ pharos search --rebuild-index --all               # Rebuild index across all wor
 ## Configuration
 
 ```bash
-pharos config show                                # Show current configuration
+pharos config read                                # Read current configuration
 pharos config set data_dir ~/my-pharos            # Change the data directory
 ```
 

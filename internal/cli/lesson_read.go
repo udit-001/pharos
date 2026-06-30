@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/db"
@@ -50,6 +51,14 @@ Examples:
 
 		metaOnly, _ := cmd.Flags().GetBool("meta-only")
 
+		// Reverse link: quizzes that practice this lesson's skill. Fetched
+		// once and surfaced in both JSON and plain output.
+		linkedQuizzes, _ := wsStore.LessonContent().QuizzesForLesson(current.SequenceNumber)
+		quizSlugs := make([]string, len(linkedQuizzes))
+		for i, q := range linkedQuizzes {
+			quizSlugs[i] = q.Slug
+		}
+
 		if jsonOut {
 			result := map[string]any{
 				"id":             current.ID,
@@ -60,6 +69,9 @@ Examples:
 				"createdAt":      current.CreatedAt,
 				"updatedAt":      current.UpdatedAt,
 				"workspace":      ws.Name,
+			}
+			if len(quizSlugs) > 0 {
+				result["quizzes"] = quizSlugs
 			}
 			if !metaOnly {
 				data, err := os.ReadFile(wsStore.Layout().LessonPath(current.Filename))
@@ -78,6 +90,9 @@ Examples:
 		fmt.Printf("  Summary: %s\n", current.Summary)
 		fmt.Printf("  Created: %s\n", current.CreatedAt)
 		fmt.Printf("  Updated: %s\n", current.UpdatedAt)
+		if len(quizSlugs) > 0 {
+			fmt.Printf("  Quizzes: %s\n", strings.Join(quizSlugs, ", "))
+		}
 		fmt.Println()
 
 		if !metaOnly {

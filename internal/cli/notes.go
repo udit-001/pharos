@@ -17,15 +17,15 @@ Notes are a scratchpad for preferences and working notes. Use
 to add to the end instead of overwriting.
 
 Examples:
-  pharos notes show --workspace "sql-for-research"
+  pharos notes read --workspace "sql-for-research"
   pharos notes edit --body-file /tmp/notes.md
   pharos notes edit --append --body-file /tmp/new-note.md
   pharos notes edit`,
 }
 
-var notesShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show the workspace notes",
+var notesReadCmd = &cobra.Command{
+	Use:   "read",
+	Short: "Read the workspace notes",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -94,9 +94,9 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(notesCmd)
-	notesCmd.AddCommand(notesShowCmd)
+	notesCmd.AddCommand(notesReadCmd)
 	notesCmd.AddCommand(notesEditCmd)
-	notesShowCmd.Flags().StringP("workspace", "w", "", "Workspace name")
+	notesReadCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	notesEditCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	notesEditCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
 	notesEditCmd.Flags().Bool("append", false, "Append to notes instead of overwriting")

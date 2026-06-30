@@ -15,14 +15,14 @@ The mission captures why you're learning a topic and what
 success looks like. Every lesson should trace back to it.
 
 Examples:
-  pharos mission show --workspace "sql-for-research"
+  pharos mission read --workspace "sql-for-research"
   pharos mission edit --body-file /tmp/mission.md
   pharos mission edit`,
 }
 
-var missionShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show the workspace mission",
+var missionReadCmd = &cobra.Command{
+	Use:   "read",
+	Short: "Read the workspace mission",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -70,9 +70,9 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(missionCmd)
-	missionCmd.AddCommand(missionShowCmd)
+	missionCmd.AddCommand(missionReadCmd)
 	missionCmd.AddCommand(missionEditCmd)
-	missionShowCmd.Flags().StringP("workspace", "w", "", "Workspace name")
+	missionReadCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	missionEditCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	missionEditCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
 }
