@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/udit-001/pharos/internal/db"
 )
@@ -48,7 +49,7 @@ func Start(cfg Config) error {
 	}
 	cfg.Port = port // store the actual port for messages below
 
-	srv := &http.Server{Handler: mux}
+	srv := newServer(mux)
 
 	if !cfg.NoOpen && !cfg.Silent {
 		url := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -73,6 +74,23 @@ func Start(cfg Config) error {
 		return err
 	}
 	return nil
+}
+
+// newServer builds the *http.Server with transport-layer timeouts. Extracted
+// from Start so the timeout wiring is testable without booting a listener.
+// These bound how long a stuck client can hold a request goroutine (and the
+// DB query behind it) — the transport backstop for the per-query timeouts
+// tracked in LEARN-101 (LEARN-104). Values suit a localhost dashboard; the
+// slowest legitimate response is a full-workspace Search, which stays well
+// under WriteTimeout on personal-sized DBs.
+func newServer(mux *http.ServeMux) *http.Server {
+	return &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 }
 
 // openBrowser launches the OS default browser at the given URL.
