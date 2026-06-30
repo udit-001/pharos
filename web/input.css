@@ -292,7 +292,7 @@
   background: rgba(129, 161, 193, 0.15);
 }
 .sidebar-section-items {
-  padding-left: 0.75rem;
+  padding-left: 0.5rem;
 }
 .sidebar-section-items.collapsed {
   display: none;
