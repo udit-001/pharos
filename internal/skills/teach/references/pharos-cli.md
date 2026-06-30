@@ -17,7 +17,7 @@ pharos workspace delete "<name>"               # Delete workspace + directory (p
 pharos workspace delete "<name>" --force       # Delete without prompt
 pharos workspace rename "<new name>"            # Rename workspace (updates display name; slug stays)
 pharos workspace rename "<new name>" -w "<name>" # Rename a specific workspace by -w
-pharos workspace stats                         # Show learning statistics
+pharos workspace stats                         # Show learning statistics (lessons, records, quizzes)
 
 pharos init                                    # Create the database
 ```
@@ -52,18 +52,18 @@ workspace exists, it is used automatically.
 ## Mission, Resources, Notes
 
 ```bash
-pharos mission show                            # Print the file
-pharos mission show --json                     # Print as JSON
+pharos mission read                            # Print the file
+pharos mission read --json                     # Print as JSON
 pharos mission edit                            # Open in $EDITOR
 pharos mission edit --body-file <path>         # Write content from a file
 
-pharos resources show                          # Print the file
-pharos resources show --json                   # Print as JSON
+pharos resources read                          # Print the file
+pharos resources read --json                   # Print as JSON
 pharos resources edit                          # Open in $EDITOR
 pharos resources edit --body-file <path>       # Write content from a file
 
-pharos notes show                              # Print the file
-pharos notes show --json                       # Print as JSON
+pharos notes read                              # Print the file
+pharos notes read --json                       # Print as JSON
 pharos notes edit                              # Open in $EDITOR
 pharos notes edit --body-file <path>           # Write content from a file
 pharos notes edit --append --body-file <path>  # Append to file
@@ -131,6 +131,55 @@ pharos reference read <slug> --meta-only               # Read metadata only
 References are addressed by **slug** (descriptive name), not sequence number.
 The slug is derived from the title (e.g. "SQL Join Cheat Sheet" → `sql-join-cheat-sheet`).
 Two workspaces can each have a reference with the same slug.
+
+## Questions
+
+```bash
+pharos question create "<title>" --mode choice|recall --body-file <path>  # Create a question (DB-only)
+pharos question list                                                       # List questions
+pharos question list --weak                                               # Sort by accuracy ascending (completed attempts only)
+pharos question list --weak --limit 5 --json                               # Top 5 weakest, machine-readable
+pharos question read <slug>                                                # Print metadata + config (correct option marked for choice)
+```
+
+Questions are DB-only (no file on disk) — the item bank a workspace's quizzes draw from.
+A question's `--mode` selects its config shape and how `--body-file` is interpreted:
+
+- **choice** — `--body-file` is JSON: `{"options": ["A","B","C","D"], "key": 2}` where `key` is the 0-based index of the correct answer.
+- **recall** — `--body-file` is the reveal text shown after the learner self-grades.
+
+The slug is derived from the title. Before creating, `pharos question list` to reuse existing questions across quizzes rather than duplicating.
+
+`--weak` surfaces what the learner struggles with: questions never answered in a completed attempt sort first, then by accuracy ascending, with a `Last` column showing when each was last attempted so you can tell stale weakness from fresh. This is the workspace's storage-strength signal — use it to decide what to practice or teach next.
+
+## Quizzes
+
+```bash
+pharos quiz create "<title>" --items "slug1,slug2" [--description "..."] [--lesson <seq>]  # Create a quiz from question slugs (DB-only)
+pharos quiz list                                                          # List quizzes (with best score + lesson link)
+pharos quiz list --weak                                                   # Sort by weakness: never-attempted first, then by best-score ratio ascending
+pharos quiz list --weak --limit 5 --json                                  # Top 5 weakest, machine-readable
+pharos quiz revise <slug> [--items "slug1,slug2"] [--lesson <seq>]        # Update items and/or lesson link (0 to unlink)
+pharos quiz read <slug>                                                   # Print metadata + question slugs + lesson link
+pharos quiz attempts <slug>                                               # Completed-attempt history + trend (is accuracy improving?)
+pharos quiz show <slug>                                                    # Show in dashboard
+```
+
+Quizzes are DB-only ordered lists of question slugs, grouped under a title. The learner takes them in the dashboard (library → attempt → review); the CLI only authors them. `--items` is a comma-separated slug list in presentation order. `quiz list` shows the best score from completed attempts per quiz.
+
+A quiz optionally links to the **lesson** whose skill it practices, via `--lesson <seq>` on `create` or `revise` (pass `0` to `revise` to unlink). The link is a soft reference by lesson sequence number (not a FK) — it is surfaced in `quiz read`, `quiz list`, `quiz attempts`, and `quiz show`, and in reverse via `lesson read` and `lesson list` (which show linked quiz slugs). See the [Skills](../SKILL.md#skills) section for why the link exists.
+
+`quiz list --weak` is the skill-area weakness signal: never-attempted quizzes sort first (most urgent to assess), then by best-score ratio ascending — weakest skill area first. Use it alongside `question list --weak` (per-question) to decide what to practice or teach next.
+
+`quiz attempts <slug>` shows the retake history with a trend summary (recent-half vs earlier-half average accuracy). It answers "is accuracy improving?" — the trajectory, where `--weak` is a snapshot. Per-attempt scores reconcile with `quiz list`'s best-score column (best = max of this series).
+
+`quiz revise --items` blocks while the quiz has in-progress attempts — wait for them to complete or be abandoned first. `--lesson` does not block (it's metadata that doesn't affect a running attempt).
+
+After creating or revising a quiz, **present** it:
+
+```bash
+pharos quiz show <slug>    # Opens the quiz intro page; the learner starts when ready
+```
 
 ## Assets
 
@@ -237,4 +286,4 @@ Sequence numbers are assigned by the CLI on creation — don't hand-number.
 └── assets/               # Reusable components (style.css, etc.)
 ```
 
-The web dashboard is read-only — all mutations go through the CLI.
+Questions, quizzes, and quiz attempts are **DB-only** — they have no file on disk and are managed entirely via the CLI. The web dashboard is read-only — all mutations go through the CLI.

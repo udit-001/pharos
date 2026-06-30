@@ -13,10 +13,12 @@ Before creating anything, check whether the work already exists. A workspace is 
 
 Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:
 
-- `MISSION.md`: The _reason_ the user is learning. Read with `pharos mission show` (or `pharos mission show --json`), update with `pharos mission edit --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
-- `RESOURCES.md`: Curated knowledge sources and communities. Read with `pharos resources show` (or `pharos resources show --json`), update with `pharos resources edit --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
+- `MISSION.md`: The _reason_ the user is learning. Read with `pharos mission read` (or `pharos mission read --json`), update with `pharos mission edit --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
+- `RESOURCES.md`: Curated knowledge sources and communities. Read with `pharos resources read` (or `pharos resources read --json`), update with `pharos resources edit --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
 - **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary create "<term>" "<definition>"`, display with `pharos glossary list` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
-- `NOTES.md`: Scratchpad for preferences and working notes. Read with `pharos notes show` (or `pharos notes show --json`), update with `pharos notes edit --body-file <path>` or `pharos notes edit --append --body-file <path>`.
+- **Questions**: The item bank the workspace's quizzes draw from, stored in the database. Create with `pharos question create "<title>" --mode choice|recall --body-file <path>`, list with `pharos question list`. See [QUESTION-FORMAT.md](./QUESTION-FORMAT.md) for authoring craft.
+- **Quizzes**: Ordered question sets the learner takes in the dashboard, stored in the database. Create with `pharos quiz create "<title>" --items "slug1,slug2"`, list with `pharos quiz list`.
+- `NOTES.md`: Scratchpad for preferences and working notes. Read with `pharos notes read` (or `pharos notes read --json`), update with `pharos notes edit --body-file <path>` or `pharos notes edit --append --body-file <path>`.
 - `./lessons/*.html`: Self-contained lesson HTML files. Create with `pharos lesson create "<title>" --body-file <path>`.
 - `./learning-records/*.md`: ADR-style records of what was learned. Create with `pharos record create "<title>" --body-file <path>`.
 - `./reference/*.html`: Reference documents — cheat sheets, syntax guides. Create with `pharos reference create "<title>" --body-file <path>`.
@@ -99,7 +101,7 @@ Every external link in a lesson must use `target="_blank" rel="noopener noreferr
 HTML pages (lessons and references) are built from reusable **assets** in
 `./assets/`. Two kinds:
 
-- **User components** — stylesheets, quiz widgets, simulators you author with
+- **User components** — stylesheets, inline quiz widgets, simulators you author with
   `pharos asset create <filename> --body-file <path>`.
 - **Vendored or seeded assets** — third-party libraries: **mermaid** for
   diagrams, **highlightjs** for code highlighting (plus mermaid-lightbox for
@@ -140,6 +142,7 @@ Each lesson, the user should always feel as if they are being challenged 'just e
 The user may specify an exact thing they want to learn. If they don't, figure out their zone of proximal development by:
 
 - Reading their `learning-records`
+- Checking `pharos quiz list --weak` and `pharos question list --weak` for where retrieval is weakest
 - Figuring out the right thing to teach them based on their mission
 - Teach the most relevant thing that fits in their zone of proximal development
 
@@ -155,14 +158,21 @@ For acquiring knowledge, difficulty is the enemy. It eats working memory you nee
 
 If knowledge is all about acquisition, skills are about durability and flexibility. Make the knowledge stick.
 
-For skill acquisition, difficulty is the tool. Effortful retrieval is what builds storage strength. Skills should be taught through interactive lessons. There are several tools at your disposal:
+For skill acquisition, difficulty is the tool. Effortful retrieval is what builds storage strength. Skills are taught through interactive lessons, then practiced and tracked through the quiz subsystem. Each retrieval moment has its own instrument — recognise the moment, then reach for the one that fits:
 
-- Interactive lessons, using quizzes and light in-browser tasks
-- Lessons which guide the user through a list of real-world steps to take (for instance, yoga poses)
+- **In-lesson check** — when the learner has just read an explanation and you want to confirm they understood, not just nodded along, embed a short inline quiz in the lesson HTML. Formative and in-context; the feedback is immediate. It is ephemeral: do not track or supersede it.
+- **Practice quiz** — when a stretch is done and the goal is to pull it *out of memory*, build a `pharos quiz` from `pharos question` items. Scored, with a review page, taken in the dashboard. Pick mode by the retrieval you want: `choice` checks recognition (fluency-leaning), `recall` demands free recall (storage-strength-leaning). Size it to the coherent chunk the learner just finished, and link it to that lesson with `--lesson <seq>` — the lesson↔quiz join is explicit in the DB, so the skill area a quiz practices is named, not inferred from topic naming. After creating, present it with `pharos quiz show <slug>` — the learner starts when ready.
+- **Weakness signal** — when the learner returns with limited time, or you're choosing what to teach next, run `pharos quiz list --weak` (weakest skill areas) then `pharos question list --weak` (specific items dragging them down). Never-attempted sort first, then by accuracy ascending; the `Last` column tells you whether a weakness is stale (possibly since fixed) or fresh — weight fresh misses heavier. The workspace's storage-strength signal, feeding both the next quiz and the next lesson.
+- **Progress** — tracked attempts and the review page let the learner watch a score climb across retakes. To see the trajectory (is accuracy improving?), run `pharos quiz attempts <slug>` — it prints the completed-attempt history with a trend summary; the motivation loop, distinct from the retrieval itself.
+- **Real-world steps** — for procedural skills (yoga poses, lifts), the instrument is a lesson that walks the learner through the steps and asks them to perform them. The performance itself is the retrieval; feedback comes from doing it.
 
-Each of these should be based on a **feedback loop**, where the user receives feedback on their performance. This feedback loop should be as tight as possible, giving feedback immediately - and ideally automatically.
+Each is a **feedback loop** — tight as possible, immediate, and automatic where it can be.
 
-For quizzes, each answer should be exactly the same number of words (and characters, if possible). Don't give the user any clues about the answer through formatting.
+### Promoting an inline check
+
+An inline check is ephemeral, but a struggle it reveals is worth keeping. When a learner repeatedly fails an inline check on a concept, **promote** it: `pharos question create` the concept, then `pharos quiz revise --items` to add it to the relevant quiz. The formative check graduates into the tracked record; `--weak` then sees it.
+
+For multiple-choice — inline or `choice` mode — keep all options the same length and character count, so the correct answer isn't leaked by formatting. See [QUESTION-FORMAT.md](./QUESTION-FORMAT.md) for config shapes and authoring rules.
 
 ## Acquiring Wisdom
 
@@ -206,7 +216,7 @@ Glossaries, in particular, are an essential reference. Once one is created, it s
 
 ## `NOTES.md`
 
-The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. Record these with `pharos notes edit --body-file <path>` or append to them with `pharos notes edit --append --body-file <path>`. To review existing notes, use `pharos notes show` (or `pharos notes show --json`).
+The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. Record these with `pharos notes edit --body-file <path>` or append to them with `pharos notes edit --append --body-file <path>`. To review existing notes, use `pharos notes read` (or `pharos notes read --json`).
 
 After each session, check `NOTES.md` for user preferences before starting the next session. The dashboard's "Continue where you left off" feature tracks which workspace and lesson the user last viewed — it picks up automatically.
 
