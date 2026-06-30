@@ -81,7 +81,6 @@ func Open(path string) (*Store, error) {
 	}
 
 	store := &Store{db: db}
-	_ = store.RebuildFTS()
 
 	return store, nil
 }
@@ -178,13 +177,6 @@ func (s *Store) Search(query string) ([]SearchResult, error) {
 		return []SearchResult{}, nil
 	}
 	return results, nil
-}
-
-func (s *Store) RebuildFTS() error {
-	_, _ = s.db.Exec("INSERT INTO lessons_fts(lessons_fts) VALUES('rebuild')")
-	_, _ = s.db.Exec("INSERT INTO records_fts(records_fts) VALUES('rebuild')")
-	_, _ = s.db.Exec("INSERT INTO refs_fts(refs_fts) VALUES('rebuild')")
-	return nil
 }
 
 var _ sql.DB

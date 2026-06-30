@@ -944,6 +944,45 @@ func TestWorkspaceStoreSearch(t *testing.T) {
 	}
 }
 
+// TestFTSTriggersIndexAtInsert proves the FTS5 AFTER INSERT triggers maintain
+// the search index at insert time — no RebuildFTS() call is needed on Open or
+// before Search. Regression guard for the removal of the redundant
+// store.RebuildFTS() call that used to run on every Open() (LEARN-102): if a
+// trigger is dropped or its body_text column drifts, a newly-created item is
+// no longer searchable by a term that appears only in its body, and this
+// test fails.
+func TestFTSTriggersIndexAtInsert(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "trig")
+
+	// Distinctive body term that appears in NO title or summary, only in body.
+	const needle = "pterodactyl"
+
+	// Create one of each entity type via the create path (the path agents use),
+	// each with the needle only in the body — never in title or summary.
+	if _, err := ws.CreateLesson("Lesson Title", "<p>body "+needle+"</p>"); err != nil {
+		t.Fatalf("CreateLesson: %v", err)
+	}
+	if _, err := ws.CreateRecord("Record Title", "body "+needle, "summary without the needle"); err != nil {
+		t.Fatalf("CreateRecord: %v", err)
+	}
+	if _, err := ws.CreateRef("Ref Title", "<p>body "+needle+"</p>"); err != nil {
+		t.Fatalf("CreateRef: %v", err)
+	}
+
+	// Search immediately — no rebuild call anywhere. If the _ai triggers work,
+	// the needle (present only in body_text) is indexed at insert and found.
+	results, err := ws.Search(needle)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("expected 3 trigger-indexed results for %q, got %d "+
+			"(FTS AFTER INSERT triggers not maintaining index?)",
+			needle, len(results))
+	}
+}
+
 // TestSearchResultSnippet proves that a lesson matching only on body_text
 // (empty summary) gets a preview snippet in the search result.
 func TestSearchResultSnippet(t *testing.T) {
