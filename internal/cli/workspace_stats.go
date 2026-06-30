@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/db"
 )
 
 var workspaceStatsCmd = &cobra.Command{
@@ -22,58 +23,58 @@ Examples:
 			return formatError("failed to get stats", err)
 		}
 
-		totalWorkspaces := len(workspaces)
-		totalLessons := 0
-		totalRecords := 0
-
-		for _, w := range workspaces {
-			totalLessons += w.LessonCount
-			totalRecords += w.RecordCount
-		}
+		// Totals sums lesson/record/quiz/ref counts across workspaces in one
+		// place — the command doesn't re-sum. GetWorkspaces already populates
+		// the per-workspace QuizCount the helper reads.
+		totals := db.Totals(workspaces)
 
 		if jsonOut {
-			stats := map[string]any{
-				"totalWorkspaces": totalWorkspaces,
-				"totalLessons":    totalLessons,
-				"totalRecords":    totalRecords,
-			}
-			printJSON(stats)
+			printJSON(map[string]any{
+				"totalWorkspaces": totals.Workspaces,
+				"totalLessons":    totals.Lessons,
+				"totalRecords":    totals.Records,
+				"totalQuizzes":    totals.Quizzes,
+			})
 			return nil
 		}
 
 		fmt.Println()
-		fmt.Printf("  Total workspaces:    %d\n", totalWorkspaces)
-		fmt.Printf("  Total lessons:       %d\n", totalLessons)
-		fmt.Printf("  Total learning recs: %d\n", totalRecords)
+		fmt.Printf("  Total workspaces:    %d\n", totals.Workspaces)
+		fmt.Printf("  Total lessons:       %d\n", totals.Lessons)
+		fmt.Printf("  Total learning recs: %d\n", totals.Records)
+		fmt.Printf("  Total quizzes:       %d\n", totals.Quizzes)
 		fmt.Println()
 
-		if totalWorkspaces > 0 {
+		if totals.Workspaces > 0 {
 			fmt.Println("  By workspace:")
 			for _, w := range workspaces {
-				barLessons := ""
-				barRecs := ""
-				if totalLessons > 0 {
-					pct := float64(w.LessonCount) / float64(totalLessons) * 100
-					n := int(pct / 5)
-					for i := 0; i < n && i < 20; i++ {
-						barLessons += "█"
-					}
-				}
-				if totalRecords > 0 {
-					pct := float64(w.RecordCount) / float64(totalRecords) * 100
-					n := int(pct / 5)
-					for i := 0; i < n && i < 20; i++ {
-						barRecs += "█"
-					}
-				}
-				fmt.Printf("    %-25s L:%3d %s R:%3d %s\n",
-					w.DisplayName(), w.LessonCount, barLessons, w.RecordCount, barRecs)
+				fmt.Printf("    %-25s L:%3d %s  R:%3d %s  Q:%3d %s\n",
+					w.DisplayName(),
+					w.LessonCount, countBar(w.LessonCount, totals.Lessons),
+					w.RecordCount, countBar(w.RecordCount, totals.Records),
+					w.QuizCount, countBar(w.QuizCount, totals.Quizzes),
+				)
 			}
 			fmt.Println()
 		}
 
 		return nil
 	},
+}
+
+// countBar returns a proportional block string for n out of total, up to 20
+// blocks. Empty when total is zero. Shared across the lesson/record/quiz
+// per-workspace lines so the bar shape lives in one place.
+func countBar(n, total int) string {
+	if total <= 0 {
+		return ""
+	}
+	count := int(float64(n) / float64(total) * 100 / 5)
+	b := ""
+	for i := 0; i < count && i < 20; i++ {
+		b += "█"
+	}
+	return b
 }
 
 func init() {

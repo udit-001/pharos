@@ -690,54 +690,41 @@ func handleQuizLibraryPage(store *db.Store) http.HandlerFunc {
 			return
 		}
 
+		// Best scores come from the store's single scoring source
+		// (GetQuizScores); the in-progress resume link is dashboard-only.
+		scored, _ := wsStore.GetQuizScores()
+		scoreBySlug := make(map[string]db.QuizScore, len(scored))
+		for _, s := range scored {
+			scoreBySlug[s.Slug] = s
+		}
+
 		entries := make([]render.QuizEntry, len(quizzes))
 		var inProgress *render.QuizResumeLink
 		for i, q := range quizzes {
 			items, _ := q.ParseItems()
 			total := len(items)
-			entries[i] = render.QuizEntry{
+			entry := render.QuizEntry{
 				Slug:        q.Slug,
 				Title:       q.Title,
 				Description: q.Description,
 				ItemCount:   total,
 				BestScore:   -1,
 			}
+			if s, ok := scoreBySlug[q.Slug]; ok && s.Attempted {
+				entry.BestScore = s.BestScore
+				entry.BestTotal = s.BestTotal
+			}
+			entries[i] = entry
 			if attempts, err := wsStore.GetQuizAttempts(q.ID); err == nil {
 				for _, a := range attempts {
 					if a.Status == "in_progress" && inProgress == nil {
-						scored, _ := wsStore.GetAttempts(a.ID)
+						scoredAns, _ := wsStore.GetAttempts(a.ID)
 						inProgress = &render.QuizResumeLink{
 							AttemptID: a.ID,
 							QuizSlug:  q.Slug,
 							QuizTitle: q.Title,
-							Scored:    len(scored),
+							Scored:    len(scoredAns),
 							Total:     total,
-						}
-					} else if a.Status == "completed" {
-						answers, _ := wsStore.GetAttempts(a.ID)
-						// Build set of current question IDs for this quiz.
-						currentQ := map[int64]bool{}
-						for _, slug := range items {
-							if q, err := wsStore.GetQuestionBySlug(slug); err == nil {
-								currentQ[q.ID] = true
-							}
-						}
-						// Count unique correct answers for current questions only.
-						latestByQ := map[int64]db.Attempt{}
-						for _, ans := range answers {
-							if currentQ[ans.QuestionID] {
-								latestByQ[ans.QuestionID] = ans
-							}
-						}
-						correct := 0
-						for _, ans := range latestByQ {
-							if ans.Correct != nil && *ans.Correct {
-								correct++
-							}
-						}
-						if correct > entries[i].BestScore {
-							entries[i].BestScore = correct
-							entries[i].BestTotal = total
 						}
 					}
 				}
