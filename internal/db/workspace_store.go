@@ -807,19 +807,9 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 // ReviseLesson overwrites a lesson's content in place. Sequence and filename
 // are unchanged.
 func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, summary *string) error {
-	lessons, err := w.GetLessons()
+	current, err := w.GetLessonBySeq(seq)
 	if err != nil {
 		return fmt.Errorf("find lesson: %w", err)
-	}
-	var current *Lesson
-	for i := range lessons {
-		if lessons[i].SequenceNumber == seq {
-			current = &lessons[i]
-			break
-		}
-	}
-	if current == nil {
-		return fmt.Errorf("lesson %d not found", seq)
 	}
 
 	if err := writeToFile(w.Layout().LessonPath(current.Filename), bodyHTML); err != nil {
@@ -879,19 +869,9 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 // SupersedeRecord atomically creates a new record and marks the old one as
 // superseded. Returns the new record.
 func (w *WorkspaceStore) SupersedeRecord(seq int, title, bodyMD, summary string) (LearningRecord, LearningRecord, error) {
-	records, err := w.GetRecords()
+	old, err := w.GetRecordBySeq(seq)
 	if err != nil {
 		return LearningRecord{}, LearningRecord{}, fmt.Errorf("find old record: %w", err)
-	}
-	var old *LearningRecord
-	for i := range records {
-		if records[i].SequenceNumber == seq {
-			old = &records[i]
-			break
-		}
-	}
-	if old == nil {
-		return LearningRecord{}, LearningRecord{}, fmt.Errorf("record %d not found", seq)
 	}
 
 	created, err := w.CreateRecord(title, bodyMD, summary)
@@ -957,19 +937,9 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 
 // ReviseRef overwrites a reference's content in place. Slug is unchanged.
 func (w *WorkspaceStore) ReviseRef(slug, bodyHTML string, title *string, summary *string) error {
-	refs, err := w.GetRefs()
+	current, err := w.GetRefBySlug(slug)
 	if err != nil {
 		return fmt.Errorf("find reference: %w", err)
-	}
-	var current *Reference
-	for i := range refs {
-		if refs[i].Slug == slug {
-			current = &refs[i]
-			break
-		}
-	}
-	if current == nil {
-		return fmt.Errorf("reference %q not found", slug)
 	}
 
 	if err := writeToFile(w.Layout().RefPath(current.Filename), bodyHTML); err != nil {
