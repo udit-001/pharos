@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/db"
@@ -19,77 +18,45 @@ Examples:
   pharos record read 5 --json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		s := mustStore(cmd)
-		seq, err := parseSeq(args[0])
-		if err != nil {
-			return err
-		}
-		wsName, _ := cmd.Flags().GetString("workspace")
-
-		wsStore, err := resolveWorkspace(s, wsName)
-		if err != nil {
-			return err
-		}
-		ws := wsStore.Workspace()
-
-		records, err := wsStore.GetRecords()
-		if err != nil {
-			return formatError("failed to get records", err)
-		}
-
-		var current *db.LearningRecord
-		for i := range records {
-			if records[i].SequenceNumber == seq {
-				current = &records[i]
-				break
-			}
-		}
-		if current == nil {
-			return fmt.Errorf("record #%d not found", seq)
-		}
-
-		metaOnly, _ := cmd.Flags().GetBool("meta-only")
-
-		if jsonOut {
-			result := map[string]any{
-				"id":             current.ID,
-				"sequenceNumber": current.SequenceNumber,
-				"title":          current.Title,
-				"filename":       current.Filename,
-				"status":         current.Status,
-				"summary":        current.Summary,
-				"createdAt":      current.CreatedAt,
-				"updatedAt":      current.UpdatedAt,
-				"workspace":      ws.Name,
-			}
-			if !metaOnly {
-				data, err := os.ReadFile(wsStore.Layout().RecordPath(current.Filename))
+		return runRead(cmd, readSpec[db.LearningRecord]{
+			fetch:    func(ws *db.WorkspaceStore) ([]db.LearningRecord, error) { return ws.GetRecords() },
+			errLabel: "failed to get records",
+			findItem: func(items []db.LearningRecord, key string) (*db.LearningRecord, error) {
+				n, err := parseSeq(key)
 				if err != nil {
-					return fmt.Errorf("read record file: %w", err)
+					return nil, err
 				}
-				result["body"] = string(data)
-			}
-			printJSON(result)
-			return nil
-		}
-
-		fmt.Println()
-		fmt.Printf("  Record #%d: %s\n", current.SequenceNumber, current.Title)
-		fmt.Printf("  Status: %s\n", current.Status)
-		fmt.Printf("  File: %s\n", current.Filename)
-		fmt.Printf("  Summary: %s\n", current.Summary)
-		fmt.Printf("  Created: %s\n", current.CreatedAt)
-		fmt.Printf("  Updated: %s\n", current.UpdatedAt)
-		fmt.Println()
-
-		if !metaOnly {
-			data, err := os.ReadFile(wsStore.Layout().RecordPath(current.Filename))
-			if err != nil {
-				return fmt.Errorf("read record file: %w", err)
-			}
-			fmt.Println(string(data))
-		}
-		return nil
+				for i := range items {
+					if items[i].SequenceNumber == n {
+						return &items[i], nil
+					}
+				}
+				return nil, nil
+			},
+			keyName: "record",
+			jsonOut: func(item db.LearningRecord, ws db.Workspace, wsStore *db.WorkspaceStore) map[string]any {
+				return map[string]any{
+					"sequenceNumber": item.SequenceNumber,
+					"title":          item.Title,
+					"filename":       item.Filename,
+					"status":         item.Status,
+					"summary":        item.Summary,
+					"createdAt":      item.CreatedAt,
+					"updatedAt":      item.UpdatedAt,
+				}
+			},
+			plainOut: func(item db.LearningRecord, ws db.Workspace, wsStore *db.WorkspaceStore) {
+				fmt.Printf("  Record #%d: %s\n", item.SequenceNumber, item.Title)
+				fmt.Printf("  Status: %s\n", item.Status)
+				fmt.Printf("  File: %s\n", item.Filename)
+				fmt.Printf("  Summary: %s\n", item.Summary)
+				fmt.Printf("  Created: %s\n", item.CreatedAt)
+				fmt.Printf("  Updated: %s\n", item.UpdatedAt)
+			},
+			bodyPath: func(wsStore *db.WorkspaceStore, item db.LearningRecord) string {
+				return wsStore.Layout().RecordPath(item.Filename)
+			},
+		}, args[0])
 	},
 }
 

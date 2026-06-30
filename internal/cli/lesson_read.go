@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -20,89 +19,60 @@ Examples:
   pharos lesson read 3 --json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		s := mustStore(cmd)
-		seq, err := parseSeq(args[0])
-		if err != nil {
-			return err
-		}
-		wsName, _ := cmd.Flags().GetString("workspace")
-
-		wsStore, err := resolveWorkspace(s, wsName)
-		if err != nil {
-			return err
-		}
-		ws := wsStore.Workspace()
-
-		lessons, err := wsStore.GetLessons()
-		if err != nil {
-			return formatError("failed to get lessons", err)
-		}
-
-		var current *db.Lesson
-		for i := range lessons {
-			if lessons[i].SequenceNumber == seq {
-				current = &lessons[i]
-				break
-			}
-		}
-		if current == nil {
-			return fmt.Errorf("lesson #%d not found", seq)
-		}
-
-		metaOnly, _ := cmd.Flags().GetBool("meta-only")
-
-		// Reverse link: quizzes that practice this lesson's skill. Fetched
-		// once and surfaced in both JSON and plain output.
-		linkedQuizzes, _ := wsStore.LessonContent().QuizzesForLesson(current.SequenceNumber)
-		quizSlugs := make([]string, len(linkedQuizzes))
-		for i, q := range linkedQuizzes {
-			quizSlugs[i] = q.Slug
-		}
-
-		if jsonOut {
-			result := map[string]any{
-				"id":             current.ID,
-				"sequenceNumber": current.SequenceNumber,
-				"title":          current.Title,
-				"filename":       current.Filename,
-				"summary":        current.Summary,
-				"createdAt":      current.CreatedAt,
-				"updatedAt":      current.UpdatedAt,
-				"workspace":      ws.Name,
-			}
-			if len(quizSlugs) > 0 {
-				result["quizzes"] = quizSlugs
-			}
-			if !metaOnly {
-				data, err := os.ReadFile(wsStore.Layout().LessonPath(current.Filename))
+		return runRead(cmd, readSpec[db.Lesson]{
+			fetch:    func(ws *db.WorkspaceStore) ([]db.Lesson, error) { return ws.GetLessons() },
+			errLabel: "failed to get lessons",
+			findItem: func(items []db.Lesson, key string) (*db.Lesson, error) {
+				n, err := parseSeq(key)
 				if err != nil {
-					return fmt.Errorf("read lesson file: %w", err)
+					return nil, err
 				}
-				result["body"] = string(data)
-			}
-			printJSON(result)
-			return nil
-		}
-
-		fmt.Println()
-		fmt.Printf("  Lesson #%d: %s\n", current.SequenceNumber, current.Title)
-		fmt.Printf("  File: %s\n", current.Filename)
-		fmt.Printf("  Summary: %s\n", current.Summary)
-		fmt.Printf("  Created: %s\n", current.CreatedAt)
-		fmt.Printf("  Updated: %s\n", current.UpdatedAt)
-		if len(quizSlugs) > 0 {
-			fmt.Printf("  Quizzes: %s\n", strings.Join(quizSlugs, ", "))
-		}
-		fmt.Println()
-
-		if !metaOnly {
-			data, err := os.ReadFile(wsStore.Layout().LessonPath(current.Filename))
-			if err != nil {
-				return fmt.Errorf("read lesson file: %w", err)
-			}
-			fmt.Println(string(data))
-		}
-		return nil
+				for i := range items {
+					if items[i].SequenceNumber == n {
+						return &items[i], nil
+					}
+				}
+				return nil, nil
+			},
+			keyName: "lesson",
+			jsonOut: func(item db.Lesson, ws db.Workspace, wsStore *db.WorkspaceStore) map[string]any {
+				m := map[string]any{
+					"sequenceNumber": item.SequenceNumber,
+					"title":          item.Title,
+					"filename":       item.Filename,
+					"summary":        item.Summary,
+					"createdAt":      item.CreatedAt,
+					"updatedAt":      item.UpdatedAt,
+				}
+				linkedQuizzes, _ := wsStore.LessonContent().QuizzesForLesson(item.SequenceNumber)
+				if len(linkedQuizzes) > 0 {
+					slugs := make([]string, len(linkedQuizzes))
+					for i, q := range linkedQuizzes {
+						slugs[i] = q.Slug
+					}
+					m["quizzes"] = slugs
+				}
+				return m
+			},
+			plainOut: func(item db.Lesson, ws db.Workspace, wsStore *db.WorkspaceStore) {
+				fmt.Printf("  Lesson #%d: %s\n", item.SequenceNumber, item.Title)
+				fmt.Printf("  File: %s\n", item.Filename)
+				fmt.Printf("  Summary: %s\n", item.Summary)
+				fmt.Printf("  Created: %s\n", item.CreatedAt)
+				fmt.Printf("  Updated: %s\n", item.UpdatedAt)
+				linkedQuizzes, _ := wsStore.LessonContent().QuizzesForLesson(item.SequenceNumber)
+				if len(linkedQuizzes) > 0 {
+					slugs := make([]string, len(linkedQuizzes))
+					for i, q := range linkedQuizzes {
+						slugs[i] = q.Slug
+					}
+					fmt.Printf("  Quizzes: %s\n", strings.Join(slugs, ", "))
+				}
+			},
+			bodyPath: func(wsStore *db.WorkspaceStore, item db.Lesson) string {
+				return wsStore.Layout().LessonPath(item.Filename)
+			},
+		}, args[0])
 	},
 }
 
