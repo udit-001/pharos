@@ -75,7 +75,7 @@
 
   function swapColors(theme) {
     var map = theme === 'dark' ? LIGHT_TO_DARK : DARK_TO_LIGHT;
-    var styles = document.querySelectorAll('.mermaid-lightbox-viewport svg style');
+    var styles = document.querySelectorAll('.mermaid svg style, .mermaid-lightbox-viewport svg style');
     for (var i = 0; i < styles.length; i++) {
       styles[i].textContent = styles[i].textContent.replace(/#[0-9a-f]{6}/gi, function(m) {
         return map[m.toLowerCase()] || m;
@@ -110,8 +110,10 @@
   // toolbar are all left untouched — only colour changes.
   function retint(theme) {
     document.documentElement.dataset.theme = theme;
+    // Synchronous fallback: update lightbox clones immediately (hex colors).
+    // The async mermaid.render will follow and handle hsl() values later.
+    swapColors(theme);
     if (!window.mermaid || !window.mermaid.render) {
-      swapColors(theme);
       return;
     }
     window.mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: themeVars() });
@@ -124,7 +126,12 @@
       if (src == null || !svg) continue;
       tasks.push(retintOne(svg, src, i));
     }
-    Promise.all(tasks).then(retintLightboxClones, function() { retintLightboxClones(); swapColors(theme); });
+    // Update lightbox clones after each diagram retints, not just at the end.
+    // This avoids waiting for ALL diagrams before the lightbox catches up.
+    var lightboxPokes = tasks.map(function(t) {
+        return (t || Promise.resolve()).then(retintLightboxClones, function() {});
+    });
+    Promise.all(lightboxPokes).then(function() {}, function() { retintLightboxClones(); swapColors(theme); });
   }
 
   // An open lightbox shows a clone of the live SVG. The clone keeps the old
