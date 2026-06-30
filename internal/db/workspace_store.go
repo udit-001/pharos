@@ -780,14 +780,15 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 
 	slug := Slugify(title)
 	filename := fmt.Sprintf("%04d-%s.html", seqNum, slug)
-
-	if err := writeToFile(w.Layout().LessonPath(filename), bodyHTML); err != nil {
-		return Lesson{}, fmt.Errorf("write lesson file: %w", err)
-	}
-
 	bodyText := extract.FromHTML(bodyHTML)
 
-	result, err := w.db().Exec(
+	tx, err := w.db().Begin()
+	if err != nil {
+		return Lesson{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		`INSERT INTO lessons (workspace_id, title, sequence_number, filename, path, summary, body_text, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		w.ws.ID, title, seqNum, filename, w.Layout().LessonRelPath(filename), "", bodyText, now, now,
@@ -795,6 +796,15 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 	if err != nil {
 		return Lesson{}, fmt.Errorf("insert lesson: %w", err)
 	}
+
+	if err := writeToFile(w.Layout().LessonPath(filename), bodyHTML); err != nil {
+		return Lesson{}, fmt.Errorf("write lesson file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Lesson{}, fmt.Errorf("commit tx: %w", err)
+	}
+
 	id, _ := result.LastInsertId()
 
 	return Lesson{
@@ -841,15 +851,17 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 
 	slug := Slugify(title)
 	filename := fmt.Sprintf("%04d-%s.md", seqNum, slug)
-
-	if err := writeToFile(w.Layout().RecordPath(filename), bodyMD); err != nil {
-		return LearningRecord{}, fmt.Errorf("write record file: %w", err)
-	}
-
 	bodyText := extract.FromMarkdown(bodyMD)
 
 	var supersededBy interface{}
-	result, err := w.db().Exec(
+
+	tx, err := w.db().Begin()
+	if err != nil {
+		return LearningRecord{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		`INSERT INTO learning_records (workspace_id, title, sequence_number, filename, path, status, superseded_by, summary, body_text, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
 		w.ws.ID, title, seqNum, filename, w.Layout().RecordRelPath(filename), supersededBy, summary, bodyText, now, now,
@@ -857,6 +869,15 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 	if err != nil {
 		return LearningRecord{}, fmt.Errorf("insert record: %w", err)
 	}
+
+	if err := writeToFile(w.Layout().RecordPath(filename), bodyMD); err != nil {
+		return LearningRecord{}, fmt.Errorf("write record file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return LearningRecord{}, fmt.Errorf("commit tx: %w", err)
+	}
+
 	id, _ := result.LastInsertId()
 
 	return LearningRecord{
@@ -912,13 +933,15 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 		}
 	}
 
-	if err := writeToFile(w.Layout().RefPath(filename), bodyHTML); err != nil {
-		return Reference{}, fmt.Errorf("write reference file: %w", err)
-	}
-
 	bodyText := extract.FromHTML(bodyHTML)
 
-	result, err := w.db().Exec(
+	tx, err := w.db().Begin()
+	if err != nil {
+		return Reference{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		`INSERT INTO references_t (workspace_id, title, slug, filename, path, summary, body_text, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		w.ws.ID, title, slug, filename, w.Layout().RefRelPath(filename), "", bodyText, now, now,
@@ -926,6 +949,15 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 	if err != nil {
 		return Reference{}, fmt.Errorf("insert reference: %w", err)
 	}
+
+	if err := writeToFile(w.Layout().RefPath(filename), bodyHTML); err != nil {
+		return Reference{}, fmt.Errorf("write reference file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Reference{}, fmt.Errorf("commit tx: %w", err)
+	}
+
 	id, _ := result.LastInsertId()
 
 	return Reference{
