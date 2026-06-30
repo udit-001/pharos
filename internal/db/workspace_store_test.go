@@ -978,8 +978,40 @@ func TestFTSTriggersIndexAtInsert(t *testing.T) {
 	}
 	if len(results) != 3 {
 		t.Fatalf("expected 3 trigger-indexed results for %q, got %d "+
-			"(FTS AFTER INSERT triggers not maintaining index?)",
+			"(FTS AFTER INSERT trigger not maintaining index?)",
 			needle, len(results))
+	}
+}
+
+// TestFTSUpdateTriggerResyncsOnIndexedColumnChange proves the scoped _au
+// trigger (AFTER UPDATE OF title, summary, body_text) still fires when an
+// indexed column changes. ReviseLesson SETs title/summary/body_text, so the
+// trigger resyncs FTS: the new title is searchable and the old is gone.
+// Regression guard for LEARN-106 — if the scoping accidentally excluded an
+// indexed column, search would return stale results.
+func TestFTSUpdateTriggerResyncsOnIndexedColumnChange(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "rev")
+
+	l, err := ws.CreateLesson("guitar", "<p>body content</p>")
+	if err != nil {
+		t.Fatalf("CreateLesson: %v", err)
+	}
+
+	newTitle := "banjo"
+	if err := ws.ReviseLesson(int(l.SequenceNumber), "<p>body content</p>", &newTitle, nil); err != nil {
+		t.Fatalf("ReviseLesson: %v", err)
+	}
+
+	if results, err := ws.Search("banjo"); err != nil {
+		t.Fatalf("Search new title: %v", err)
+	} else if len(results) != 1 {
+		t.Errorf("expected new title searchable, got %d results", len(results))
+	}
+	if results, err := ws.Search("guitar"); err != nil {
+		t.Fatalf("Search old title: %v", err)
+	} else if len(results) != 0 {
+		t.Errorf("expected old title gone from index, got %d results", len(results))
 	}
 }
 

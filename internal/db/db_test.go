@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -68,5 +69,25 @@ func TestOpenSetsSynchronousNormal(t *testing.T) {
 	}
 	if sync != 1 {
 		t.Fatalf("PRAGMA synchronous = %d, want 1 (NORMAL)", sync)
+	}
+}
+
+// TestFTSUpdateTriggersScopedToIndexedColumns asserts the _au triggers were
+// scoped via AFTER UPDATE OF title, summary, body_text (LEARN-106) so that
+// non-indexed UPDATEs (e.g. learning_records supersede: status/superseded_by/
+// updated_at) skip the FTS delete+insert. If a future migration recreates
+// these triggers un-scoped, this fails.
+func TestFTSUpdateTriggersScopedToIndexedColumns(t *testing.T) {
+	store := newTestStore(t)
+	for _, trig := range []string{"lessons_au", "refs_au", "records_au"} {
+		var sql string
+		if err := store.SQL().QueryRow(
+			"SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?", trig,
+		).Scan(&sql); err != nil {
+			t.Fatalf("query %s definition: %v", trig, err)
+		}
+		if !strings.Contains(sql, "UPDATE OF") {
+			t.Errorf("%s not scoped to indexed columns — missing 'UPDATE OF' in:\n%s", trig, sql)
+		}
 	}
 }
