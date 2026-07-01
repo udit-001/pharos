@@ -840,13 +840,24 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, s
 	return err
 }
 
-// CreateRecord creates a new learning record: sequencing, slugify, filename,
-// write file, DB row — all in one method.
-func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRecord, error) {
+// insertRecord is the deep core of record creation: it computes the next
+// sequence number, slug, filename, and body_text, then runs the INSERT via
+// the given executor without beginning or committing a transaction. This
+// lets the caller own the transaction boundary — CreateRecord wraps it in its
+// own tx (a file-write-failure guard), and SupersedeRecord wraps it together
+// with the supersede UPDATE so both commit atomically (LEARN-105). Takes
+// sqlx.Ext (satisfied by *sqlx.DB and *sqlx.Tx); migrates to ExtContext when
+// LEARN-101 lands.
+func (w *WorkspaceStore) insertRecord(ext sqlx.Ext, title, bodyMD, summary string) (LearningRecord, error) {
 	now := nowTimestamp()
 
 	var maxSeq int
-	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM learning_records WHERE workspace_id = ?", w.ws.ID)
+	if err := ext.QueryRowx(
+		"SELECT COALESCE(MAX(sequence_number), 0) FROM learning_records WHERE workspace_id = ?",
+		w.ws.ID,
+	).Scan(&maxSeq); err != nil {
+		return LearningRecord{}, fmt.Errorf("compute record sequence: %w", err)
+	}
 	seqNum := maxSeq + 1
 
 	slug := Slugify(title)
@@ -854,14 +865,7 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 	bodyText := extract.FromMarkdown(bodyMD)
 
 	var supersededBy interface{}
-
-	tx, err := w.db().Begin()
-	if err != nil {
-		return LearningRecord{}, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
-	result, err := tx.Exec(
+	result, err := ext.Exec(
 		`INSERT INTO learning_records (workspace_id, title, sequence_number, filename, path, status, superseded_by, summary, body_text, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
 		w.ws.ID, title, seqNum, filename, w.Layout().RecordRelPath(filename), supersededBy, summary, bodyText, now, now,
@@ -870,16 +874,7 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 		return LearningRecord{}, fmt.Errorf("insert record: %w", err)
 	}
 
-	if err := writeToFile(w.Layout().RecordPath(filename), bodyMD); err != nil {
-		return LearningRecord{}, fmt.Errorf("write record file: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return LearningRecord{}, fmt.Errorf("commit tx: %w", err)
-	}
-
 	id, _ := result.LastInsertId()
-
 	return LearningRecord{
 		ID: id, WorkspaceID: w.ws.ID, Title: title, SequenceNumber: seqNum,
 		Filename: filename, Path: w.Layout().RecordRelPath(filename),
@@ -887,23 +882,70 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 	}, nil
 }
 
+// CreateRecord creates a new learning record: sequencing, slugify, filename,
+// write file, DB row — all in one method. The tx is a file-write-failure
+// guard: if writeToFile fails, the deferred Rollback discards the
+// uncommitted INSERT so no orphaned DB row is left.
+func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRecord, error) {
+	tx, err := w.db().Beginx()
+	if err != nil {
+		return LearningRecord{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	rec, err := w.insertRecord(tx, title, bodyMD, summary)
+	if err != nil {
+		return LearningRecord{}, err
+	}
+
+	if err := writeToFile(w.Layout().RecordPath(rec.Filename), bodyMD); err != nil {
+		return LearningRecord{}, fmt.Errorf("write record file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return LearningRecord{}, fmt.Errorf("commit tx: %w", err)
+	}
+	return rec, nil
+}
+
 // SupersedeRecord atomically creates a new record and marks the old one as
-// superseded. Returns the new record.
+// superseded: the new record's INSERT and the old record's UPDATE commit
+// together in one transaction. writeToFile for the new record runs inside
+// the tx (matching CreateRecord's ordering) — if it fails, the deferred
+// Rollback discards both DB mutations, so neither a dangling new record nor
+// a half-superseded old record is left behind (LEARN-105). Returns the new
+// and old records.
 func (w *WorkspaceStore) SupersedeRecord(seq int, title, bodyMD, summary string) (LearningRecord, LearningRecord, error) {
 	old, err := w.GetRecordBySeq(seq)
 	if err != nil {
 		return LearningRecord{}, LearningRecord{}, fmt.Errorf("find old record: %w", err)
 	}
 
-	created, err := w.CreateRecord(title, bodyMD, summary)
+	tx, err := w.db().Beginx()
+	if err != nil {
+		return LearningRecord{}, LearningRecord{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	created, err := w.insertRecord(tx, title, bodyMD, summary)
 	if err != nil {
 		return LearningRecord{}, LearningRecord{}, err
 	}
 
 	now := nowTimestamp()
-	_, err = w.db().Exec("UPDATE learning_records SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?", created.ID, now, old.ID)
-	if err != nil {
-		return created, LearningRecord{}, fmt.Errorf("supersede old record: %w", err)
+	if _, err := tx.Exec(
+		"UPDATE learning_records SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?",
+		created.ID, now, old.ID,
+	); err != nil {
+		return LearningRecord{}, LearningRecord{}, fmt.Errorf("supersede old record: %w", err)
+	}
+
+	if err := writeToFile(w.Layout().RecordPath(created.Filename), bodyMD); err != nil {
+		return LearningRecord{}, LearningRecord{}, fmt.Errorf("write record file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return LearningRecord{}, LearningRecord{}, fmt.Errorf("commit tx: %w", err)
 	}
 
 	old.Status = "superseded"

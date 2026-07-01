@@ -1015,6 +1015,112 @@ func TestFTSUpdateTriggerResyncsOnIndexedColumnChange(t *testing.T) {
 	}
 }
 
+// TestSupersedeRecord is the happy-path contract: after a successful
+// supersede, the new record is committed 'active' and the old one is
+// 'superseded' with superseded_by pointing at the new id. Both mutations
+// are visible together (LEARN-105). No prior test covered SupersedeRecord.
+func TestSupersedeRecord(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "sup-ok")
+
+	old, err := ws.CreateRecord("first", "body one", "summary one")
+	if err != nil {
+		t.Fatalf("CreateRecord old: %v", err)
+	}
+
+	created, oldResult, err := ws.SupersedeRecord(int(old.SequenceNumber), "second", "body two", "summary two")
+	if err != nil {
+		t.Fatalf("SupersedeRecord: %v", err)
+	}
+
+	if created.Status != "active" {
+		t.Errorf("new record status = %q, want 'active'", created.Status)
+	}
+	if oldResult.Status != "superseded" {
+		t.Errorf("old record status = %q, want 'superseded'", oldResult.Status)
+	}
+	if oldResult.SupersededBy != created.ID {
+		t.Errorf("old.superseded_by = %d, want %d", oldResult.SupersededBy, created.ID)
+	}
+
+	// Confirm both mutations landed in the DB.
+	gotOld, err := ws.GetRecordBySeq(int(old.SequenceNumber))
+	if err != nil {
+		t.Fatalf("reload old: %v", err)
+	}
+	if gotOld.Status != "superseded" || gotOld.SupersededBy != created.ID {
+		t.Errorf("DB old = %+v, want superseded by %d", gotOld, created.ID)
+	}
+	recs, _ := ws.GetRecords()
+	if len(recs) != 2 {
+		t.Errorf("expected 2 records, got %d", len(recs))
+	}
+}
+
+// TestSupersedeRecordAtomic proves the new-record INSERT and the old-record
+// UPDATE commit together in one transaction (LEARN-105). It forces a
+// writeToFile failure mid-tx (by replacing the learning-records dir with a
+// regular file → MkdirAll returns ENOTDIR) and asserts the deferred Rollback
+// discards BOTH DB mutations: the old record stays 'active' and no new
+// record is committed.
+func TestSupersedeRecordAtomic(t *testing.T) {
+	store := newTestStore(t)
+	// Use an isolated temp dir for the workspace path (not seedWorkspace's
+	// shared /tmp/<name>) so the sabotage below is auto-cleaned and can't
+	// leak across runs.
+	wsDir := t.TempDir()
+	if _, err := store.AddWorkspace(Workspace{Name: "sup", Path: wsDir}); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	ws, err := store.Workspace("sup")
+	if err != nil {
+		t.Fatalf("get workspace: %v", err)
+	}
+
+	// Old record, created normally while the records dir is writable.
+	old, err := ws.CreateRecord("first", "body one", "summary one")
+	if err != nil {
+		t.Fatalf("CreateRecord old: %v", err)
+	}
+
+	// Sabotage: replace the learning-records dir with a regular file so the
+	// next writeToFile fails inside SupersedeRecord's tx.
+	recDir := filepath.Join(ws.Layout().Root, "learning-records")
+	if err := os.RemoveAll(recDir); err != nil {
+		t.Fatalf("remove records dir: %v", err)
+	}
+	if err := os.WriteFile(recDir, []byte("blocker"), 0o644); err != nil {
+		t.Fatalf("sabotage records dir: %v", err)
+	}
+
+	// SupersedeRecord must fail (writeToFile) — and roll back both DB mutations.
+	_, _, err = ws.SupersedeRecord(int(old.SequenceNumber), "second", "body two", "summary two")
+	if err == nil {
+		t.Fatal("SupersedeRecord: expected writeToFile failure, got nil error")
+	}
+
+	// Old record must still be active (the UPDATE rolled back).
+	gotOld, err := ws.GetRecordBySeq(int(old.SequenceNumber))
+	if err != nil {
+		t.Fatalf("reload old record: %v", err)
+	}
+	if gotOld.Status != "active" {
+		t.Errorf("old record status = %q, want 'active' (UPDATE should have rolled back)", gotOld.Status)
+	}
+	if gotOld.SupersededBy != 0 {
+		t.Errorf("old record superseded_by = %d, want 0 (UPDATE should have rolled back)", gotOld.SupersededBy)
+	}
+
+	// No new record committed (the INSERT rolled back).
+	recs, err := ws.GetRecords()
+	if err != nil {
+		t.Fatalf("GetRecords: %v", err)
+	}
+	if len(recs) != 1 {
+		t.Errorf("expected exactly 1 record after rollback, got %d (INSERT should have rolled back)", len(recs))
+	}
+}
+
 // TestSearchResultSnippet proves that a lesson matching only on body_text
 // (empty summary) gets a preview snippet in the search result.
 func TestSearchResultSnippet(t *testing.T) {
