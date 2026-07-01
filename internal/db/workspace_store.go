@@ -132,6 +132,18 @@ func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 		results = append(results, sr)
 	}
 
+	quizzes, err := w.SearchQuizzes(query)
+	if err != nil {
+		return nil, fmt.Errorf("search quizzes: %w", err)
+	}
+	for _, q := range quizzes {
+		results = append(results, SearchResult{
+			Type: "quiz", Title: q.Title, Summary: q.Description,
+			WorkspaceName: w.ws.Name, WorkspaceID: w.ws.ID,
+			Slug: q.Slug,
+		})
+	}
+
 	if results == nil {
 		return []SearchResult{}, nil
 	}
@@ -718,6 +730,24 @@ func (w *WorkspaceStore) SearchRefs(query string) ([]Reference, error) {
 	}
 	defer rows.Close()
 	return scanRefs(rows)
+}
+
+// SearchQuizzes performs full-text search within this workspace. Quizzes are
+// DB-only, so the FTS index is trigger-maintained (no file-extraction step).
+func (w *WorkspaceStore) SearchQuizzes(query string) ([]Quiz, error) {
+	q := buildFTSQuery(query)
+	if q == "" {
+		return []Quiz{}, nil
+	}
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM quizzes_fts JOIN quizzes ON quizzes.id = quizzes_fts.rowid WHERE quizzes_fts MATCH ? AND quizzes.workspace_id = ? ORDER BY bm25(quizzes_fts, %s), quizzes.title ASC", quizColumnsQualified, quizBm25Weights),
+		q, w.ws.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanQuizzes(rows)
 }
 
 // AddRef creates a new reference in this workspace. WorkspaceID is set

@@ -239,7 +239,7 @@ type GlossaryTerm struct {
 // URLs are a presentation concern and are constructed by the caller from the
 // fields here.
 type SearchResult struct {
-	Type           string `json:"type"` // "lesson" | "record" | "ref"
+	Type           string `json:"type"` // "lesson" | "record" | "ref" | "quiz"
 	Title          string `json:"title"`
 	Summary        string `json:"summary"`
 	Snippet        string `json:"snippet,omitempty"` // body content preview when summary is empty

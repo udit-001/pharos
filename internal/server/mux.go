@@ -369,6 +369,8 @@ func searchResultURL(r db.SearchResult) string {
 		return urls.Record(r.WorkspaceName, r.SequenceNumber)
 	case "ref":
 		return urls.Ref(r.WorkspaceName, r.Slug)
+	case "quiz":
+		return urls.Quiz(r.WorkspaceName, r.Slug)
 	}
 	return ""
 }

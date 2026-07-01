@@ -944,6 +944,57 @@ func TestWorkspaceStoreSearch(t *testing.T) {
 	}
 }
 
+// TestSearchIncludesQuizzes proves the quizzes_fts index (maintained by the
+// _ai trigger at insert) surfaces quizzes in Search results, filtered by the
+// query and mapped with Title/Slug/Description-as-Summary.
+func TestSearchIncludesQuizzes(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "quizsearch")
+
+	// Title and description both carry the needle; the _ai trigger indexes both.
+	if _, err := ws.AddQuiz(Quiz{
+		Title: "JOIN Practice Quiz", Slug: "joins",
+		Description: "Test your knowledge of SQL JOINs", Items: "[]",
+	}); err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	// A non-matching quiz proves the result set is filtered, not wholesale.
+	if _, err := ws.AddQuiz(Quiz{
+		Title: "Normalization Drill", Slug: "norm",
+		Description: "Third normal form basics", Items: "[]",
+	}); err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	results, err := ws.Search("JOIN")
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+
+	var quizHits []SearchResult
+	for _, r := range results {
+		if r.Type == "quiz" {
+			quizHits = append(quizHits, r)
+		}
+	}
+	if len(quizHits) != 1 {
+		t.Fatalf("expected 1 quiz result for JOIN, got %d (%v)", len(quizHits), quizHits)
+	}
+	hit := quizHits[0]
+	if hit.Title != "JOIN Practice Quiz" {
+		t.Errorf("quiz title = %q, want JOIN Practice Quiz", hit.Title)
+	}
+	if hit.Slug != "joins" {
+		t.Errorf("quiz slug = %q, want joins", hit.Slug)
+	}
+	if hit.Summary != "Test your knowledge of SQL JOINs" {
+		t.Errorf("quiz summary = %q, want the description", hit.Summary)
+	}
+	if hit.WorkspaceName != "quizsearch" {
+		t.Errorf("quiz workspace = %q, want quizsearch", hit.WorkspaceName)
+	}
+}
+
 // TestFTSTriggersIndexAtInsert proves the FTS5 AFTER INSERT triggers maintain
 // the search index at insert time — no RebuildFTS() call is needed on Open or
 // before Search. Regression guard for the removal of the redundant
