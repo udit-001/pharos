@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -312,6 +313,83 @@ func (w *WorkspaceStore) AddQuestion(q Question) (Question, error) {
 	return q, nil
 }
 
+// ErrQuestionInUse signals that a question is referenced by one or more
+// quizzes and cannot be deleted until it is removed from their item lists.
+var ErrQuestionInUse = errors.New("question is referenced by one or more quizzes")
+
+// ReviseQuestion updates a question's title, mode, and/or config in place.
+// The slug is NOT regenerated from the title — it stays stable so existing
+// quiz item references remain valid. Only non-nil fields are applied.
+func (w *WorkspaceStore) ReviseQuestion(slug string, title *string, mode *string, config *string) (Question, error) {
+	current, err := w.GetQuestionBySlug(slug)
+	if err != nil {
+		return Question{}, err
+	}
+
+	t := current.Title
+	if title != nil {
+		t = *title
+	}
+	m := current.Mode
+	if mode != nil {
+		m = *mode
+	}
+	c := current.Config
+	if config != nil {
+		c = *config
+	}
+
+	now := nowTimestamp()
+	result, err := w.db().Exec(
+		"UPDATE questions SET title = ?, mode = ?, config = ?, updated_at = ? WHERE id = ?",
+		t, m, c, now, current.ID,
+	)
+	if err != nil {
+		return Question{}, fmt.Errorf("revise question: %w", err)
+	}
+	_ = result
+
+	current.Title = t
+	current.Mode = m
+	current.Config = c
+	current.UpdatedAt = now
+	return *current, nil
+}
+
+// DeleteQuestion removes a question by slug. Returns ErrQuestionInUse if any
+// quiz references the slug in its items JSON — the caller must remove the
+// slug from those quizzes first. Attempt rows cascade-delete via FK.
+func (w *WorkspaceStore) DeleteQuestion(slug string) error {
+	if _, err := w.GetQuestionBySlug(slug); err != nil {
+		return err
+	}
+
+	quizzes, err := w.GetQuizzes()
+	if err != nil {
+		return fmt.Errorf("check quiz references: %w", err)
+	}
+	for _, qz := range quizzes {
+		var items []string
+		if err := json.Unmarshal([]byte(qz.Items), &items); err != nil {
+			continue // malformed items JSON — skip, don't block deletion
+		}
+		for _, s := range items {
+			if s == slug {
+				return fmt.Errorf("delete question %q: %w", slug, ErrQuestionInUse)
+			}
+		}
+	}
+
+	_, err = w.db().Exec(
+		"DELETE FROM questions WHERE workspace_id = ? AND slug = ?",
+		w.ws.ID, slug,
+	)
+	if err != nil {
+		return fmt.Errorf("delete question %q: %w", slug, err)
+	}
+	return nil
+}
+
 // ── Quizzes ──
 
 // GetQuizzes returns all quizzes in this workspace, ordered by title.
@@ -491,6 +569,35 @@ func (w *WorkspaceStore) UpdateQuizItems(slug string, items string) error {
 	)
 	if err != nil {
 		return fmt.Errorf("update quiz items: %w", err)
+	}
+	return nil
+}
+
+// DeleteQuiz removes a quiz by slug. Blocks if the quiz has in-progress
+// attempts (ErrQuizHasInProgress). Completed attempt history cascades
+// with the quiz via FK (quiz_attempts.quiz_id, attempts.quiz_attempt_id).
+func (w *WorkspaceStore) DeleteQuiz(slug string) error {
+	quiz, err := w.GetQuizBySlug(slug)
+	if err != nil {
+		return err
+	}
+
+	attempts, err := w.GetQuizAttempts(quiz.ID)
+	if err != nil {
+		return fmt.Errorf("check in-progress attempts: %w", err)
+	}
+	for _, a := range attempts {
+		if a.Status == "in_progress" {
+			return fmt.Errorf("cannot delete quiz %q: %w", slug, ErrQuizHasInProgress)
+		}
+	}
+
+	_, err = w.db().Exec(
+		"DELETE FROM quizzes WHERE workspace_id = ? AND slug = ?",
+		w.ws.ID, slug,
+	)
+	if err != nil {
+		return fmt.Errorf("delete quiz %q: %w", slug, err)
 	}
 	return nil
 }

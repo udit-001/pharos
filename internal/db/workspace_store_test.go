@@ -1666,3 +1666,255 @@ func TestSearchPrefixAndPorter(t *testing.T) {
 		t.Errorf("search for 'xyzzy' returned %d results, expected 0", len(noResults))
 	}
 }
+
+func TestReviseQuestion(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "alpha")
+
+	q, err := ws.AddQuestion(Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	originalSlug := q.Slug
+
+	// Revise title only — slug must stay stable.
+	newTitle := "Capital of France (updated)"
+	updated, err := ws.ReviseQuestion(q.Slug, &newTitle, nil, nil)
+	if err != nil {
+		t.Fatalf("ReviseQuestion title: %v", err)
+	}
+	if updated.Title != newTitle {
+		t.Errorf("title = %q, want %q", updated.Title, newTitle)
+	}
+	if updated.Slug != originalSlug {
+		t.Errorf("slug changed: got %q, want %q (slug must stay stable)", updated.Slug, originalSlug)
+	}
+
+	// Revise config only.
+	newConfig := `{"options":["Madrid","Paris","Berlin","Lyon"],"key":0}`
+	updated, err = ws.ReviseQuestion(q.Slug, nil, nil, &newConfig)
+	if err != nil {
+		t.Fatalf("ReviseQuestion config: %v", err)
+	}
+	if updated.Config != newConfig {
+		t.Errorf("config = %q, want %q", updated.Config, newConfig)
+	}
+
+	// Verify the change persisted.
+	got, err := ws.GetQuestionBySlug(q.Slug)
+	if err != nil {
+		t.Fatalf("GetQuestionBySlug after revise: %v", err)
+	}
+	if got.Title != newTitle {
+		t.Errorf("persisted title = %q, want %q", got.Title, newTitle)
+	}
+	if got.Config != newConfig {
+		t.Errorf("persisted config = %q, want %q", got.Config, newConfig)
+	}
+}
+
+func TestReviseQuestionNotFound(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "alpha")
+
+	_, err := ws.ReviseQuestion("nonexistent", strPtr("x"), nil, nil)
+	if err == nil {
+		t.Error("expected error revising non-existent question")
+	}
+}
+
+func TestDeleteQuestion(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "alpha")
+
+	q, err := ws.AddQuestion(Question{
+		Title:  "Standalone Q",
+		Mode:   "recall",
+		Config: `{"reveal_text":"42"}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+
+	if err := ws.DeleteQuestion(q.Slug); err != nil {
+		t.Fatalf("DeleteQuestion: %v", err)
+	}
+
+	// Confirm gone.
+	if _, err := ws.GetQuestionBySlug(q.Slug); err == nil {
+		t.Error("question still found after delete")
+	}
+}
+
+func TestDeleteQuestionInUse(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "alpha")
+
+	q, err := ws.AddQuestion(Question{
+		Title:  "Referenced Q",
+		Mode:   "choice",
+		Config: `{"options":["A","B"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	if _, err := ws.AddQuiz(Quiz{
+		Title: "Quiz Using Q",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	}); err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	err = ws.DeleteQuestion(q.Slug)
+	if !errors.Is(err, ErrQuestionInUse) {
+		t.Errorf("DeleteQuestion referenced by quiz: got %v, want ErrQuestionInUse", err)
+	}
+
+	// Still exists after blocked delete.
+	if _, err := ws.GetQuestionBySlug(q.Slug); err != nil {
+		t.Error("question vanished after blocked delete")
+	}
+}
+
+func TestDeleteQuestionAfterQuizRemoval(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "alpha")
+
+	q, err := ws.AddQuestion(Question{
+		Title:  "Q to delete",
+		Mode:   "choice",
+		Config: `{"options":["A","B"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := ws.AddQuiz(Quiz{
+		Title: "Temp Quiz",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	// Remove the slug from the quiz, then delete the question.
+	if err := ws.UpdateQuizItems(quiz.Slug, `["other-slug"]`); err != nil {
+		t.Fatalf("UpdateQuizItems: %v", err)
+	}
+	if err := ws.DeleteQuestion(q.Slug); err != nil {
+		t.Fatalf("DeleteQuestion after quiz removal: %v", err)
+	}
+}
+
+func TestDeleteQuiz(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "alpha")
+
+	q, err := ws.AddQuestion(Question{
+		Title:  "Q",
+		Mode:   "choice",
+		Config: `{"options":["A","B"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := ws.AddQuiz(Quiz{
+		Title: "Quiz to delete",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	if err := ws.DeleteQuiz(quiz.Slug); err != nil {
+		t.Fatalf("DeleteQuiz: %v", err)
+	}
+
+	if _, err := ws.GetQuizBySlug(quiz.Slug); err == nil {
+		t.Error("quiz still found after delete")
+	}
+	// Question should still exist — quiz deletion doesn't cascade to questions.
+	if _, err := ws.GetQuestionBySlug(q.Slug); err != nil {
+		t.Error("question vanished when quiz was deleted")
+	}
+}
+
+func TestDeleteQuizInProgress(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "alpha")
+
+	q, err := ws.AddQuestion(Question{
+		Title:  "Q",
+		Mode:   "choice",
+		Config: `{"options":["A","B"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := ws.AddQuiz(Quiz{
+		Title: "Quiz with attempt",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	// Create in-progress attempt.
+	if _, err := ws.CreateQuizAttempt(quiz.ID); err != nil {
+		t.Fatalf("CreateQuizAttempt: %v", err)
+	}
+
+	err = ws.DeleteQuiz(quiz.Slug)
+	if !errors.Is(err, ErrQuizHasInProgress) {
+		t.Errorf("DeleteQuiz with in-progress attempt: got %v, want ErrQuizHasInProgress", err)
+	}
+
+	// Still exists after blocked delete.
+	if _, err := ws.GetQuizBySlug(quiz.Slug); err != nil {
+		t.Error("quiz vanished after blocked delete")
+	}
+}
+
+func TestDeleteQuizAfterAttemptCompleted(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "alpha")
+
+	q, err := ws.AddQuestion(Question{
+		Title:  "Q",
+		Mode:   "choice",
+		Config: `{"options":["A","B"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := ws.AddQuiz(Quiz{
+		Title: "Quiz with completed attempt",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	// Complete an attempt.
+	qa, err := ws.CreateQuizAttempt(quiz.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt: %v", err)
+	}
+	if _, err := ws.SubmitAttempt(qa.ID, q.ID, "0", 100, nil); err != nil {
+		t.Fatalf("SubmitAttempt: %v", err)
+	}
+	if err := ws.CompleteQuizAttempt(qa.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt: %v", err)
+	}
+
+	// Should succeed — completed attempts don't block.
+	if err := ws.DeleteQuiz(quiz.Slug); err != nil {
+		t.Fatalf("DeleteQuiz after attempt completed: %v", err)
+	}
+}
+
+// strPtr returns a pointer to s — helper for optional pointer args.
+func strPtr(s string) *string { return &s }
