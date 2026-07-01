@@ -13,11 +13,3 @@ func scanRef(row interface{ Scan(...any) error }) (Reference, error) {
 func scanRefs(rows RowScanner) ([]Reference, error) {
 	return scanRows(rows, "ref", scanRef)
 }
-
-// RefCount returns the number of references in a workspace. Used by
-// GetWorkspaces for count enrichment.
-func (s *Store) refCount(workspaceID int64) int {
-	var count int
-	s.db.Get(&count, "SELECT COUNT(*) FROM references_t WHERE workspace_id = ?", workspaceID)
-	return count
-}

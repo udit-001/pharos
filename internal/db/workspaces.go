@@ -65,10 +65,10 @@ func (s *Store) GetWorkspace(id int64) (Workspace, error) {
 	if err != nil {
 		return w, err
 	}
-	w.LessonCount = s.lessonCount(w.ID)
-	w.RecordCount = s.recordCount(w.ID)
-	w.RefCount = s.refCount(w.ID)
-	w.QuizCount = s.quizCount(w.ID)
+	w.LessonCount = s.countByTable("lessons", w.ID)
+	w.RecordCount = s.countByTable("learning_records", w.ID)
+	w.RefCount = s.countByTable("references_t", w.ID)
+	w.QuizCount = s.countByTable("quizzes", w.ID)
 	return w, nil
 }
 
@@ -79,10 +79,10 @@ func (s *Store) GetWorkspaceByName(name string) (Workspace, error) {
 	if err != nil {
 		return w, err
 	}
-	w.LessonCount = s.lessonCount(w.ID)
-	w.RecordCount = s.recordCount(w.ID)
-	w.RefCount = s.refCount(w.ID)
-	w.QuizCount = s.quizCount(w.ID)
+	w.LessonCount = s.countByTable("lessons", w.ID)
+	w.RecordCount = s.countByTable("learning_records", w.ID)
+	w.RefCount = s.countByTable("references_t", w.ID)
+	w.QuizCount = s.countByTable("quizzes", w.ID)
 	return w, nil
 }
 
@@ -217,6 +217,15 @@ func (s *Store) DeleteWorkspace(id int64) error {
 		return fmt.Errorf("workspace %d not found", id)
 	}
 	return nil
+}
+
+// countByTable returns the row count for one workspace in one table. Used by
+// GetWorkspace and GetWorkspaceByName to enrich a single workspace. The batch
+// path (many workspaces) uses countByWorkspace instead.
+func (s *Store) countByTable(table string, workspaceID int64) int {
+	var count int
+	s.db.Get(&count, fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE workspace_id = ?", table), workspaceID)
+	return count
 }
 
 // countByWorkspace runs `SELECT workspace_id, COUNT(*) FROM <table> GROUP BY

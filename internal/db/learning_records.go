@@ -17,11 +17,3 @@ func scanRecord(row interface{ Scan(...any) error }) (LearningRecord, error) {
 func scanRecords(rows RowScanner) ([]LearningRecord, error) {
 	return scanRows(rows, "record", scanRecord)
 }
-
-// RecordCount returns the number of learning records in a workspace. Used by
-// GetWorkspaces for count enrichment.
-func (s *Store) recordCount(workspaceID int64) int {
-	var count int
-	s.db.Get(&count, "SELECT COUNT(*) FROM learning_records WHERE workspace_id = ?", workspaceID)
-	return count
-}

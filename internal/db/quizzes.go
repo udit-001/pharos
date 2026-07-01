@@ -24,13 +24,6 @@ func scanQuizzes(rows RowScanner) ([]Quiz, error) {
 	return scanRows(rows, "quiz", scanQuiz)
 }
 
-// quizCount returns the number of quizzes in a workspace.
-func (s *Store) quizCount(workspaceID int64) int {
-	var count int
-	s.db.Get(&count, "SELECT COUNT(*) FROM quizzes WHERE workspace_id = ?", workspaceID)
-	return count
-}
-
 // currentQuestionIDs resolves a quiz's item slugs to their IDs. Scores count
 // only questions still in the quiz, so removed items don't inflate them.
 // Shared by GetQuizScores (best) and GetQuizAttemptHistory (trend).
