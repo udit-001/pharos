@@ -251,7 +251,7 @@ type DocumentData struct {
 
 // SearchResult is one row on the search page.
 type SearchResult struct {
-	Type      string // "lesson" | "record" | "ref"
+	Type      string // "lesson" | "record" | "ref" | "quiz"
 	Title     string
 	URL       string
 	Workspace string
