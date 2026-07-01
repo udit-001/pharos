@@ -349,22 +349,28 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 		}
 		results := make([]apiResult, 0, len(dbResults))
 		for _, r := range dbResults {
-			var url string
-			switch r.Type {
-			case "lesson":
-				url = urls.Lesson(r.WorkspaceName, r.SequenceNumber)
-			case "record":
-				url = urls.Record(r.WorkspaceName, r.SequenceNumber)
-			case "ref":
-				url = urls.Ref(r.WorkspaceName, r.Slug)
-			}
 			results = append(results, apiResult{
 				Type: r.Type, Title: r.Title,
-				URL: url, Summary: r.Summary, Snippet: r.Snippet, Workspace: r.WorkspaceName,
+				URL: searchResultURL(r), Summary: r.Summary, Snippet: r.Snippet, Workspace: r.WorkspaceName,
 			})
 		}
 		jsonResponse(w, results)
 	}
+}
+
+// searchResultURL maps a db.SearchResult to its dashboard URL. The single site
+// for the SearchResult to URL mapping — shared by the JSON API (handleSearch)
+// and the HTML page (handleSearchPage).
+func searchResultURL(r db.SearchResult) string {
+	switch r.Type {
+	case "lesson":
+		return urls.Lesson(r.WorkspaceName, r.SequenceNumber)
+	case "record":
+		return urls.Record(r.WorkspaceName, r.SequenceNumber)
+	case "ref":
+		return urls.Ref(r.WorkspaceName, r.Slug)
+	}
+	return ""
 }
 
 // ── Dashboard ──
@@ -1101,18 +1107,9 @@ func handleSearchPage(store *db.Store) http.HandlerFunc {
 		if q != "" {
 			dbResults, _ := store.Search(q)
 			for _, res := range dbResults {
-				var url string
-				switch res.Type {
-				case "lesson":
-					url = urls.Lesson(res.WorkspaceName, res.SequenceNumber)
-				case "record":
-					url = urls.Record(res.WorkspaceName, res.SequenceNumber)
-				case "ref":
-					url = urls.Ref(res.WorkspaceName, res.Slug)
-				}
 				data.Results = append(data.Results, render.SearchResult{
 					Type: res.Type, Title: res.Title,
-					URL: url, Workspace: res.WorkspaceName,
+					URL: searchResultURL(res), Workspace: res.WorkspaceName,
 					Summary: res.Summary, Snippet: res.Snippet,
 				})
 			}
