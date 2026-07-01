@@ -10,7 +10,7 @@ go install github.com/udit-001/pharos/cmd/pharos@latest
 pharos init                        # Create the database, offer the agent skill
 pharos workspace create "Topic Name"  # Creates ~/.pharos/workspaces/topic-name/
 pharos lesson create "Title" --body-file /tmp/lesson.html
-pharos record add "What I learned" --body-file /tmp/record.md
+pharos record create "What I learned" --body-file /tmp/record.md
 pharos start
 ```
 

@@ -41,6 +41,16 @@
     this.clone.style.transformOrigin = '0 0';
   };
 
+  Lightbox.prototype._zoomToCenter = function(newScale) {
+    var viewport = this.overlay.querySelector('.mermaid-lightbox-viewport');
+    var cx = viewport.clientWidth / 2;
+    var cy = viewport.clientHeight / 2;
+    this.panX = cx - (cx - this.panX) * (newScale / this.scale);
+    this.panY = cy - (cy - this.panY) * (newScale / this.scale);
+    this.scale = newScale;
+    this._applyTransform();
+  };
+
   Lightbox.prototype._onWheel = function(e) {
     e.preventDefault();
     var delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -129,6 +139,29 @@
     this._on(this.overlay.querySelector('.mermaid-lightbox-close'), 'click', function() { self.close(); });
     this._on(this.overlay, 'click', function(e) { self._onBackdropClick(e); });
     this._on(document, 'keydown', function(e) { self._onKeyDown(e); });
+
+    // Calculate initial scale to fill the viewport comfortably.
+    // Uses viewBox to determine the diagram's natural aspect ratio and picks
+    // a scale that fills ~80% of the shorter viewport dimension, capped at 3x.
+    requestAnimationFrame(function() {
+      var vb = self.clone.getAttribute('viewBox');
+      if (!vb) return;
+      var parts = vb.split(/\s+/);
+      var vbW = parseFloat(parts[2]);
+      var vbH = parseFloat(parts[3]);
+      if (vbW <= 0 || vbH <= 0) return;
+      var vpW = viewport.clientWidth;
+      var vpH = viewport.clientHeight;
+      var scaleX = (vpW * 0.8) / vbW;
+      var scaleY = (vpH * 0.8) / vbH;
+      var s = Math.max(scaleX, scaleY, 1);
+      if (s > 1) {
+        self.scale = Math.min(s, 3);
+        self.panX = (vpW - vbW * self.scale) / 2;
+        self.panY = (vpH - vbH * self.scale) / 2;
+        self._applyTransform();
+      }
+    });
   };
 
   Lightbox.prototype.close = function() {
@@ -144,13 +177,11 @@
   };
 
   Lightbox.prototype.zoomIn = function() {
-    this.scale = Math.min(this.scale + 0.25, 5);
-    this._applyTransform();
+    this._zoomToCenter(Math.min(this.scale + 0.5, 5));
   };
 
   Lightbox.prototype.zoomOut = function() {
-    this.scale = Math.max(this.scale - 0.25, 0.5);
-    this._applyTransform();
+    this._zoomToCenter(Math.max(this.scale - 0.5, 0.5));
   };
 
   Lightbox.prototype.reset = function() {

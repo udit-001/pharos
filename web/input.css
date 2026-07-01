@@ -15,11 +15,11 @@
   --color-stone-50:  #f8fafc;
 
   --color-red-100:   #fce4e4;
-  --color-red-600:   #bf616a;   /* nord11 */
+  --color-red-600:   #bf4e5a;   /* matches PAGE-THEME.md */
   --color-blue-100:  #e3edf7;
   --color-blue-700:  #5e81ac;   /* nord9 */
   --color-emerald-100: #e6f0e6;
-  --color-emerald-600: #a3be8c; /* nord14 */
+  --color-emerald-600: #4a7a2e; /* matches PAGE-THEME.md */
   --color-amber-100: #fff4e0;
   --color-amber-500: #ebcb8b;   /* nord13 */
   --color-amber-600: #d08770;   /* nord12 */
@@ -40,14 +40,14 @@
   --color-slate-900: #eceff4;
   --color-slate-950: #dfe7ee;
   --color-emerald-100: #2e3440;
-  --color-emerald-600: #a3be8c;
+  --color-emerald-600: #95c088;
   --color-emerald-700: #8fbcbb;
   --color-amber-100: #434c5e;
   --color-amber-200: #4c566a;
   --color-amber-500: #ebcb8b;
   --color-amber-600: #d08770;
   --color-red-100: #4c566a;
-  --color-red-600: #bf616a;
+  --color-red-600: #e8a0a0;
   --color-red-700: #d35f5f;
   --color-blue-100: #4c566a;
   --color-blue-700: #81a1c1;
@@ -260,8 +260,42 @@
   font-size: 0.6875rem;
   font-weight: 500;
   color: #94a3b8;
-  padding: 0.75rem 1rem 0.375rem;
+  padding: 0.75rem 1rem 0.375rem 0.375rem;
   letter-spacing: 0.04em;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: color 0.1s;
+}
+.sidebar-section-label:hover {
+  color: #64748b;
+}
+.sidebar-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.sidebar-section-count {
+  font-size: 0.625rem;
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.15);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+[data-theme="dark"] .sidebar-section-count {
+  color: var(--color-slate-400, #81a1c1);
+  background: rgba(129, 161, 193, 0.15);
+}
+.sidebar-section-items {
+  padding-left: 0.5rem;
+}
+.sidebar-section-items.collapsed {
+  display: none;
 }
 
 .sidebar-link {
@@ -317,6 +351,9 @@
 [data-theme="dark"] .sidebar-section-label {
   color: var(--color-slate-400, #81a1c1);
 }
+[data-theme="dark"] .sidebar-section-label:hover {
+  color: var(--color-slate-600, #88c0d0);
+}
 [data-theme="dark"] .sidebar-link {
   color: var(--color-slate-400, #81a1c1);
 }
@@ -337,29 +374,41 @@
 }
 
 /* ── Search type badges ── */
+/* Text shades chosen for WCAG AA (>=4.5:1) on the 100-shade background. */
 .badge-lesson {
   background: var(--color-blue-100);
   color: var(--color-blue-700);
 }
 .badge-record {
   background: var(--color-emerald-100);
-  color: var(--color-emerald-600);
+  color: var(--color-emerald-700);
 }
 .badge-ref {
   background: var(--color-amber-100);
-  color: var(--color-amber-600);
+  color: var(--color-amber-700);
 }
+.badge-quiz {
+  background: var(--color-violet-100);
+  color: var(--color-violet-700);
+}
+/* Dark: text is a snow-lifted same-hue shade (~5:1 on the nord tint over
+   nord2 #2e3440). The bright aurora/frost hues fail AA on their own tint
+   (2.6-3.7:1), so each is lifted toward snow until it clears 4.5:1. */
 [data-theme="dark"] .badge-lesson {
   background: rgba(129, 161, 193, 0.35);
-  color: #81a1c1;
+  color: #d0dce8;
 }
 [data-theme="dark"] .badge-record {
   background: rgba(163, 190, 140, 0.25);
-  color: #a3be8c;
+  color: #c8d8ba;
 }
 [data-theme="dark"] .badge-ref {
   background: rgba(208, 135, 112, 0.25);
-  color: #d08770;
+  color: #e6beb2;
+}
+[data-theme="dark"] .badge-quiz {
+  background: rgba(180, 142, 173, 0.25);
+  color: #d6c1d2;
 }
 
 /* ── Search result cards ── */

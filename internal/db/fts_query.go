@@ -7,6 +7,10 @@ import "strings"
 // search methods at once.
 const bm25Weights = "10.0, 5.0, 1.0"
 
+// quizBm25Weights ranks quizzes by title then description (2-column FTS, no
+// body). Separate from bm25Weights because quizzes_fts has one fewer column.
+const quizBm25Weights = "10.0, 5.0"
+
 func buildFTSQuery(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {

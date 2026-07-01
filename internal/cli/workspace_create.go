@@ -64,8 +64,8 @@ Examples:
 		fmt.Println()
 		fmt.Println("  Next steps:")
 		fmt.Println("    cd " + wsPath)
-		fmt.Println("    pharos lesson create \"Your first lesson\"")
-		fmt.Println("    pharos record add \"What you learned\"")
+		fmt.Println("    pharos lesson create \"Your first lesson\" --body-file <path>")
+		fmt.Println("    pharos record create \"What you learned\" --body-file <path>")
 		fmt.Println()
 
 		return nil

@@ -69,6 +69,15 @@ func (e *testEnv) get(t *testing.T, target string) *httptest.ResponseRecorder {
 	return rec
 }
 
+func (e *testEnv) post(t *testing.T, target, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", target, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	e.mux.ServeHTTP(rec, req)
+	return rec
+}
+
 func (e *testEnv) workspaceID(t *testing.T) int64 {
 	t.Helper()
 	rec := e.get(t, "/api/workspaces")
@@ -134,6 +143,7 @@ func TestSmokePageRoutes(t *testing.T) {
 		{"lesson", "/workspace/alpha/lesson/1"},
 		{"record", "/workspace/alpha/record/1"},
 		{"ref", "/workspace/alpha/ref/ref-one"},
+		{"quiz-library", "/workspace/alpha/quizzes"},
 		{"search-page", "/search?q=Lesson"},
 		{"lesson-html", "/api/lesson-html/alpha/0001-lesson-one.html"},
 		{"ref-html", "/api/ref-html/alpha/ref-one.html"},
@@ -335,5 +345,150 @@ func TestLessonNotFound(t *testing.T) {
 	rec := env.get(t, "/workspace/alpha/lesson/999")
 	if rec.Code != 404 {
 		t.Errorf("nonexistent lesson should 404; got %d", rec.Code)
+	}
+}
+
+func TestQuizLibraryAndDetailPages(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Seed questions and a quiz containing them.
+	if _, err := wsStore.AddQuestion(db.Question{
+		Title:  "Strongest ASD risk gene",
+		Mode:   "choice",
+		Config: `{"options":["CHD8","FMR1"],"key":0}`,
+	}); err != nil {
+		t.Fatalf("seed question: %v", err)
+	}
+	if _, err := wsStore.AddQuestion(db.Question{
+		Title:  "ASD heritability range",
+		Mode:   "recall",
+		Config: `{"reveal_text":"60-90%"}`,
+	}); err != nil {
+		t.Fatalf("seed question: %v", err)
+	}
+	if _, err := wsStore.AddQuiz(db.Quiz{
+		Title:       "Genetics foundations",
+		Description: "Core genetic factors in ASD",
+		Items:       `["strongest-asd-risk-gene","asd-heritability-range"]`,
+	}); err != nil {
+		t.Fatalf("seed quiz: %v", err)
+	}
+
+	// Library page lists the quiz.
+	rec := env.get(t, "/workspace/alpha/quizzes")
+	if rec.Code != 200 {
+		t.Fatalf("quiz library status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"Genetics foundations", "Core genetic factors in ASD", "2 questions"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("quiz library missing %q", want)
+		}
+	}
+	// Sidebar should show a Quizzes section.
+	if !strings.Contains(body, `Quizzes</span>`) {
+		t.Error("quiz library sidebar missing Quizzes section")
+	}
+
+	// Detail page shows title, description, item count, and Start button.
+	rec = env.get(t, "/workspace/alpha/quiz/genetics-foundations")
+	if rec.Code != 200 {
+		t.Fatalf("quiz detail status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+	body = rec.Body.String()
+	for _, want := range []string{"Genetics foundations", "Core genetic factors in ASD", "2 questions", "Start quiz"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("quiz detail missing %q", want)
+		}
+	}
+	// Breadcrumb should carry the quiz title.
+	if !strings.Contains(body, ">Genetics foundations<") {
+		t.Error("quiz detail breadcrumb missing quiz title")
+	}
+
+	// Nonexistent quiz 404s.
+	rec = env.get(t, "/workspace/alpha/quiz/no-such-quiz")
+	if rec.Code != 404 {
+		t.Errorf("nonexistent quiz should 404; got %d", rec.Code)
+	}
+}
+
+func TestQuizAttemptAPIFlow(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Seed a choice question + quiz.
+	q, err := wsStore.AddQuestion(db.Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("seed question: %v", err)
+	}
+	quiz, _ := wsStore.AddQuiz(db.Quiz{
+		Title: "Geography",
+		Items: `["` + q.Slug + `"]`,
+	})
+	_ = quiz
+
+	// POST start → redirects to attempt page.
+	rec := env.post(t, "/workspace/alpha/quiz/geography/start", "")
+	if rec.Code != 303 {
+		t.Fatalf("start status = %d, want 303; body: %s", rec.Code, rec.Body.String())
+	}
+	loc := rec.Header().Get("Location")
+	if !strings.Contains(loc, "/attempt/") {
+		t.Fatalf("redirect = %q, want /attempt/ path", loc)
+	}
+
+	// Extract attempt ID from the redirect.
+	attemptID := strings.TrimPrefix(loc, "/workspace/alpha/quiz/geography/attempt/")
+
+	// Attempt page renders.
+	rec = env.get(t, loc)
+	if rec.Code != 200 {
+		t.Fatalf("attempt page status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "attempt-data") {
+		t.Error("attempt page missing JSON data block")
+	}
+	if !strings.Contains(body, "Capital of France") {
+		t.Error("attempt page missing question title")
+	}
+
+	// Submit correct answer via API.
+	rec = env.post(t, "/api/attempt",
+		`{"quiz_attempt_id":`+attemptID+`,"question_id":`+strconv.FormatInt(q.ID, 10)+`,"response":"1","latency_ms":2000}`)
+	if rec.Code != 200 {
+		t.Fatalf("submit status = %d; body: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"correct":true`) {
+		t.Errorf("expected correct:true; got %s", rec.Body.String())
+	}
+
+	// Complete the attempt.
+	rec = env.post(t, "/api/quiz-attempt/"+attemptID+"/complete", "")
+	if rec.Code != 200 {
+		t.Fatalf("complete status = %d; body: %s", rec.Code, rec.Body.String())
+	}
+
+	// Review page renders with score.
+	rec = env.get(t, "/workspace/alpha/quiz/geography/review/"+attemptID)
+	if rec.Code != 200 {
+		t.Fatalf("review page status = %d", rec.Code)
+	}
+	body = rec.Body.String()
+	if !strings.Contains(body, "1/1") {
+		t.Error("review page missing score 1/1")
+	}
+
+	// State machine: submit to completed attempt → error.
+	rec = env.post(t, "/api/attempt",
+		`{"quiz_attempt_id":`+attemptID+`,"question_id":`+strconv.FormatInt(q.ID, 10)+`,"response":"0","latency_ms":100}`)
+	if rec.Code != 400 {
+		t.Errorf("submit to completed attempt should 400; got %d", rec.Code)
 	}
 }

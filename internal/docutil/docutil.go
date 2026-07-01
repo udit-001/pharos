@@ -19,7 +19,7 @@ func IsTemplate(content, kind string) bool {
 	if strings.Contains(content, "{") {
 		return true
 	}
-	if kind == "notes" && strings.HasPrefix(content, defaultNotesProse) {
+	if kind == "notes" && content == defaultNotesProse {
 		return true
 	}
 	return false

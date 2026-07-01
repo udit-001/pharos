@@ -8,6 +8,7 @@ type SidebarData struct {
 	Lessons   []SidebarLesson
 	Records   []SidebarRecord
 	Refs      []SidebarRef
+	Quizzes   []SidebarQuiz
 }
 
 // SidebarLesson is the sidebar projection of a lesson.
@@ -30,6 +31,12 @@ type SidebarRef struct {
 	Title string
 }
 
+// SidebarQuiz is the sidebar projection of a quiz.
+type SidebarQuiz struct {
+	Slug  string
+	Title string
+}
+
 // GetSidebarData loads the workspace tree (lessons, records, refs) in their
 // lightweight sidebar projections. This is the deep interface: one call
 // replaces three separate Get* calls, and the caller gets only the fields
@@ -47,6 +54,10 @@ func (w *WorkspaceStore) GetSidebarData() (SidebarData, error) {
 	if err != nil {
 		return SidebarData{}, err
 	}
+	quizzes, err := w.GetQuizzes()
+	if err != nil {
+		return SidebarData{}, err
+	}
 
 	sl := make([]SidebarLesson, len(lessons))
 	for i, l := range lessons {
@@ -60,6 +71,10 @@ func (w *WorkspaceStore) GetSidebarData() (SidebarData, error) {
 	for i, ref := range refs {
 		sf[i] = SidebarRef{Slug: ref.Slug, Title: ref.Title}
 	}
+	sq := make([]SidebarQuiz, len(quizzes))
+	for i, q := range quizzes {
+		sq[i] = SidebarQuiz{Slug: q.Slug, Title: q.Title}
+	}
 
-	return SidebarData{Workspace: w.ws, Lessons: sl, Records: sr, Refs: sf}, nil
+	return SidebarData{Workspace: w.ws, Lessons: sl, Records: sr, Refs: sf, Quizzes: sq}, nil
 }

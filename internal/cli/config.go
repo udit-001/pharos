@@ -19,13 +19,13 @@ directory (~/.config/pharos/ on Linux) and points to your data
 directory where the database and workspaces live.
 
 Examples:
-  pharos config show             # Show current config
+  pharos config read             # Show current config
   pharos config set data_dir ~/my-pharos  # Change data directory`,
 }
 
-var configShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show current configuration",
+var configReadCmd = &cobra.Command{
+	Use:   "read",
+	Short: "Read current configuration",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
@@ -54,7 +54,7 @@ var configSetCmd = &cobra.Command{
 Supported keys:
   data_dir    Path to the pharos data directory
 
-The value is saved to the config file. Run 'pharos config show'
+The value is saved to the config file. Run 'pharos config read'
 to verify the change.
 
 Examples:
@@ -98,6 +98,6 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(configCmd)
-	configCmd.AddCommand(configShowCmd)
+	configCmd.AddCommand(configReadCmd)
 	configCmd.AddCommand(configSetCmd)
 }

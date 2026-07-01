@@ -1,6 +1,8 @@
 package db
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -176,6 +178,497 @@ func TestGetRefBySlug(t *testing.T) {
 	}
 }
 
+func TestAddQuestionAndQuiz(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	// AddQuestion derives the slug and sets WorkspaceID/timestamps.
+	q, err := alpha.AddQuestion(Question{
+		Title:  "Strongest ASD Risk Gene",
+		Mode:   "choice",
+		Config: `{"options":["CHD8","FMR1"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	if q.Slug != "strongest-asd-risk-gene" {
+		t.Errorf("slug = %q, want strongest-asd-risk-gene", q.Slug)
+	}
+	if q.WorkspaceID != alpha.Workspace().ID {
+		t.Errorf("workspaceID not set from scope")
+	}
+
+	// GetQuestions returns the seeded question.
+	questions, err := alpha.GetQuestions()
+	if err != nil {
+		t.Fatalf("GetQuestions: %v", err)
+	}
+	if len(questions) != 1 || questions[0].Slug != q.Slug {
+		t.Errorf("questions = %+v, want 1 with slug %q", questions, q.Slug)
+	}
+
+	// GetQuestionBySlug round-trips.
+	got, err := alpha.GetQuestionBySlug(q.Slug)
+	if err != nil {
+		t.Fatalf("GetQuestionBySlug: %v", err)
+	}
+	if got.Mode != "choice" {
+		t.Errorf("mode = %q, want choice", got.Mode)
+	}
+	if _, err := alpha.GetQuestionBySlug("nonexistent"); err == nil {
+		t.Error("expected error for nonexistent question slug")
+	}
+
+	// ParseConfig returns the typed config selected by mode.
+	cfg, err := got.ParseConfig()
+	if err != nil {
+		t.Fatalf("ParseConfig: %v", err)
+	}
+	cc, ok := cfg.(ChoiceConfig)
+	if !ok {
+		t.Fatalf("config type = %T, want ChoiceConfig", cfg)
+	}
+	if cc.Key != 0 || len(cc.Options) != 2 {
+		t.Errorf("choice config = %+v, want key=0 options=2", cc)
+	}
+
+	// AddQuiz stores the slug array and derives the slug.
+	quiz, err := alpha.AddQuiz(Quiz{
+		Title:       "Genetics Foundations",
+		Description: "Core factors",
+		Items:       `["strongest-asd-risk-gene"]`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	if quiz.Slug != "genetics-foundations" {
+		t.Errorf("quiz slug = %q, want genetics-foundations", quiz.Slug)
+	}
+
+	// GetQuizzes + GetQuizBySlug round-trip and ParseItems works.
+	quizzes, err := alpha.GetQuizzes()
+	if err != nil {
+		t.Fatalf("GetQuizzes: %v", err)
+	}
+	if len(quizzes) != 1 || quizzes[0].Slug != quiz.Slug {
+		t.Errorf("quizzes = %+v, want 1 with slug %q", quizzes, quiz.Slug)
+	}
+	gotQuiz, err := alpha.GetQuizBySlug(quiz.Slug)
+	if err != nil {
+		t.Fatalf("GetQuizBySlug: %v", err)
+	}
+	items, err := gotQuiz.ParseItems()
+	if err != nil {
+		t.Fatalf("ParseItems: %v", err)
+	}
+	if len(items) != 1 || items[0] != "strongest-asd-risk-gene" {
+		t.Errorf("items = %+v, want [strongest-asd-risk-gene]", items)
+	}
+}
+
+func TestQuizAttemptLifecycle(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	// Seed a choice question + quiz.
+	q, err := alpha.AddQuestion(Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := alpha.AddQuiz(Quiz{
+		Title: "Geography",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	// Create attempt — starts in_progress.
+	qa, err := alpha.CreateQuizAttempt(quiz.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt: %v", err)
+	}
+	if qa.Status != "in_progress" {
+		t.Errorf("initial status = %q, want in_progress", qa.Status)
+	}
+
+	// Submit correct answer (index 1 = Paris).
+	att, err := alpha.SubmitAttempt(qa.ID, q.ID, "1", 2500, nil)
+	if err != nil {
+		t.Fatalf("SubmitAttempt: %v", err)
+	}
+	if att.Correct == nil || !*att.Correct {
+		t.Error("expected correct=true for Paris")
+	}
+
+	// Score is 1/1.
+	correct, total := alpha.ScoreAttempt(qa.ID)
+	if correct != 1 || total != 1 {
+		t.Errorf("ScoreAttempt = %d/%d, want 1/1", correct, total)
+	}
+
+	// Complete the attempt.
+	if err := alpha.CompleteQuizAttempt(qa.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt: %v", err)
+	}
+	got, _ := alpha.GetQuizAttempt(qa.ID)
+	if got.Status != "completed" {
+		t.Errorf("status after complete = %q, want completed", got.Status)
+	}
+
+	// State machine: cannot submit to a completed attempt.
+	_, err = alpha.SubmitAttempt(qa.ID, q.ID, "0", 100, nil)
+	if err == nil {
+		t.Error("expected error submitting to completed attempt")
+	}
+
+	// State machine: cannot complete again.
+	if err := alpha.CompleteQuizAttempt(qa.ID); err == nil {
+		t.Error("expected error completing already-completed attempt")
+	}
+}
+
+func TestGetQuizScores(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	// Question + quiz that will be attempted.
+	q, err := alpha.AddQuestion(Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	attempted, err := alpha.AddQuiz(Quiz{
+		Title: "Geography",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	// Second quiz sharing the question, never attempted.
+	fresh, err := alpha.AddQuiz(Quiz{Title: "Fresh", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
+	if err != nil {
+		t.Fatalf("AddQuiz fresh: %v", err)
+	}
+
+	// Complete an attempt on "Geography" with the correct answer.
+	qa, err := alpha.CreateQuizAttempt(attempted.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt: %v", err)
+	}
+	if _, err := alpha.SubmitAttempt(qa.ID, q.ID, "1", 100, nil); err != nil {
+		t.Fatalf("SubmitAttempt: %v", err)
+	}
+	if err := alpha.CompleteQuizAttempt(qa.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt: %v", err)
+	}
+
+	scores, err := alpha.GetQuizScores()
+	if err != nil {
+		t.Fatalf("GetQuizScores: %v", err)
+	}
+	bySlug := map[string]QuizScore{}
+	for _, s := range scores {
+		bySlug[s.Slug] = s
+	}
+
+	got := bySlug[attempted.Slug]
+	if !got.Attempted || got.BestScore != 1 || got.BestTotal != 1 {
+		t.Errorf("attempted quiz score = %d/%d (attempted=%v), want 1/1 (attempted=true)", got.BestScore, got.BestTotal, got.Attempted)
+	}
+
+	freshScore := bySlug[fresh.Slug]
+	if freshScore.Attempted || freshScore.BestScore != 0 || freshScore.BestTotal != 1 {
+		t.Errorf("fresh quiz score = %d/%d (attempted=%v), want 0/1 (attempted=false)", freshScore.BestScore, freshScore.BestTotal, freshScore.Attempted)
+	}
+}
+
+func TestGetQuizAttemptHistory(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	q, err := alpha.AddQuestion(Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := alpha.AddQuiz(Quiz{
+		Title: "Geography",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	// First attempt: wrong (London, index 0).
+	qa1, err := alpha.CreateQuizAttempt(quiz.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt 1: %v", err)
+	}
+	if _, err := alpha.SubmitAttempt(qa1.ID, q.ID, "0", 100, nil); err != nil {
+		t.Fatalf("SubmitAttempt 1: %v", err)
+	}
+	if err := alpha.CompleteQuizAttempt(qa1.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt 1: %v", err)
+	}
+
+	// Second attempt: correct (Paris, index 1).
+	qa2, err := alpha.CreateQuizAttempt(quiz.ID)
+	if err != nil {
+		t.Fatalf("CreateQuizAttempt 2: %v", err)
+	}
+	if _, err := alpha.SubmitAttempt(qa2.ID, q.ID, "1", 100, nil); err != nil {
+		t.Fatalf("SubmitAttempt 2: %v", err)
+	}
+	if err := alpha.CompleteQuizAttempt(qa2.ID); err != nil {
+		t.Fatalf("CompleteQuizAttempt 2: %v", err)
+	}
+
+	history, err := alpha.GetQuizAttemptHistory(quiz.ID)
+	if err != nil {
+		t.Fatalf("GetQuizAttemptHistory: %v", err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("history len = %d, want 2", len(history))
+	}
+	// Chronological by completed_at: first wrong (0/1), then correct (1/1).
+	if history[0].Correct != 0 || history[0].Total != 1 {
+		t.Errorf("first attempt = %d/%d, want 0/1", history[0].Correct, history[0].Total)
+	}
+	if history[1].Correct != 1 || history[1].Total != 1 {
+		t.Errorf("second attempt = %d/%d, want 1/1", history[1].Correct, history[1].Total)
+	}
+	if history[0].CompletedAt > history[1].CompletedAt {
+		t.Error("history is not chronological by completed_at")
+	}
+
+	// Reconciles with GetQuizScores: best = max of the series = 1/1.
+	scores, _ := alpha.GetQuizScores()
+	var best QuizScore
+	for _, s := range scores {
+		if s.Slug == quiz.Slug {
+			best = s
+		}
+	}
+	if !best.Attempted || best.BestScore != 1 || best.BestTotal != 1 {
+		t.Errorf("best = %d/%d (attempted=%v), want 1/1 — trend must reconcile with best", best.BestScore, best.BestTotal, best.Attempted)
+	}
+}
+
+func TestQuizLessonLink(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	lesson, err := alpha.AddLesson(Lesson{Title: "JOINs", Filename: "0001-joins.html"})
+	if err != nil {
+		t.Fatalf("AddLesson: %v", err)
+	}
+	q, err := alpha.AddQuestion(Question{
+		Title:  "What is a JOIN?",
+		Mode:   "choice",
+		Config: `{"options":["a","b"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	seq := lesson.SequenceNumber
+	linked, err := alpha.AddQuiz(Quiz{
+		Title: "JOINs quiz",
+		Items: fmt.Sprintf(`["%s"]`, q.Slug),
+	})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	if linked.LessonSeq != nil {
+		t.Errorf("created quiz LessonSeq = %v, want nil (not linked yet)", linked.LessonSeq)
+	}
+
+	// Link via the seam.
+	lc := alpha.LessonContent()
+	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+		t.Fatalf("SetQuizLesson: %v", err)
+	}
+
+	// Forward: read back the link.
+	got, err := alpha.GetQuizBySlug(linked.Slug)
+	if err != nil {
+		t.Fatalf("GetQuizBySlug: %v", err)
+	}
+	if got.LessonSeq == nil || *got.LessonSeq != seq {
+		t.Errorf("read-back LessonSeq = %v, want %d", got.LessonSeq, seq)
+	}
+
+	// Reverse: QuizzesForLesson finds it.
+	rev, err := lc.QuizzesForLesson(seq)
+	if err != nil {
+		t.Fatalf("QuizzesForLesson: %v", err)
+	}
+	if len(rev) != 1 || rev[0].Slug != linked.Slug {
+		t.Errorf("reverse lookup = %d quizzes, want 1 with slug %q", len(rev), linked.Slug)
+	}
+
+	// An unlinked quiz has nil LessonSeq and is excluded from the reverse lookup.
+	unlinked, _ := alpha.AddQuiz(Quiz{Title: "General", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
+	if unlinked.LessonSeq != nil {
+		t.Errorf("unlinked quiz LessonSeq = %v, want nil", unlinked.LessonSeq)
+	}
+	rev2, _ := lc.QuizzesForLesson(seq)
+	if len(rev2) != 1 {
+		t.Errorf("reverse lookup after adding unlinked = %d, want 1", len(rev2))
+	}
+
+	// ClearQuizLesson removes the link. Idempotent — clear twice is fine.
+	if err := lc.ClearQuizLesson(linked.Slug); err != nil {
+		t.Fatalf("ClearQuizLesson: %v", err)
+	}
+	cleared, _ := alpha.GetQuizBySlug(linked.Slug)
+	if cleared.LessonSeq != nil {
+		t.Errorf("after clear, LessonSeq = %v, want nil", cleared.LessonSeq)
+	}
+	if err := lc.ClearQuizLesson(linked.Slug); err != nil {
+		t.Fatalf("ClearQuizLesson (idempotent): %v", err)
+	}
+
+	// SetQuizLesson re-links. Overwrites existing link.
+	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+		t.Fatalf("SetQuizLesson: %v", err)
+	}
+	reset, _ := alpha.GetQuizBySlug(linked.Slug)
+	if reset.LessonSeq == nil || *reset.LessonSeq != seq {
+		t.Errorf("after re-set, LessonSeq = %v, want %d", reset.LessonSeq, seq)
+	}
+	// Setting the same lesson again works (idempotent overwrite).
+	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+		t.Fatalf("SetQuizLesson (overwrite): %v", err)
+	}
+}
+
+func TestQuizLessonLinkErrors(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	lesson, err := alpha.AddLesson(Lesson{Title: "JOINs", Filename: "0001-joins.html"})
+	if err != nil {
+		t.Fatalf("AddLesson: %v", err)
+	}
+	q, err := alpha.AddQuestion(Question{
+		Title:  "What is a JOIN?",
+		Mode:   "choice",
+		Config: `{"options":["a","b"],"key":0}`,
+	})
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+	quiz, err := alpha.AddQuiz(Quiz{Title: "Quiz", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
+	if err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	lc := alpha.LessonContent()
+
+	// SetQuizLesson with stale quiz slug.
+	if err := lc.SetQuizLesson("nonexistent", 1); !errors.Is(err, ErrQuizNotFound) {
+		t.Errorf("SetQuizLesson with bad slug: got %v, want ErrQuizNotFound", err)
+	}
+
+	// SetQuizLesson with nonexistent lesson sequence.
+	if err := lc.SetQuizLesson(quiz.Slug, 999); !errors.Is(err, ErrLessonNotFound) {
+		t.Errorf("SetQuizLesson with bad lesson: got %v, want ErrLessonNotFound", err)
+	}
+
+	// SetQuizLesson with valid inputs succeeds.
+	seq := lesson.SequenceNumber
+	if err := lc.SetQuizLesson(quiz.Slug, seq); err != nil {
+		t.Fatalf("SetQuizLesson valid: %v", err)
+	}
+
+	// ClearQuizLesson with stale quiz slug.
+	if err := lc.ClearQuizLesson("nonexistent"); !errors.Is(err, ErrQuizNotFound) {
+		t.Errorf("ClearQuizLesson with bad slug: got %v, want ErrQuizNotFound", err)
+	}
+
+	// ClearQuizLesson when already unlinked is idempotent (no error).
+	if err := lc.ClearQuizLesson(quiz.Slug); err != nil {
+		t.Fatalf("ClearQuizLesson (unlinked): %v", err)
+	}
+
+	// QuizzesForLesson with no matches returns empty, not error.
+	empty, err := lc.QuizzesForLesson(999)
+	if err != nil {
+		t.Fatalf("QuizzesForLesson unknown lesson: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Errorf("QuizzesForLesson unknown lesson: got %d quizzes, want 0", len(empty))
+	}
+}
+
+func TestQuizAttemptAbandon(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+	q, _ := alpha.AddQuestion(Question{
+		Title:  "q1",
+		Mode:   "choice",
+		Config: `{"options":["a","b"],"key":0}`,
+	})
+	quiz, _ := alpha.AddQuiz(Quiz{Title: "Quiz", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
+
+	qa, _ := alpha.CreateQuizAttempt(quiz.ID)
+
+	// Abandon an in_progress attempt.
+	if err := alpha.AbandonQuizAttempt(qa.ID); err != nil {
+		t.Fatalf("AbandonQuizAttempt: %v", err)
+	}
+	got, _ := alpha.GetQuizAttempt(qa.ID)
+	if got.Status != "abandoned" {
+		t.Errorf("status = %q, want abandoned", got.Status)
+	}
+
+	// State machine: cannot submit to abandoned attempt.
+	_, err := alpha.SubmitAttempt(qa.ID, q.ID, "0", 100, nil)
+	if err == nil {
+		t.Error("expected error submitting to abandoned attempt")
+	}
+
+	// State machine: cannot abandon again.
+	if err := alpha.AbandonQuizAttempt(qa.ID); err == nil {
+		t.Error("expected error abandoning already-abandoned attempt")
+	}
+}
+
+func TestChoiceConfigGrade(t *testing.T) {
+	cc := ChoiceConfig{Options: []string{"a", "b", "c"}, Key: 1}
+	cases := []struct {
+		response string
+		want     bool
+	}{
+		{"0", false},
+		{"1", true},
+		{"2", false},
+	}
+	for _, c := range cases {
+		got, err := cc.Grade(c.response)
+		if err != nil {
+			t.Errorf("Grade(%q) error: %v", c.response, err)
+		}
+		if got != c.want {
+			t.Errorf("Grade(%q) = %v, want %v", c.response, got, c.want)
+		}
+	}
+	// Non-numeric response errors.
+	if _, err := cc.Grade("abc"); err == nil {
+		t.Error("expected error for non-numeric response")
+	}
+}
+
 // TestGetSidebarData proves GetSidebarData returns the lightweight sidebar
 // projections (not full model structs) with correct fields and workspace
 // scoping. One call replaces three separate Get* calls.
@@ -186,6 +679,7 @@ func TestGetSidebarData(t *testing.T) {
 	alpha.AddLesson(Lesson{Title: "a2", Filename: "a2.html"})
 	alpha.AddRecord(LearningRecord{Title: "r1", Filename: "r1.md", Status: "active", Summary: "sum"})
 	alpha.AddRef(Reference{Title: "Ref1", Slug: "ref1", Filename: "ref1.html"})
+	alpha.AddQuiz(Quiz{Title: "Quiz1", Slug: "quiz1", Items: `["q1"]`})
 
 	// Empty workspace
 	beta := seedWorkspace(t, store, "beta")
@@ -216,15 +710,21 @@ func TestGetSidebarData(t *testing.T) {
 	if sd.Refs[0].Slug != "ref1" || sd.Refs[0].Title != "Ref1" {
 		t.Errorf("ref[0] = %+v, want {ref1, Ref1}", sd.Refs[0])
 	}
+	if len(sd.Quizzes) != 1 {
+		t.Fatalf("quizzes = %d, want 1", len(sd.Quizzes))
+	}
+	if sd.Quizzes[0].Slug != "quiz1" || sd.Quizzes[0].Title != "Quiz1" {
+		t.Errorf("quiz[0] = %+v, want {quiz1, Quiz1}", sd.Quizzes[0])
+	}
 
 	// Beta: empty workspace — no items leaked from alpha
 	sdBeta, err := beta.GetSidebarData()
 	if err != nil {
 		t.Fatalf("beta GetSidebarData: %v", err)
 	}
-	if len(sdBeta.Lessons) != 0 || len(sdBeta.Records) != 0 || len(sdBeta.Refs) != 0 {
-		t.Errorf("beta should be empty, got L%d R%d Ref%d",
-			len(sdBeta.Lessons), len(sdBeta.Records), len(sdBeta.Refs))
+	if len(sdBeta.Lessons) != 0 || len(sdBeta.Records) != 0 || len(sdBeta.Refs) != 0 || len(sdBeta.Quizzes) != 0 {
+		t.Errorf("beta should be empty, got L%d R%d Ref%d Q%d",
+			len(sdBeta.Lessons), len(sdBeta.Records), len(sdBeta.Refs), len(sdBeta.Quizzes))
 	}
 }
 
@@ -441,6 +941,234 @@ func TestWorkspaceStoreSearch(t *testing.T) {
 	}
 	if !types["lesson"] || !types["record"] || !types["ref"] {
 		t.Errorf("missing entity types, got %v", types)
+	}
+}
+
+// TestSearchIncludesQuizzes proves the quizzes_fts index (maintained by the
+// _ai trigger at insert) surfaces quizzes in Search results, filtered by the
+// query and mapped with Title/Slug/Description-as-Summary.
+func TestSearchIncludesQuizzes(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "quizsearch")
+
+	// Title and description both carry the needle; the _ai trigger indexes both.
+	if _, err := ws.AddQuiz(Quiz{
+		Title: "JOIN Practice Quiz", Slug: "joins",
+		Description: "Test your knowledge of SQL JOINs", Items: "[]",
+	}); err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+	// A non-matching quiz proves the result set is filtered, not wholesale.
+	if _, err := ws.AddQuiz(Quiz{
+		Title: "Normalization Drill", Slug: "norm",
+		Description: "Third normal form basics", Items: "[]",
+	}); err != nil {
+		t.Fatalf("AddQuiz: %v", err)
+	}
+
+	results, err := ws.Search("JOIN")
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+
+	var quizHits []SearchResult
+	for _, r := range results {
+		if r.Type == "quiz" {
+			quizHits = append(quizHits, r)
+		}
+	}
+	if len(quizHits) != 1 {
+		t.Fatalf("expected 1 quiz result for JOIN, got %d (%v)", len(quizHits), quizHits)
+	}
+	hit := quizHits[0]
+	if hit.Title != "JOIN Practice Quiz" {
+		t.Errorf("quiz title = %q, want JOIN Practice Quiz", hit.Title)
+	}
+	if hit.Slug != "joins" {
+		t.Errorf("quiz slug = %q, want joins", hit.Slug)
+	}
+	if hit.Summary != "Test your knowledge of SQL JOINs" {
+		t.Errorf("quiz summary = %q, want the description", hit.Summary)
+	}
+	if hit.WorkspaceName != "quizsearch" {
+		t.Errorf("quiz workspace = %q, want quizsearch", hit.WorkspaceName)
+	}
+}
+
+// TestFTSTriggersIndexAtInsert proves the FTS5 AFTER INSERT triggers maintain
+// the search index at insert time — no RebuildFTS() call is needed on Open or
+// before Search. Regression guard for the removal of the redundant
+// store.RebuildFTS() call that used to run on every Open() (LEARN-102): if a
+// trigger is dropped or its body_text column drifts, a newly-created item is
+// no longer searchable by a term that appears only in its body, and this
+// test fails.
+func TestFTSTriggersIndexAtInsert(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "trig")
+
+	// Distinctive body term that appears in NO title or summary, only in body.
+	const needle = "pterodactyl"
+
+	// Create one of each entity type via the create path (the path agents use),
+	// each with the needle only in the body — never in title or summary.
+	if _, err := ws.CreateLesson("Lesson Title", "<p>body "+needle+"</p>"); err != nil {
+		t.Fatalf("CreateLesson: %v", err)
+	}
+	if _, err := ws.CreateRecord("Record Title", "body "+needle, "summary without the needle"); err != nil {
+		t.Fatalf("CreateRecord: %v", err)
+	}
+	if _, err := ws.CreateRef("Ref Title", "<p>body "+needle+"</p>"); err != nil {
+		t.Fatalf("CreateRef: %v", err)
+	}
+
+	// Search immediately — no rebuild call anywhere. If the _ai triggers work,
+	// the needle (present only in body_text) is indexed at insert and found.
+	results, err := ws.Search(needle)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("expected 3 trigger-indexed results for %q, got %d "+
+			"(FTS AFTER INSERT trigger not maintaining index?)",
+			needle, len(results))
+	}
+}
+
+// TestFTSUpdateTriggerResyncsOnIndexedColumnChange proves the scoped _au
+// trigger (AFTER UPDATE OF title, summary, body_text) still fires when an
+// indexed column changes. ReviseLesson SETs title/summary/body_text, so the
+// trigger resyncs FTS: the new title is searchable and the old is gone.
+// Regression guard for LEARN-106 — if the scoping accidentally excluded an
+// indexed column, search would return stale results.
+func TestFTSUpdateTriggerResyncsOnIndexedColumnChange(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "rev")
+
+	l, err := ws.CreateLesson("guitar", "<p>body content</p>")
+	if err != nil {
+		t.Fatalf("CreateLesson: %v", err)
+	}
+
+	newTitle := "banjo"
+	if err := ws.ReviseLesson(int(l.SequenceNumber), "<p>body content</p>", &newTitle, nil); err != nil {
+		t.Fatalf("ReviseLesson: %v", err)
+	}
+
+	if results, err := ws.Search("banjo"); err != nil {
+		t.Fatalf("Search new title: %v", err)
+	} else if len(results) != 1 {
+		t.Errorf("expected new title searchable, got %d results", len(results))
+	}
+	if results, err := ws.Search("guitar"); err != nil {
+		t.Fatalf("Search old title: %v", err)
+	} else if len(results) != 0 {
+		t.Errorf("expected old title gone from index, got %d results", len(results))
+	}
+}
+
+// TestSupersedeRecord is the happy-path contract: after a successful
+// supersede, the new record is committed 'active' and the old one is
+// 'superseded' with superseded_by pointing at the new id. Both mutations
+// are visible together (LEARN-105). No prior test covered SupersedeRecord.
+func TestSupersedeRecord(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "sup-ok")
+
+	old, err := ws.CreateRecord("first", "body one", "summary one")
+	if err != nil {
+		t.Fatalf("CreateRecord old: %v", err)
+	}
+
+	created, oldResult, err := ws.SupersedeRecord(int(old.SequenceNumber), "second", "body two", "summary two")
+	if err != nil {
+		t.Fatalf("SupersedeRecord: %v", err)
+	}
+
+	if created.Status != "active" {
+		t.Errorf("new record status = %q, want 'active'", created.Status)
+	}
+	if oldResult.Status != "superseded" {
+		t.Errorf("old record status = %q, want 'superseded'", oldResult.Status)
+	}
+	if oldResult.SupersededBy != created.ID {
+		t.Errorf("old.superseded_by = %d, want %d", oldResult.SupersededBy, created.ID)
+	}
+
+	// Confirm both mutations landed in the DB.
+	gotOld, err := ws.GetRecordBySeq(int(old.SequenceNumber))
+	if err != nil {
+		t.Fatalf("reload old: %v", err)
+	}
+	if gotOld.Status != "superseded" || gotOld.SupersededBy != created.ID {
+		t.Errorf("DB old = %+v, want superseded by %d", gotOld, created.ID)
+	}
+	recs, _ := ws.GetRecords()
+	if len(recs) != 2 {
+		t.Errorf("expected 2 records, got %d", len(recs))
+	}
+}
+
+// TestSupersedeRecordAtomic proves the new-record INSERT and the old-record
+// UPDATE commit together in one transaction (LEARN-105). It forces a
+// writeToFile failure mid-tx (by replacing the learning-records dir with a
+// regular file → MkdirAll returns ENOTDIR) and asserts the deferred Rollback
+// discards BOTH DB mutations: the old record stays 'active' and no new
+// record is committed.
+func TestSupersedeRecordAtomic(t *testing.T) {
+	store := newTestStore(t)
+	// Use an isolated temp dir for the workspace path (not seedWorkspace's
+	// shared /tmp/<name>) so the sabotage below is auto-cleaned and can't
+	// leak across runs.
+	wsDir := t.TempDir()
+	if _, err := store.AddWorkspace(Workspace{Name: "sup", Path: wsDir}); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	ws, err := store.Workspace("sup")
+	if err != nil {
+		t.Fatalf("get workspace: %v", err)
+	}
+
+	// Old record, created normally while the records dir is writable.
+	old, err := ws.CreateRecord("first", "body one", "summary one")
+	if err != nil {
+		t.Fatalf("CreateRecord old: %v", err)
+	}
+
+	// Sabotage: replace the learning-records dir with a regular file so the
+	// next writeToFile fails inside SupersedeRecord's tx.
+	recDir := filepath.Join(ws.Layout().Root, "learning-records")
+	if err := os.RemoveAll(recDir); err != nil {
+		t.Fatalf("remove records dir: %v", err)
+	}
+	if err := os.WriteFile(recDir, []byte("blocker"), 0o644); err != nil {
+		t.Fatalf("sabotage records dir: %v", err)
+	}
+
+	// SupersedeRecord must fail (writeToFile) — and roll back both DB mutations.
+	_, _, err = ws.SupersedeRecord(int(old.SequenceNumber), "second", "body two", "summary two")
+	if err == nil {
+		t.Fatal("SupersedeRecord: expected writeToFile failure, got nil error")
+	}
+
+	// Old record must still be active (the UPDATE rolled back).
+	gotOld, err := ws.GetRecordBySeq(int(old.SequenceNumber))
+	if err != nil {
+		t.Fatalf("reload old record: %v", err)
+	}
+	if gotOld.Status != "active" {
+		t.Errorf("old record status = %q, want 'active' (UPDATE should have rolled back)", gotOld.Status)
+	}
+	if gotOld.SupersededBy != 0 {
+		t.Errorf("old record superseded_by = %d, want 0 (UPDATE should have rolled back)", gotOld.SupersededBy)
+	}
+
+	// No new record committed (the INSERT rolled back).
+	recs, err := ws.GetRecords()
+	if err != nil {
+		t.Fatalf("GetRecords: %v", err)
+	}
+	if len(recs) != 1 {
+		t.Errorf("expected exactly 1 record after rollback, got %d (INSERT should have rolled back)", len(recs))
 	}
 }
 

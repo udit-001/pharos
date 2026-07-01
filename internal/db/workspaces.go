@@ -32,8 +32,7 @@ func (s *Store) GetWorkspaces() ([]Workspace, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Enrich with counts — 3 grouped queries instead of 3N per-workspace
-	// queries (the previous N+1).
+	// Enrich with counts — grouped queries instead of N+1 per-workspace queries.
 	lessonCounts, err := s.countByWorkspace("lessons")
 	if err != nil {
 		return nil, fmt.Errorf("count lessons: %w", err)
@@ -46,10 +45,15 @@ func (s *Store) GetWorkspaces() ([]Workspace, error) {
 	if err != nil {
 		return nil, fmt.Errorf("count refs: %w", err)
 	}
+	quizCounts, err := s.countByWorkspace("quizzes")
+	if err != nil {
+		return nil, fmt.Errorf("count quizzes: %w", err)
+	}
 	for i, w := range ws {
 		ws[i].LessonCount = lessonCounts[w.ID]
 		ws[i].RecordCount = recordCounts[w.ID]
 		ws[i].RefCount = refCounts[w.ID]
+		ws[i].QuizCount = quizCounts[w.ID]
 	}
 	return ws, nil
 }
@@ -61,9 +65,10 @@ func (s *Store) GetWorkspace(id int64) (Workspace, error) {
 	if err != nil {
 		return w, err
 	}
-	w.LessonCount = s.lessonCount(w.ID)
-	w.RecordCount = s.recordCount(w.ID)
-	w.RefCount = s.refCount(w.ID)
+	w.LessonCount = s.countByTable("lessons", w.ID)
+	w.RecordCount = s.countByTable("learning_records", w.ID)
+	w.RefCount = s.countByTable("references_t", w.ID)
+	w.QuizCount = s.countByTable("quizzes", w.ID)
 	return w, nil
 }
 
@@ -74,9 +79,10 @@ func (s *Store) GetWorkspaceByName(name string) (Workspace, error) {
 	if err != nil {
 		return w, err
 	}
-	w.LessonCount = s.lessonCount(w.ID)
-	w.RecordCount = s.recordCount(w.ID)
-	w.RefCount = s.refCount(w.ID)
+	w.LessonCount = s.countByTable("lessons", w.ID)
+	w.RecordCount = s.countByTable("learning_records", w.ID)
+	w.RefCount = s.countByTable("references_t", w.ID)
+	w.QuizCount = s.countByTable("quizzes", w.ID)
 	return w, nil
 }
 
@@ -213,6 +219,15 @@ func (s *Store) DeleteWorkspace(id int64) error {
 	return nil
 }
 
+// countByTable returns the row count for one workspace in one table. Used by
+// GetWorkspace and GetWorkspaceByName to enrich a single workspace. The batch
+// path (many workspaces) uses countByWorkspace instead.
+func (s *Store) countByTable(table string, workspaceID int64) int {
+	var count int
+	s.db.Get(&count, fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE workspace_id = ?", table), workspaceID)
+	return count
+}
+
 // countByWorkspace runs `SELECT workspace_id, COUNT(*) FROM <table> GROUP BY
 // workspace_id` and returns a map. Used by GetWorkspaces to enrich N workspaces
 // in 3 queries instead of 3N (the previous N+1).
@@ -247,17 +262,17 @@ type Stats struct {
 	Lessons    int
 	Records    int
 	Refs       int
+	Quizzes    int
 }
 
-// Totals sums the lesson/record/ref counts across the given workspaces.
-// Callers that already have the workspace list (e.g. the dashboard handler,
-// which needs it for the grid) use this to avoid a second query.
+// Totals sums counts across the given workspaces.
 func Totals(ws []Workspace) Stats {
 	var t Stats
 	for _, w := range ws {
 		t.Lessons += w.LessonCount
 		t.Records += w.RecordCount
 		t.Refs += w.RefCount
+		t.Quizzes += w.QuizCount
 	}
 	t.Workspaces = len(ws)
 	return t

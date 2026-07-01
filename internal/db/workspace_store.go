@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -133,6 +132,18 @@ func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 		results = append(results, sr)
 	}
 
+	quizzes, err := w.SearchQuizzes(query)
+	if err != nil {
+		return nil, fmt.Errorf("search quizzes: %w", err)
+	}
+	for _, q := range quizzes {
+		results = append(results, SearchResult{
+			Type: "quiz", Title: q.Title, Summary: q.Description,
+			WorkspaceName: w.ws.Name, WorkspaceID: w.ws.ID,
+			Slug: q.Slug,
+		})
+	}
+
 	if results == nil {
 		return []SearchResult{}, nil
 	}
@@ -247,6 +258,435 @@ func (w *WorkspaceStore) AddRecord(r LearningRecord) (LearningRecord, error) {
 	return r, nil
 }
 
+// ── Questions ──
+
+// GetQuestions returns all questions in this workspace, ordered by title.
+func (w *WorkspaceStore) GetQuestions() ([]Question, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM questions WHERE workspace_id = ? ORDER BY title ASC", questionColumns),
+		w.ws.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanQuestions(rows)
+}
+
+// GetQuestionBySlug returns a single question by its slug, or an error if not found.
+func (w *WorkspaceStore) GetQuestionBySlug(slug string) (*Question, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM questions WHERE workspace_id = ? AND slug = ?", questionColumns),
+		w.ws.ID, slug,
+	)
+	question, err := scanQuestion(row)
+	if err != nil {
+		return nil, fmt.Errorf("question %q not found: %w", slug, err)
+	}
+	return &question, nil
+}
+
+// AddQuestion creates a new question in this workspace. WorkspaceID is set
+// automatically and the slug is derived from the title if empty. The caller
+// is responsible for validating the config (see Question.ParseConfig).
+func (w *WorkspaceStore) AddQuestion(q Question) (Question, error) {
+	q.WorkspaceID = w.ws.ID
+	now := nowTimestamp()
+
+	if q.Slug == "" {
+		q.Slug = Slugify(q.Title)
+	}
+
+	result, err := w.db().Exec(
+		`INSERT INTO questions (workspace_id, title, slug, mode, config, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		q.WorkspaceID, q.Title, q.Slug, q.Mode, q.Config, now, now,
+	)
+	if err != nil {
+		return Question{}, fmt.Errorf("add question: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	q.ID = id
+	q.CreatedAt = now
+	q.UpdatedAt = now
+	return q, nil
+}
+
+// ── Quizzes ──
+
+// GetQuizzes returns all quizzes in this workspace, ordered by title.
+func (w *WorkspaceStore) GetQuizzes() ([]Quiz, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM quizzes WHERE workspace_id = ? ORDER BY title ASC", quizColumns),
+		w.ws.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanQuizzes(rows)
+}
+
+// GetQuizBySlug returns a single quiz by its slug, or an error if not found.
+func (w *WorkspaceStore) GetQuizBySlug(slug string) (*Quiz, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM quizzes WHERE workspace_id = ? AND slug = ?", quizColumns),
+		w.ws.ID, slug,
+	)
+	quiz, err := scanQuiz(row)
+	if err != nil {
+		return nil, fmt.Errorf("quiz %q not found: %w", slug, err)
+	}
+	return &quiz, nil
+}
+
+// GetQuizByID returns a single quiz by its primary key.
+func (w *WorkspaceStore) GetQuizByID(id int64) (*Quiz, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM quizzes WHERE workspace_id = ? AND id = ?", quizColumns),
+		w.ws.ID, id,
+	)
+	quiz, err := scanQuiz(row)
+	if err != nil {
+		return nil, fmt.Errorf("quiz %d not found: %w", id, err)
+	}
+	return &quiz, nil
+}
+
+// AddQuiz creates a new quiz in this workspace. WorkspaceID is set
+// automatically and the slug is derived from the title if empty.
+func (w *WorkspaceStore) AddQuiz(q Quiz) (Quiz, error) {
+	q.WorkspaceID = w.ws.ID
+	now := nowTimestamp()
+
+	if q.Slug == "" {
+		q.Slug = Slugify(q.Title)
+	}
+
+	result, err := w.db().Exec(
+		`INSERT INTO quizzes (workspace_id, title, slug, description, items, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		q.WorkspaceID, q.Title, q.Slug, q.Description, q.Items, now, now,
+	)
+	if err != nil {
+		return Quiz{}, fmt.Errorf("add quiz: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	q.ID = id
+	q.CreatedAt = now
+	q.UpdatedAt = now
+	return q, nil
+}
+
+// ── Quiz Attempts ──
+
+// GetWeakQuestions returns questions sorted by accuracy ascending, using
+// only completed quiz attempts. Questions with zero attempts (null accuracy)
+// sort first. The limit caps the result count.
+func (w *WorkspaceStore) GetWeakQuestions(limit int) ([]WeakQuestionResult, error) {
+	// Fetch all questions for this workspace.
+	questions, err := w.GetQuestions()
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch accuracy per question from completed attempts only.
+	type acc struct {
+		QuestionID    int64
+		Correct       int
+		Total         int
+		LastAttempted string
+	}
+	var accs []acc
+	rows, err := w.db().Query(
+		`SELECT a.question_id,
+		   SUM(CASE WHEN a.correct = 1 THEN 1 ELSE 0 END) AS correct,
+		   COUNT(*) AS total,
+		   MAX(a.created_at) AS last_attempted
+		 FROM attempts a
+		 JOIN quiz_attempts qa ON a.quiz_attempt_id = qa.id
+		 WHERE qa.workspace_id = ? AND qa.status = 'completed'
+		 GROUP BY a.question_id`,
+		w.ws.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query question accuracy: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var a acc
+		if err := rows.Scan(&a.QuestionID, &a.Correct, &a.Total, &a.LastAttempted); err != nil {
+			return nil, fmt.Errorf("scan accuracy: %w", err)
+		}
+		accs = append(accs, a)
+	}
+
+	accMap := map[int64]acc{}
+	for _, a := range accs {
+		accMap[a.QuestionID] = a
+	}
+
+	// Build results.
+	out := make([]WeakQuestionResult, len(questions))
+	for i, q := range questions {
+		out[i] = WeakQuestionResult{Question: q}
+		if a, ok := accMap[q.ID]; ok {
+			out[i].Correct = a.Correct
+			out[i].Total = a.Total
+			out[i].HasData = true
+			out[i].LastAttempted = a.LastAttempted
+		}
+	}
+
+	// Sort: null accuracy (HasData=false) first, then by accuracy ascending.
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0; j-- {
+			if !out[j-1].HasData && out[j].HasData {
+				break
+			}
+			if out[j-1].HasData && out[j].HasData {
+				prevAcc := float64(out[j-1].Correct) / float64(out[j-1].Total)
+				curAcc := float64(out[j].Correct) / float64(out[j].Total)
+				if prevAcc <= curAcc {
+					break
+				}
+			}
+			out[j-1], out[j] = out[j], out[j-1]
+		}
+	}
+
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// ErrQuizHasInProgress signals that a quiz has in-progress attempts and
+// cannot be revised until they complete or are abandoned.
+var ErrQuizHasInProgress = errors.New("quiz has in-progress attempts")
+
+// UpdateQuizItems updates a quiz's items JSON. Rejects if any in-progress
+// quiz attempts exist for this quiz.
+func (w *WorkspaceStore) UpdateQuizItems(slug string, items string) error {
+	quiz, err := w.GetQuizBySlug(slug)
+	if err != nil {
+		return err
+	}
+
+	// Block if in-progress attempts exist.
+	attempts, err := w.GetQuizAttempts(quiz.ID)
+	if err != nil {
+		return fmt.Errorf("check in-progress attempts: %w", err)
+	}
+	for _, a := range attempts {
+		if a.Status == "in_progress" {
+			return fmt.Errorf("cannot revise quiz %q: %w", slug, ErrQuizHasInProgress)
+		}
+	}
+
+	now := nowTimestamp()
+	_, err = w.db().Exec(
+		"UPDATE quizzes SET items = ?, updated_at = ? WHERE id = ?",
+		items, now, quiz.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update quiz items: %w", err)
+	}
+	return nil
+}
+
+// ── Quiz Attempt lifecycle ──
+
+// CreateQuizAttempt starts a new attempt for the given quiz. The attempt is
+// created with status in_progress.
+func (w *WorkspaceStore) CreateQuizAttempt(quizID int64) (QuizAttempt, error) {
+	now := nowTimestamp()
+	result, err := w.db().Exec(
+		`INSERT INTO quiz_attempts (workspace_id, quiz_id, status, started_at)
+		 VALUES (?, ?, 'in_progress', ?)`,
+		w.ws.ID, quizID, now,
+	)
+	if err != nil {
+		return QuizAttempt{}, fmt.Errorf("create quiz attempt: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	return QuizAttempt{
+		ID: id, WorkspaceID: w.ws.ID, QuizID: quizID,
+		Status: "in_progress", StartedAt: now,
+	}, nil
+}
+
+// GetQuizAttempt fetches a single quiz attempt by ID.
+func (w *WorkspaceStore) GetQuizAttempt(id int64) (*QuizAttempt, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM quiz_attempts WHERE id = ?", quizAttemptColumns),
+		id,
+	)
+	a, err := scanQuizAttempt(row)
+	if err != nil {
+		return nil, fmt.Errorf("quiz attempt %d not found: %w", id, err)
+	}
+	return &a, nil
+}
+
+// GetQuizAttempts returns all attempts for a quiz, newest first.
+func (w *WorkspaceStore) GetQuizAttempts(quizID int64) ([]QuizAttempt, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM quiz_attempts WHERE quiz_id = ? ORDER BY started_at DESC", quizAttemptColumns),
+		quizID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []QuizAttempt
+	for rows.Next() {
+		a, err := scanQuizAttempt(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan quiz attempt: %w", err)
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+// GetAttempts returns all answers for a quiz attempt, ordered by creation.
+func (w *WorkspaceStore) GetAttempts(quizAttemptID int64) ([]Attempt, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM attempts WHERE quiz_attempt_id = ? ORDER BY created_at ASC", attemptColumns),
+		quizAttemptID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanAttempts(rows)
+}
+
+// SubmitAttempt records a single answer and returns the resulting Attempt
+// row. Returns an error if the parent quiz attempt is not in_progress.
+//
+// For choice mode: response is the selected option index; the server grades
+// it via Config.Grade() and clientCorrect is ignored.
+// For recall mode: the client self-grades and passes clientCorrect; the
+// server stores it as-is (never overrides the learner's self-assessment).
+func (w *WorkspaceStore) SubmitAttempt(quizAttemptID, questionID int64, response string, latencyMs int, clientCorrect *bool) (Attempt, error) {
+	// State machine guard: attempt must be in_progress.
+	qa, err := w.GetQuizAttempt(quizAttemptID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	if qa.Status != "in_progress" {
+		return Attempt{}, fmt.Errorf("cannot submit to %s attempt", qa.Status)
+	}
+
+	// Resolve the question + config to determine grading mode.
+	question, err := w.GetQuestionByID(questionID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	cfg, err := question.ParseConfig()
+	if err != nil {
+		return Attempt{}, err
+	}
+
+	var correct bool
+	switch cfg.Mode() {
+	case "choice":
+		// Server grades choice questions.
+		correct, err = cfg.Grade(response)
+		if err != nil {
+			return Attempt{}, err
+		}
+	case "recall":
+		// Client self-grades recall questions; server stores as-is.
+		if clientCorrect == nil {
+			return Attempt{}, fmt.Errorf("recall questions require a client_correct value")
+		}
+		correct = *clientCorrect
+	default:
+		return Attempt{}, fmt.Errorf("unknown question mode %q", cfg.Mode())
+	}
+
+	now := nowTimestamp()
+	// Replace any existing answer for this question in this quiz attempt
+	// so re-answering doesn't accumulate duplicate rows.
+	w.db().Exec(`DELETE FROM attempts WHERE quiz_attempt_id = ? AND question_id = ?`, quizAttemptID, questionID)
+	result, err := w.db().Exec(
+		`INSERT INTO attempts (quiz_attempt_id, question_id, correct, response, latency_ms, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		quizAttemptID, questionID, correct, response, latencyMs, now,
+	)
+	if err != nil {
+		return Attempt{}, fmt.Errorf("insert attempt: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	return Attempt{
+		ID: id, QuizAttemptID: quizAttemptID, QuestionID: questionID,
+		Correct: &correct, Response: response, LatencyMs: &latencyMs,
+		CreatedAt: now,
+	}, nil
+}
+
+// CompleteQuizAttempt marks an attempt as completed. Enforces that the
+// current status is in_progress.
+func (w *WorkspaceStore) CompleteQuizAttempt(id int64) error {
+	return w.transitionQuizAttempt(id, "in_progress", "completed")
+}
+
+// AbandonQuizAttempt marks an attempt as abandoned. Enforces that the
+// current status is in_progress.
+func (w *WorkspaceStore) AbandonQuizAttempt(id int64) error {
+	return w.transitionQuizAttempt(id, "in_progress", "abandoned")
+}
+
+func (w *WorkspaceStore) transitionQuizAttempt(id int64, fromStatus, toStatus string) error {
+	now := nowTimestamp()
+	var completedAt interface{}
+	if toStatus == "completed" {
+		completedAt = now
+	}
+	res, err := w.db().Exec(
+		`UPDATE quiz_attempts SET status = ?, completed_at = ? WHERE id = ? AND status = ?`,
+		toStatus, completedAt, id, fromStatus,
+	)
+	if err != nil {
+		return fmt.Errorf("transition quiz attempt to %s: %w", toStatus, err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("quiz attempt %d not in %s state", id, fromStatus)
+	}
+	return nil
+}
+
+// ScoreAttempt returns (correct, total) for a quiz attempt via SQL aggregation.
+func (w *WorkspaceStore) ScoreAttempt(quizAttemptID int64) (correct, total int) {
+	// Deduplicate by question_id — take the latest answer per question.
+	row := w.db().QueryRow(
+		`SELECT COUNT(CASE WHEN correct = 1 THEN 1 END), COUNT(DISTINCT question_id)
+		 FROM attempts a
+		 WHERE quiz_attempt_id = ?
+		   AND id = (SELECT MAX(id) FROM attempts WHERE quiz_attempt_id = a.quiz_attempt_id AND question_id = a.question_id)`,
+		quizAttemptID,
+	)
+	_ = row.Scan(&correct, &total)
+	return correct, total
+}
+
+// GetQuestionByID fetches a single question by its primary key.
+func (w *WorkspaceStore) GetQuestionByID(id int64) (*Question, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM questions WHERE workspace_id = ? AND id = ?", questionColumns),
+		w.ws.ID, id,
+	)
+	q, err := scanQuestion(row)
+	if err != nil {
+		return nil, fmt.Errorf("question %d not found: %w", id, err)
+	}
+	return &q, nil
+}
+
 // ── References ──
 
 // GetRefs returns all references in this workspace.
@@ -290,6 +730,24 @@ func (w *WorkspaceStore) SearchRefs(query string) ([]Reference, error) {
 	}
 	defer rows.Close()
 	return scanRefs(rows)
+}
+
+// SearchQuizzes performs full-text search within this workspace. Quizzes are
+// DB-only, so the FTS index is trigger-maintained (no file-extraction step).
+func (w *WorkspaceStore) SearchQuizzes(query string) ([]Quiz, error) {
+	q := buildFTSQuery(query)
+	if q == "" {
+		return []Quiz{}, nil
+	}
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM quizzes_fts JOIN quizzes ON quizzes.id = quizzes_fts.rowid WHERE quizzes_fts MATCH ? AND quizzes.workspace_id = ? ORDER BY bm25(quizzes_fts, %s), quizzes.title ASC", quizColumnsQualified, quizBm25Weights),
+		q, w.ws.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanQuizzes(rows)
 }
 
 // AddRef creates a new reference in this workspace. WorkspaceID is set
@@ -352,14 +810,15 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 
 	slug := Slugify(title)
 	filename := fmt.Sprintf("%04d-%s.html", seqNum, slug)
-
-	if err := writeToFile(w.Layout().LessonPath(filename), bodyHTML); err != nil {
-		return Lesson{}, fmt.Errorf("write lesson file: %w", err)
-	}
-
 	bodyText := extract.FromHTML(bodyHTML)
 
-	result, err := w.db().Exec(
+	tx, err := w.db().Begin()
+	if err != nil {
+		return Lesson{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		`INSERT INTO lessons (workspace_id, title, sequence_number, filename, path, summary, body_text, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		w.ws.ID, title, seqNum, filename, w.Layout().LessonRelPath(filename), "", bodyText, now, now,
@@ -367,6 +826,15 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 	if err != nil {
 		return Lesson{}, fmt.Errorf("insert lesson: %w", err)
 	}
+
+	if err := writeToFile(w.Layout().LessonPath(filename), bodyHTML); err != nil {
+		return Lesson{}, fmt.Errorf("write lesson file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Lesson{}, fmt.Errorf("commit tx: %w", err)
+	}
+
 	id, _ := result.LastInsertId()
 
 	return Lesson{
@@ -379,19 +847,9 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 // ReviseLesson overwrites a lesson's content in place. Sequence and filename
 // are unchanged.
 func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, summary *string) error {
-	lessons, err := w.GetLessons()
+	current, err := w.GetLessonBySeq(seq)
 	if err != nil {
 		return fmt.Errorf("find lesson: %w", err)
-	}
-	var current *Lesson
-	for i := range lessons {
-		if lessons[i].SequenceNumber == seq {
-			current = &lessons[i]
-			break
-		}
-	}
-	if current == nil {
-		return fmt.Errorf("lesson %d not found", seq)
 	}
 
 	if err := writeToFile(w.Layout().LessonPath(current.Filename), bodyHTML); err != nil {
@@ -412,26 +870,32 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, s
 	return err
 }
 
-// CreateRecord creates a new learning record: sequencing, slugify, filename,
-// write file, DB row — all in one method.
-func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRecord, error) {
+// insertRecord is the deep core of record creation: it computes the next
+// sequence number, slug, filename, and body_text, then runs the INSERT via
+// the given executor without beginning or committing a transaction. This
+// lets the caller own the transaction boundary — CreateRecord wraps it in its
+// own tx (a file-write-failure guard), and SupersedeRecord wraps it together
+// with the supersede UPDATE so both commit atomically (LEARN-105). Takes
+// sqlx.Ext (satisfied by *sqlx.DB and *sqlx.Tx); migrates to ExtContext when
+// LEARN-101 lands.
+func (w *WorkspaceStore) insertRecord(ext sqlx.Ext, title, bodyMD, summary string) (LearningRecord, error) {
 	now := nowTimestamp()
 
 	var maxSeq int
-	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM learning_records WHERE workspace_id = ?", w.ws.ID)
+	if err := ext.QueryRowx(
+		"SELECT COALESCE(MAX(sequence_number), 0) FROM learning_records WHERE workspace_id = ?",
+		w.ws.ID,
+	).Scan(&maxSeq); err != nil {
+		return LearningRecord{}, fmt.Errorf("compute record sequence: %w", err)
+	}
 	seqNum := maxSeq + 1
 
 	slug := Slugify(title)
 	filename := fmt.Sprintf("%04d-%s.md", seqNum, slug)
-
-	if err := writeToFile(w.Layout().RecordPath(filename), bodyMD); err != nil {
-		return LearningRecord{}, fmt.Errorf("write record file: %w", err)
-	}
-
 	bodyText := extract.FromMarkdown(bodyMD)
 
 	var supersededBy interface{}
-	result, err := w.db().Exec(
+	result, err := ext.Exec(
 		`INSERT INTO learning_records (workspace_id, title, sequence_number, filename, path, status, superseded_by, summary, body_text, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
 		w.ws.ID, title, seqNum, filename, w.Layout().RecordRelPath(filename), supersededBy, summary, bodyText, now, now,
@@ -439,8 +903,8 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 	if err != nil {
 		return LearningRecord{}, fmt.Errorf("insert record: %w", err)
 	}
-	id, _ := result.LastInsertId()
 
+	id, _ := result.LastInsertId()
 	return LearningRecord{
 		ID: id, WorkspaceID: w.ws.ID, Title: title, SequenceNumber: seqNum,
 		Filename: filename, Path: w.Layout().RecordRelPath(filename),
@@ -448,33 +912,70 @@ func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRe
 	}, nil
 }
 
+// CreateRecord creates a new learning record: sequencing, slugify, filename,
+// write file, DB row — all in one method. The tx is a file-write-failure
+// guard: if writeToFile fails, the deferred Rollback discards the
+// uncommitted INSERT so no orphaned DB row is left.
+func (w *WorkspaceStore) CreateRecord(title, bodyMD, summary string) (LearningRecord, error) {
+	tx, err := w.db().Beginx()
+	if err != nil {
+		return LearningRecord{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	rec, err := w.insertRecord(tx, title, bodyMD, summary)
+	if err != nil {
+		return LearningRecord{}, err
+	}
+
+	if err := writeToFile(w.Layout().RecordPath(rec.Filename), bodyMD); err != nil {
+		return LearningRecord{}, fmt.Errorf("write record file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return LearningRecord{}, fmt.Errorf("commit tx: %w", err)
+	}
+	return rec, nil
+}
+
 // SupersedeRecord atomically creates a new record and marks the old one as
-// superseded. Returns the new record.
+// superseded: the new record's INSERT and the old record's UPDATE commit
+// together in one transaction. writeToFile for the new record runs inside
+// the tx (matching CreateRecord's ordering) — if it fails, the deferred
+// Rollback discards both DB mutations, so neither a dangling new record nor
+// a half-superseded old record is left behind (LEARN-105). Returns the new
+// and old records.
 func (w *WorkspaceStore) SupersedeRecord(seq int, title, bodyMD, summary string) (LearningRecord, LearningRecord, error) {
-	records, err := w.GetRecords()
+	old, err := w.GetRecordBySeq(seq)
 	if err != nil {
 		return LearningRecord{}, LearningRecord{}, fmt.Errorf("find old record: %w", err)
 	}
-	var old *LearningRecord
-	for i := range records {
-		if records[i].SequenceNumber == seq {
-			old = &records[i]
-			break
-		}
-	}
-	if old == nil {
-		return LearningRecord{}, LearningRecord{}, fmt.Errorf("record %d not found", seq)
-	}
 
-	created, err := w.CreateRecord(title, bodyMD, summary)
+	tx, err := w.db().Beginx()
+	if err != nil {
+		return LearningRecord{}, LearningRecord{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	created, err := w.insertRecord(tx, title, bodyMD, summary)
 	if err != nil {
 		return LearningRecord{}, LearningRecord{}, err
 	}
 
 	now := nowTimestamp()
-	_, err = w.db().Exec("UPDATE learning_records SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?", created.ID, now, old.ID)
-	if err != nil {
-		return created, LearningRecord{}, fmt.Errorf("supersede old record: %w", err)
+	if _, err := tx.Exec(
+		"UPDATE learning_records SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?",
+		created.ID, now, old.ID,
+	); err != nil {
+		return LearningRecord{}, LearningRecord{}, fmt.Errorf("supersede old record: %w", err)
+	}
+
+	if err := writeToFile(w.Layout().RecordPath(created.Filename), bodyMD); err != nil {
+		return LearningRecord{}, LearningRecord{}, fmt.Errorf("write record file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return LearningRecord{}, LearningRecord{}, fmt.Errorf("commit tx: %w", err)
 	}
 
 	old.Status = "superseded"
@@ -504,13 +1005,15 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 		}
 	}
 
-	if err := writeToFile(w.Layout().RefPath(filename), bodyHTML); err != nil {
-		return Reference{}, fmt.Errorf("write reference file: %w", err)
-	}
-
 	bodyText := extract.FromHTML(bodyHTML)
 
-	result, err := w.db().Exec(
+	tx, err := w.db().Begin()
+	if err != nil {
+		return Reference{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		`INSERT INTO references_t (workspace_id, title, slug, filename, path, summary, body_text, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		w.ws.ID, title, slug, filename, w.Layout().RefRelPath(filename), "", bodyText, now, now,
@@ -518,6 +1021,15 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 	if err != nil {
 		return Reference{}, fmt.Errorf("insert reference: %w", err)
 	}
+
+	if err := writeToFile(w.Layout().RefPath(filename), bodyHTML); err != nil {
+		return Reference{}, fmt.Errorf("write reference file: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Reference{}, fmt.Errorf("commit tx: %w", err)
+	}
+
 	id, _ := result.LastInsertId()
 
 	return Reference{
@@ -529,19 +1041,9 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 
 // ReviseRef overwrites a reference's content in place. Slug is unchanged.
 func (w *WorkspaceStore) ReviseRef(slug, bodyHTML string, title *string, summary *string) error {
-	refs, err := w.GetRefs()
+	current, err := w.GetRefBySlug(slug)
 	if err != nil {
 		return fmt.Errorf("find reference: %w", err)
-	}
-	var current *Reference
-	for i := range refs {
-		if refs[i].Slug == slug {
-			current = &refs[i]
-			break
-		}
-	}
-	if current == nil {
-		return fmt.Errorf("reference %q not found", slug)
 	}
 
 	if err := writeToFile(w.Layout().RefPath(current.Filename), bodyHTML); err != nil {
@@ -629,20 +1131,6 @@ func (w *WorkspaceStore) DeleteGlossaryTerm(term string) error {
 	return nil
 }
 
-// CreateAsset writes a file to the workspace's assets directory.
-func (w *WorkspaceStore) CreateAsset(filename, content string) error {
-	return writeToFile(w.Layout().AssetPath(filename), content)
-}
-
-// ListAssets returns the filenames in the workspace's assets directory.
-func (w *WorkspaceStore) ListAssets() ([]string, error) {
-	entries, err := readDirNames(filepath.Join(w.ws.Path, "assets"))
-	if err != nil {
-		return nil, err
-	}
-	return entries, nil
-}
-
 // ── Construction ──
 
 // Workspace returns a WorkspaceStore scoped to the named workspace. The
@@ -664,6 +1152,117 @@ func (s *Store) WorkspaceByID(id int64) (*WorkspaceStore, error) {
 		return nil, fmt.Errorf("workspace %d not found: %w", id, err)
 	}
 	return &WorkspaceStore{store: s, ws: ws}, nil
+}
+
+// QuizAttemptWorkspace resolves the workspace that owns a quiz attempt and
+// returns a scoped WorkspaceStore. Used by API handlers that receive only
+// an attempt ID (not a workspace name from the URL).
+func (s *Store) QuizAttemptWorkspace(attemptID int64) (*WorkspaceStore, error) {
+	var wsID int64
+	if err := s.db.Get(&wsID, "SELECT workspace_id FROM quiz_attempts WHERE id = ?", attemptID); err != nil {
+		return nil, fmt.Errorf("quiz attempt %d not found: %w", attemptID, err)
+	}
+	return s.WorkspaceByID(wsID)
+}
+
+// QuizDashboardData is the cross-workspace quiz summary for the dashboard.
+type QuizDashboardData struct {
+	RecentCompleted *CompletedQuizSummary
+	InProgress      []InProgressSummary
+}
+
+type CompletedQuizSummary struct {
+	WorkspaceName string
+	QuizSlug      string
+	QuizTitle     string
+	AttemptID     int64
+	Score         int
+	Total         int
+}
+
+type InProgressSummary struct {
+	WorkspaceName string
+	QuizSlug      string
+	QuizTitle     string
+	AttemptID     int64
+}
+
+// GetQuizDashboardData returns the latest completed quiz across all
+// workspaces and any in-progress attempts. This is a cross-workspace
+// query on Store (not WorkspaceStore).
+func (s *Store) GetQuizDashboardData() (QuizDashboardData, error) {
+	var data QuizDashboardData
+
+	// Latest completed quiz attempt across all workspaces.
+	var rc struct {
+		AttemptID   int64
+		WorkspaceID int64
+		QuizID      int64
+		CompletedAt string
+	}
+	row := s.db.QueryRow(
+		`SELECT qa.id, qa.workspace_id, qa.quiz_id, qa.completed_at
+		 FROM quiz_attempts qa
+		 WHERE qa.status = 'completed'
+		 ORDER BY qa.completed_at DESC
+		 LIMIT 1`,
+	)
+	if err := row.Scan(&rc.AttemptID, &rc.WorkspaceID, &rc.QuizID, &rc.CompletedAt); err == nil {
+		wsStore, err := s.WorkspaceByID(rc.WorkspaceID)
+		if err == nil {
+			ws := wsStore.Workspace()
+			quiz, err := wsStore.GetQuizByID(rc.QuizID)
+			if err == nil {
+				correct, total := wsStore.ScoreAttempt(rc.AttemptID)
+				data.RecentCompleted = &CompletedQuizSummary{
+					WorkspaceName: ws.Name,
+					QuizSlug:      quiz.Slug,
+					QuizTitle:     quiz.Title,
+					AttemptID:     rc.AttemptID,
+					Score:         correct,
+					Total:         total,
+				}
+			}
+		}
+	}
+
+	// In-progress attempts across all workspaces.
+	rows, err := s.db.Query(
+		`SELECT qa.id, qa.workspace_id, qa.quiz_id
+		 FROM quiz_attempts qa
+		 WHERE qa.status = 'in_progress'
+		 ORDER BY qa.started_at DESC`,
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var ip struct {
+				AttemptID   int64
+				WorkspaceID int64
+				QuizID      int64
+			}
+			if err := rows.Scan(&ip.AttemptID, &ip.WorkspaceID, &ip.QuizID); err != nil {
+				continue
+			}
+			wsStore, err := s.WorkspaceByID(ip.WorkspaceID)
+			if err != nil {
+				continue
+			}
+			ws := wsStore.Workspace()
+			quiz, err := wsStore.GetQuizByID(ip.QuizID)
+			if err != nil {
+				continue
+			}
+			data.InProgress = append(data.InProgress, InProgressSummary{
+				WorkspaceName: ws.Name,
+				QuizSlug:      quiz.Slug,
+				QuizTitle:     quiz.Title,
+				AttemptID:     ip.AttemptID,
+			})
+		}
+	}
+
+	return data, nil
 }
 
 // truncateSnippet returns a short preview of text, breaking at a word boundary.
@@ -694,41 +1293,75 @@ func truncateSnippet(s string, maxLen int) string {
 	return strings.TrimSpace(trimmed[:cut]) + "..."
 }
 
+// indexSpec parameterises indexEntity for a specific entity type T.
+type indexSpec[T any] struct {
+	table    string
+	columns  string
+	scan     func(RowScanner) ([]T, error)
+	extract  func(string) string
+	path     func(Layout, string) string
+	ident    func(T) string
+	label    string
+	filename func(T) string
+	id       func(T) int64
+}
+
+// indexEntity is a generic indexer replacing IndexLessons, IndexRefs, and
+// IndexRecords. It queries rows with empty body_text, scans them, reads
+// each file from disk, extracts plain text, and updates the DB row. Errors
+// are collected per-item; processing continues with remaining items.
+func indexEntity[T any](w *WorkspaceStore, spec indexSpec[T]) (int, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM %s WHERE workspace_id = ? AND body_text = ''", spec.columns, spec.table),
+		w.ws.ID,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("query %s: %w", spec.label, err)
+	}
+	defer rows.Close()
+
+	items, err := spec.scan(rows)
+	if err != nil {
+		return 0, fmt.Errorf("scan %s: %w", spec.label, err)
+	}
+
+	layout := w.Layout()
+	return indexItems(items,
+		func(item T) error {
+			data, err := os.ReadFile(spec.path(layout, spec.filename(item)))
+			if err != nil {
+				return fmt.Errorf("read file: %w", err)
+			}
+			bodyText := spec.extract(string(data))
+			if _, err := w.db().Exec(
+				fmt.Sprintf("UPDATE %s SET body_text = ? WHERE id = ?", spec.table),
+				bodyText, spec.id(item),
+			); err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			return nil
+		},
+		spec.ident,
+		spec.label,
+	)
+}
+
 // IndexLessons reads all lessons with empty body_text, extracts plain text
 // from their HTML files on disk, and updates the DB so the FTS index captures
 // lesson body content. Returns the number of lessons updated and any errors.
 // If one file fails, processing continues with the remaining lessons.
 func (w *WorkspaceStore) IndexLessons() (int, error) {
-	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM lessons WHERE workspace_id = ? AND body_text = ''", lessonColumns),
-		w.ws.ID,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("query lessons: %w", err)
-	}
-	defer rows.Close()
-
-	lessons, err := scanLessons(rows)
-	if err != nil {
-		return 0, fmt.Errorf("scan lessons: %w", err)
-	}
-
-	layout := w.Layout()
-	return indexItems(lessons,
-		func(l Lesson) error {
-			data, err := os.ReadFile(layout.LessonPath(l.Filename))
-			if err != nil {
-				return fmt.Errorf("read file: %w", err)
-			}
-			bodyText := extract.FromHTML(string(data))
-			if _, err := w.db().Exec("UPDATE lessons SET body_text = ? WHERE id = ?", bodyText, l.ID); err != nil {
-				return fmt.Errorf("update: %w", err)
-			}
-			return nil
-		},
-		func(l Lesson) string { return fmt.Sprintf("%d (%s)", l.SequenceNumber, l.Filename) },
-		"lesson",
-	)
+	return indexEntity(w, indexSpec[Lesson]{
+		table:    "lessons",
+		columns:  lessonColumns,
+		scan:     scanLessons,
+		extract:  extract.FromHTML,
+		path:     func(l Layout, f string) string { return l.LessonPath(f) },
+		ident:    func(l Lesson) string { return fmt.Sprintf("%d (%s)", l.SequenceNumber, l.Filename) },
+		label:    "lesson",
+		filename: func(l Lesson) string { return l.Filename },
+		id:       func(l Lesson) int64 { return l.ID },
+	})
 }
 
 // IndexRefs reads all references with empty body_text, extracts plain text
@@ -736,36 +1369,17 @@ func (w *WorkspaceStore) IndexLessons() (int, error) {
 // reference body content. Returns the number of references updated and any
 // errors. If one file fails, processing continues with the remaining refs.
 func (w *WorkspaceStore) IndexRefs() (int, error) {
-	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM references_t WHERE workspace_id = ? AND body_text = ''", refColumns),
-		w.ws.ID,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("query references: %w", err)
-	}
-	defer rows.Close()
-
-	refs, err := scanRefs(rows)
-	if err != nil {
-		return 0, fmt.Errorf("scan references: %w", err)
-	}
-
-	layout := w.Layout()
-	return indexItems(refs,
-		func(r Reference) error {
-			data, err := os.ReadFile(layout.RefPath(r.Filename))
-			if err != nil {
-				return fmt.Errorf("read file: %w", err)
-			}
-			bodyText := extract.FromHTML(string(data))
-			if _, err := w.db().Exec("UPDATE references_t SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
-				return fmt.Errorf("update: %w", err)
-			}
-			return nil
-		},
-		func(r Reference) string { return fmt.Sprintf("%s (%s)", r.Slug, r.Filename) },
-		"ref",
-	)
+	return indexEntity(w, indexSpec[Reference]{
+		table:    "references_t",
+		columns:  refColumns,
+		scan:     scanRefs,
+		extract:  extract.FromHTML,
+		path:     func(l Layout, f string) string { return l.RefPath(f) },
+		ident:    func(r Reference) string { return fmt.Sprintf("%s (%s)", r.Slug, r.Filename) },
+		label:    "ref",
+		filename: func(r Reference) string { return r.Filename },
+		id:       func(r Reference) int64 { return r.ID },
+	})
 }
 
 // IndexRecords reads all learning records with empty body_text, extracts plain
@@ -773,34 +1387,15 @@ func (w *WorkspaceStore) IndexRefs() (int, error) {
 // captures record body content. Returns the number of records updated and any
 // errors. If one file fails, processing continues with the remaining records.
 func (w *WorkspaceStore) IndexRecords() (int, error) {
-	rows, err := w.db().Query(
-		fmt.Sprintf("SELECT %s FROM learning_records WHERE workspace_id = ? AND body_text = ''", recordColumns),
-		w.ws.ID,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("query records: %w", err)
-	}
-	defer rows.Close()
-
-	recs, err := scanRecords(rows)
-	if err != nil {
-		return 0, fmt.Errorf("scan records: %w", err)
-	}
-
-	layout := w.Layout()
-	return indexItems(recs,
-		func(r LearningRecord) error {
-			data, err := os.ReadFile(layout.RecordPath(r.Filename))
-			if err != nil {
-				return fmt.Errorf("read file: %w", err)
-			}
-			bodyText := extract.FromMarkdown(string(data))
-			if _, err := w.db().Exec("UPDATE learning_records SET body_text = ? WHERE id = ?", bodyText, r.ID); err != nil {
-				return fmt.Errorf("update: %w", err)
-			}
-			return nil
-		},
-		func(r LearningRecord) string { return fmt.Sprintf("%d (%s)", r.SequenceNumber, r.Filename) },
-		"record",
-	)
+	return indexEntity(w, indexSpec[LearningRecord]{
+		table:    "learning_records",
+		columns:  recordColumns,
+		scan:     scanRecords,
+		extract:  extract.FromMarkdown,
+		path:     func(l Layout, f string) string { return l.RecordPath(f) },
+		ident:    func(r LearningRecord) string { return fmt.Sprintf("%d (%s)", r.SequenceNumber, r.Filename) },
+		label:    "record",
+		filename: func(r LearningRecord) string { return r.Filename },
+		id:       func(r LearningRecord) int64 { return r.ID },
+	})
 }

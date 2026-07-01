@@ -16,7 +16,7 @@ templ document(f Frame, content string) {
 		<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-			<link rel="stylesheet" href="/css/app.css?v=5"/>
+			<link rel="stylesheet" href="/css/app.css?v=6"/>
 			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 		</head>
 		<body class="font-sans">
@@ -33,7 +33,7 @@ templ document(f Frame, content string) {
 						<div class="flex items-center gap-2">
 							<form action="/search" method="GET" class="flex items-center">
 								<div class="flex items-center border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus-within:border-slate-400 transition-colors">
-									<input type="text" name="q" placeholder="Search..." aria-label="Search" value={ f.SearchQuery } class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-all"/>
+									<input type="text" name="q" placeholder="Search..." aria-label="Search" value={ f.SearchQuery } class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-[width]"/>
 								</div>
 							</form>
 							<a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" title="About Pharos">@templ.Raw(iconHelp())</a>
@@ -57,11 +57,31 @@ templ document(f Frame, content string) {
 					sb.classList.toggle('sidebar-hidden');
 					ov.classList.toggle('hidden');
 				}
+				function toggleSection(label) {
+					var items = label.nextElementSibling;
+					var chevron = label.querySelector('.sidebar-chevron');
+					if (!items) return;
+					var isCollapsed = items.classList.toggle('collapsed');
+					if (chevron) {
+						chevron.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
+					}
+					try {
+						var nav = label.closest('[data-workspace]');
+						var ws = nav ? nav.dataset.workspace : '';
+						var key = 'sidebar_' + ws + '_' + label.dataset.section;
+						localStorage.setItem(key, isCollapsed ? '1' : '0');
+					} catch(e) {}
+				}
 				function toggleTheme() {
 					var html = document.documentElement;
 					var isDark = html.dataset.theme === 'dark';
 					var next = isDark ? 'light' : 'dark';
 					document.querySelectorAll('iframe').forEach(function(f) {
+						try {
+							if (f.contentDocument && f.contentDocument.documentElement) {
+								f.contentDocument.documentElement.dataset.theme = next;
+							}
+						} catch(e) {}
 						try { f.contentWindow.postMessage({type: 'theme', theme: next}, '*'); } catch(e) {}
 					});
 					html.dataset.theme = next;
@@ -92,6 +112,23 @@ templ document(f Frame, content string) {
 				}
 			});
 			(function(){
+				var nav = document.querySelector('[data-workspace]');
+				var ws = nav ? nav.dataset.workspace : '';
+				document.querySelectorAll('.sidebar-section-label').forEach(function(label) {
+					var key = 'sidebar_' + ws + '_' + label.dataset.section;
+					var val = localStorage.getItem(key);
+					if (val === null) return; // no override — keep server-rendered state
+					var items = label.nextElementSibling;
+					var chevron = label.querySelector('.sidebar-chevron');
+					if (!items) return;
+					if (val === '1') {
+						items.classList.add('collapsed');
+						if (chevron) chevron.style.transform = 'rotate(90deg)';
+					} else {
+						items.classList.remove('collapsed');
+						if (chevron) chevron.style.transform = 'rotate(0deg)';
+					}
+				});
 				var c = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 				var k = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 				document.querySelectorAll('.prose pre:not([data-no-copy])').forEach(function(pre){

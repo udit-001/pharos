@@ -34,6 +34,31 @@ func Ref(ws, slug string) string {
 	return fmt.Sprintf("/workspace/%s/ref/%s", PathEscape(ws), PathEscape(slug))
 }
 
+// QuizLibrary returns the quiz library page URL: /workspace/{name}/quizzes.
+func QuizLibrary(ws string) string {
+	return fmt.Sprintf("/workspace/%s/quizzes", PathEscape(ws))
+}
+
+// Quiz returns a quiz detail page URL: /workspace/{name}/quiz/{slug}.
+func Quiz(ws, slug string) string {
+	return fmt.Sprintf("/workspace/%s/quiz/%s", PathEscape(ws), PathEscape(slug))
+}
+
+// QuizStart returns the POST endpoint to start/resume a quiz attempt.
+func QuizStart(ws, slug string) string {
+	return fmt.Sprintf("/workspace/%s/quiz/%s/start", PathEscape(ws), PathEscape(slug))
+}
+
+// QuizAttemptPage returns the attempt page URL.
+func QuizAttemptPage(ws, slug string, attemptID int64) string {
+	return fmt.Sprintf("/workspace/%s/quiz/%s/attempt/%d", PathEscape(ws), PathEscape(slug), attemptID)
+}
+
+// QuizReview returns the review page URL for a completed attempt.
+func QuizReview(ws, slug string, attemptID int64) string {
+	return fmt.Sprintf("/workspace/%s/quiz/%s/review/%d", PathEscape(ws), PathEscape(slug), attemptID)
+}
+
 // Doc returns a workspace document page URL (mission/resources/notes/glossary):
 // /workspace/{name}/{kind}. kind is a fixed literal, so it is not escaped.
 func Doc(ws, kind string) string {

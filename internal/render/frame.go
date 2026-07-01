@@ -32,6 +32,23 @@ func sidebarHeader(f Frame) string {
     </div>`
 }
 
+func sidebarSection(label, sectionID, itemsHTML string, count int, sectionActive bool) string {
+	chevron := `<svg class="sidebar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`
+	collapsed := ""
+	if !sectionActive {
+		collapsed = ` collapsed`
+		chevron = `<svg class="sidebar-chevron" style="transform:rotate(90deg)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`
+	}
+	countHTML := ""
+	if count > 0 {
+		countHTML = ` <span class="sidebar-section-count">` + fmt.Sprintf("%d", count) + `</span>`
+	}
+	return `<div class="sidebar-section">` +
+		`<div class="sidebar-section-label" data-section="` + sectionID + `" onclick="toggleSection(this)">` +
+		chevron + `<span>` + esc(label) + countHTML + `</span></div>` +
+		`<div class="sidebar-section-items` + collapsed + `">` + itemsHTML + `</div></div>`
+}
+
 func sidebarBody(f Frame) string {
 	// Dashboard / search: sidebar is not needed — main content handles it
 	if f.Sidebar.Workspace == nil {
@@ -42,32 +59,40 @@ func sidebarBody(f Frame) string {
 
 	var b strings.Builder
 	ws := f.Sidebar.Workspace
+	at := f.ActiveType
 
 	// Lessons first (primary content)
 	if len(f.Sidebar.Lessons) > 0 {
-		b.WriteString(`<div class="sidebar-section-label">Lessons</div>`)
+		var items strings.Builder
 		for _, l := range f.Sidebar.Lessons {
-			active := f.ActiveType == "lesson" && f.ActiveSeq == l.Seq
-			b.WriteString(sidebarLink(urls.Lesson(ws.Name, l.Seq), iconBook(), l.Title, active))
+			active := at == "lesson" && f.ActiveSeq == l.Seq
+			items.WriteString(sidebarLink(urls.Lesson(ws.Name, l.Seq), iconBook(), l.Title, active))
 		}
+		b.WriteString(sidebarSection("Lessons", "lessons", items.String(), len(f.Sidebar.Lessons), at == "lesson"))
 	}
+	// Quizzes: single link to the library page (not per-item, to avoid
+	// clutter as the collection grows — matches the Glossary pattern).
+	quizActive := at == "quiz" || at == "quiz-library"
+	b.WriteString(sidebarSection("Quizzes", "quizzes", sidebarLink(urls.QuizLibrary(ws.Name), iconClipboardList(), "All quizzes", quizActive), len(f.Sidebar.Quizzes), quizActive))
 	if len(f.Sidebar.Records) > 0 {
-		b.WriteString(`<div class="sidebar-section-label">Records</div>`)
+		var items strings.Builder
 		for _, r := range f.Sidebar.Records {
-			active := f.ActiveType == "record" && f.ActiveSeq == r.Seq
+			active := at == "record" && f.ActiveSeq == r.Seq
 			ico := iconNote()
 			if r.Status == "superseded" {
 				ico = iconArchive()
 			}
-			b.WriteString(sidebarLink(urls.Record(ws.Name, r.Seq), ico, r.Title, active))
+			items.WriteString(sidebarLink(urls.Record(ws.Name, r.Seq), ico, r.Title, active))
 		}
+		b.WriteString(sidebarSection("Records", "records", items.String(), len(f.Sidebar.Records), at == "record"))
 	}
 	if len(f.Sidebar.Refs) > 0 {
-		b.WriteString(`<div class="sidebar-section-label">References</div>`)
+		var items strings.Builder
 		for _, ref := range f.Sidebar.Refs {
-			active := f.ActiveType == "ref" && f.ActiveSlug == ref.Slug
-			b.WriteString(sidebarLink(urls.Ref(ws.Name, ref.Slug), iconBookmark(), ref.Title, active))
+			active := at == "ref" && f.ActiveSlug == ref.Slug
+			items.WriteString(sidebarLink(urls.Ref(ws.Name, ref.Slug), iconBookmark(), ref.Title, active))
 		}
+		b.WriteString(sidebarSection("References", "refs", items.String(), len(f.Sidebar.Refs), at == "ref"))
 	}
 
 	// Workspace docs at the bottom
@@ -77,11 +102,13 @@ func sidebarBody(f Frame) string {
 		{"glossary", "Glossary", iconBookOpen()},
 		{"notes", "Notes", iconPencil()},
 	}
-	b.WriteString(`<div class="sidebar-section-label">Workspace</div>`)
+	var wsItems strings.Builder
 	for _, doc := range docs {
-		active := f.ActiveType == doc.kind
-		b.WriteString(sidebarLink(urls.Doc(ws.Name, doc.kind), doc.icon, doc.label, active))
+		active := at == doc.kind
+		wsItems.WriteString(sidebarLink(urls.Doc(ws.Name, doc.kind), doc.icon, doc.label, active))
 	}
+	wsActive := at == "mission" || at == "resources" || at == "glossary" || at == "notes"
+	b.WriteString(sidebarSection("Workspace", "workspace", wsItems.String(), 0, wsActive))
 
 	return b.String()
 }
@@ -161,11 +188,27 @@ func breadcrumbs(f Frame) string {
 			title = f.ActiveSlug
 		}
 		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, esc(title))
+	case "quiz":
+		title := ""
+		for _, q := range f.Sidebar.Quizzes {
+			if q.Slug == f.ActiveSlug {
+				title = q.Title
+				break
+			}
+		}
+		if title == "" {
+			title = f.ActiveSlug
+		}
+		quizzesLink := fmt.Sprintf(`<a href="%s" class="text-slate-400 hover:text-slate-600 no-underline text-sm truncate max-w-[40vw] block">Quizzes</a>`, urls.QuizLibrary(f.ActiveWS))
+		quizLink := fmt.Sprintf(`<a href="%s" class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block hover:text-slate-800 no-underline">%s</a>`, urls.Quiz(f.ActiveWS, f.ActiveSlug), esc(title))
+		pageCrumb = sep + quizzesLink + sep + quizLink
 	case "mission", "resources", "glossary", "notes":
 		docLabels := map[string]string{"mission": "Mission", "resources": "Resources", "glossary": "Glossary", "notes": "Notes"}
 		if label, ok := docLabels[f.ActiveType]; ok {
 			pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, label)
 		}
+	case "quiz-library":
+		pageCrumb = sep + fmt.Sprintf(`<span class="text-slate-600 text-sm font-medium truncate max-w-[40vw] block">%s</span>`, "Quizzes")
 	}
 
 	return fmt.Sprintf(`<nav class="flex items-center gap-0 text-sm min-w-0">%s%s</nav>`,
@@ -202,9 +245,13 @@ func sidebarBlock(f Frame) string {
 	if f.ActiveWS == "" {
 		return ""
 	}
+	ws := ""
+	if f.Sidebar.Workspace != nil {
+		ws = f.Sidebar.Workspace.Name
+	}
 	return `<aside id="sidebar" class="fixed md:relative z-40 md:z-auto flex flex-col border-r border-slate-200 shadow-sm bg-slate-100 w-60 min-w-60 overflow-hidden transition-[left] duration-200 left-0 sidebar-hidden h-full">` +
 		sidebarHeader(f) +
-		`<nav class="flex flex-col flex-1 overflow-y-auto">` +
+		`<nav class="flex flex-col flex-1 overflow-y-auto pb-6" data-workspace="` + esc(ws) + `">` +
 		sidebarDashLink(f) +
 		sidebarBody(f) +
 		`</nav></aside>`

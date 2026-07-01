@@ -17,9 +17,9 @@ type Frame struct {
 // the fields render needs (name, topic, counts) — the server adapter copies
 // from db.Workspace so render never imports db.
 type Workspace struct {
-	Name                               string
-	Topic                              string
-	LessonCount, RecordCount, RefCount int
+	Name                                          string
+	Topic                                         string
+	LessonCount, RecordCount, RefCount, QuizCount int
 }
 
 // LessonEntry is the render-owned projection of a lesson for sidebar and
@@ -43,6 +43,18 @@ type RefEntry struct {
 	Title string
 }
 
+// QuizEntry is the render-owned projection of a quiz.
+type QuizEntry struct {
+	Slug        string
+	Title       string
+	Description string
+	ItemCount   int
+	// BestScore is the highest score across all completed attempts, or -1 if none.
+	BestScore int
+	// BestTotal is the total questions for the best attempt.
+	BestTotal int
+}
+
 // Sidebar is the workspace tree shown in the left rail. When Workspace is
 // nil, an empty-state prompt is shown instead.
 type Sidebar struct {
@@ -50,6 +62,7 @@ type Sidebar struct {
 	Lessons   []LessonEntry
 	Records   []RecordEntry
 	Refs      []RefEntry
+	Quizzes   []QuizEntry
 }
 
 // FrameContent reports whether the page body should fill the viewport as an
@@ -62,7 +75,7 @@ func (f Frame) FrameContent() bool {
 
 // Stats is the dashboard totals row.
 type Stats struct {
-	Workspaces, Lessons, Records, Refs int
+	Workspaces, Lessons, Records, Refs, Quizzes int
 }
 
 // ContinueItem is the "continue where you left off" card. Nil = hidden.
@@ -72,10 +85,10 @@ type ContinueItem struct {
 
 // WorkspaceCard is one tile in the dashboard workspace grid.
 type WorkspaceCard struct {
-	Name                               string
-	Topic                              string // friendly display title; empty falls back to Name
-	LessonCount, RecordCount, RefCount int
-	LastStudied                        string
+	Name                                          string
+	Topic                                         string
+	LessonCount, RecordCount, RefCount, QuizCount int
+	LastStudied                                   string
 }
 
 // DashboardData drives the dashboard page.
@@ -83,6 +96,22 @@ type DashboardData struct {
 	Stats      Stats
 	Continue   *ContinueItem
 	Workspaces []WorkspaceCard
+	QuizWidget *QuizWidgetData
+}
+
+// QuizWidgetData drives the dashboard quiz widget.
+type QuizWidgetData struct {
+	RecentCompleted *QuizWidgetItem
+	InProgress      []QuizWidgetItem
+}
+
+// QuizWidgetItem is one entry in the dashboard quiz widget.
+type QuizWidgetItem struct {
+	WorkspaceName string
+	QuizTitle     string
+	URL           string
+	Score         int
+	Total         int
 }
 
 // WorkspaceData drives a workspace landing page.
@@ -115,6 +144,94 @@ type RefData struct {
 	RawURL string
 }
 
+// QuizLibraryData drives the quiz library page: a list of quizzes.
+type QuizLibraryData struct {
+	Workspace Workspace
+	Quizzes   []QuizEntry
+	// InProgress is a quiz with an active attempt, shown as a resume banner.
+	InProgress *QuizResumeLink
+}
+
+// QuizResumeLink is the in-progress banner link.
+type QuizResumeLink struct {
+	AttemptID int64
+	QuizSlug  string
+	QuizTitle string
+	Scored    int // answered so far
+	Total     int // total questions in quiz
+}
+
+// QuizData drives a quiz detail page: title, description, item count, and a
+// Start button. Attempt display is deferred to a later slice.
+type QuizData struct {
+	Workspace   Workspace
+	Slug        string
+	Title       string
+	Description string
+	ItemCount   int
+	// InProgressAttempt is the ID of a resumable attempt, or 0 if none.
+	InProgressAttempt int64
+	// PastAttempts shows completed attempts with scores, newest first.
+	PastAttempts []QuizAttemptSummary
+	// ExtraAttemptCount is the number of completed attempts beyond the 3 shown.
+	ExtraAttemptCount int
+}
+
+// QuizAttemptSummary is one row in the quiz detail attempt list.
+type QuizAttemptSummary struct {
+	ID          int64
+	Score       int
+	Total       int
+	CompletedAt string
+}
+
+// AttemptQuestion is one question in the attempt page, embedded as JSON.
+// Options is empty for recall mode. Reveal is empty for choice mode.
+// The correct answer is NOT included.
+type AttemptQuestion struct {
+	ID      int64    `json:"id"`
+	Title   string   `json:"title"`
+	Mode    string   `json:"mode"`
+	Options []string `json:"options,omitempty"`
+	Reveal  string   `json:"reveal,omitempty"`
+}
+
+// AttemptData drives the quiz attempt page.
+type AttemptData struct {
+	Workspace Workspace
+	QuizSlug  string
+	QuizTitle string
+	AttemptID int64
+	Questions []AttemptQuestion
+	// AnsweredIDs is the set of question IDs already answered (for resume).
+	AnsweredIDs map[int64]bool
+	// AnsweredResults maps answered question ID → correct/incorrect.
+	AnsweredResults map[int64]bool
+}
+
+// ReviewItem is one question in the review page.
+type ReviewItem struct {
+	QuestionID    int64
+	QuestionTitle string
+	Mode          string
+	Options       []string
+	UserResponse  string
+	CorrectIndex  int // for choice mode
+	IsCorrect     bool
+	RevealText    string // for recall mode
+}
+
+// QuizReviewData drives the quiz review page.
+type QuizReviewData struct {
+	Workspace Workspace
+	QuizSlug  string
+	QuizTitle string
+	AttemptID int64
+	Score     int
+	Total     int
+	Items     []ReviewItem
+}
+
 // GlossaryTermRow is one term in the glossary page.
 type GlossaryTermRow struct {
 	Term       string
@@ -134,7 +251,7 @@ type DocumentData struct {
 
 // SearchResult is one row on the search page.
 type SearchResult struct {
-	Type      string // "lesson" | "record" | "ref"
+	Type      string // "lesson" | "record" | "ref" | "quiz"
 	Title     string
 	URL       string
 	Workspace string

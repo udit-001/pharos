@@ -34,9 +34,9 @@ func scanRows[T any](rows RowScanner, label string, scanOne func(row interface{ 
 // indexItems processes a batch of items: for each, calls process (which reads
 // the file, extracts text, and updates the DB row). Errors are collected
 // per-item (processing continues with the rest); the aggregate error is
-// returned. Shared by IndexLessons/IndexRefs/IndexRecords — the per-entity
-// differences (path, extract fn, table, identifier) live in the process and
-// ident closures.
+// returned. Called by the generic indexEntity — the per-entity differences
+// (path, extract fn, table, identifier) live in the process and ident
+// closures.
 func indexItems[T any](items []T, process func(T) error, ident func(T) string, label string) (int, error) {
 	var updated int
 	var errs []string

@@ -4,41 +4,25 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/udit-001/pharos/internal/urls"
 )
 
 var refShowCmd = &cobra.Command{
 	Use:   "show <slug>",
-	Short: "Show a reference in the dashboard",
-	Long: `Open a reference document in the web dashboard. Starts the dashboard if not running.
+	Short: "Get a reference document's dashboard URL",
+	Long: `Print the dashboard URL for viewing a reference document.
 
 Examples:
   pharos reference show sql-syntax
-  pharos reference show sql-syntax --workspace "sql-for-research"`,
+  pharos reference show sql-syntax --json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		s := mustStore(cmd)
 		slug := args[0]
-		wsName, _ := cmd.Flags().GetString("workspace")
-
-		wsStore, err := resolveWorkspace(s, wsName)
-		if err != nil {
-			return err
-		}
-		ws := wsStore.Workspace()
-
-		// TODO: start dashboard if needed (PID file logic)
-		url := "http://127.0.0.1:9090" + urls.Ref(ws.Name, slug)
-
-		if jsonOut {
-			printJSON(map[string]string{"url": url})
-			return nil
-		}
-
-		fmt.Println()
-		fmt.Printf("  View reference %s at: %s\n", slug, url)
-		fmt.Println()
-		return nil
+		return runShow(cmd, showSpec{
+			urlPath: func(wsName string) string {
+				return fmt.Sprintf("/w/%s/refs/%s", wsName, slug)
+			},
+			label: "reference",
+		})
 	},
 }
 

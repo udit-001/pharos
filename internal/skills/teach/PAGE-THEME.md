@@ -13,7 +13,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Palette | CSS custom properties on `:root` / `[data-theme="dark"]` |
 | FOUC prevention | Blocking `<script>` in `<head>` reads `localStorage('pharos_theme')`, falls back to `prefers-color-scheme`, sets `data-theme` |
 | Runtime theme sync | `postMessage` listener — dashboard sends `{type:'theme', theme:'dark'|'light'}` to iframes on toggle |
-| Shared styles | `assets/style.css` (variables, typography, layout, component classes) + `assets/quiz.css` (quiz-specific classes) |
+| Shared styles | `assets/style.css` (variables, typography, layout, component classes); `assets/quiz.css` added per-workspace when a lesson has quizzes |
 | Quiz interactivity | Inline `<script>` before `</body>` — binds to `.q` elements |
 | Font delivery | `@font-face` in `assets/style.css` → `assets/fonts/inter-latin.woff2` (vendored — works offline, no CDN) |
 | Copy code | `assets/copy-code.js` — adds copy button to `<pre>` on hover; opt-out per block via `data-no-copy` |
@@ -80,7 +80,6 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Page Title</title>
 <link rel="stylesheet" href="assets/style.css">
-<link rel="stylesheet" href="assets/quiz.css">
 <script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 </head>
 <body>
@@ -179,10 +178,10 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 ```
 
-> **Why `theme: 'base'`?** The `base` theme lets `themeVariables` control all diagram colors, enabling dark/light mode switching. Colors are swapped via CSS string replacement in `mermaid-theme.js` on theme toggle — no re-render needed.
-> **Why the `<script>` is wrapped in `DOMContentLoaded`?** `mermaid-theme.js` reads `document.documentElement.dataset.theme` on load to pick the correct initial color palette. Wrapping in `DOMContentLoaded` ensures the FOUC-prevention script (which sets `data-theme`) has already run.
+> **Why `theme: 'base'`?** The `base` theme lets `themeVariables` control all diagram colors, enabling dark/light mode switching. On theme toggle, `mermaid-theme.js` re-renders each diagram to a throwaway via `mermaid.render` and copies only its `<style>` (and gradient stops) into the live SVG — this *retints* without re-running the layout, so the diagram doesn't jump size. (A plain hex string-swap can't retint mindmap nodes, which mermaid emits as `hsl()` derived from `primaryColor`; the dark palette also pins `cScale0..12` + `git0` to Nord frost/aurora hues so each mindmap branch is a distinct colour instead of collapsing to near-black.)
+> **Why the `<script>` is wrapped in `DOMContentLoaded`?** `mermaid-theme.js` reads `document.documentElement.dataset.theme` on load to pick the correct initial color palette. Wrapping in `DOMContentLoaded` ensures the FOUC-prevention script (which sets `data-theme`) has already run. `mermaid-theme.js` also captures each `.mermaid` div's source into `data-mermaid-src` before mermaid replaces it, so retint can re-render later.
 
-Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. Container background styles (rounded, padded, dark/light swap) are auto-seeded in `assets/style.css` — no extra `<style>` needed.
+Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. Container background styles (rounded, padded, dark/light swap) are auto-seeded in `assets/style.css` — no extra `<style>` needed. Diagrams are capped at `max-height: 65vh` so tall vertical flowcharts don't consume the whole page; the expand button (lightbox) opens them full-size for readable detail.
 
 ### Highlight.js (on-demand)
 
@@ -311,4 +310,4 @@ Blocks where typing builds storage strength — skill-phase exercise code — us
 2. **Dark mode is free** — switching `data-theme` toggles all variable values; using variables makes it work automatically
 3. **No dashboard chrome in pages** — the dashboard owns navigation
 4. **Reusable components live in `assets/`** — extract shared CSS with `pharos asset create`
-5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css`, `assets/quiz.css`, and `assets/glossary-tooltip.js` should be purely presentational/behavioural, not theme-detection
+5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css` and `assets/glossary-tooltip.js` should be purely presentational/behavioural, not theme-detection

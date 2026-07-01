@@ -15,6 +15,7 @@ func TestIsTemplate(t *testing.T) {
 		{name: "filled resources", content: "# SQL Resources\n\n- [link](url)", kind: "resources", want: false},
 		{name: "default notes", content: "# Notes\n\nPreferences and working notes for this workspace.", kind: "notes", want: true},
 		{name: "edited notes", content: "# Notes\n\nI prefer dark mode.", kind: "notes", want: false},
+		{name: "appended notes", content: "# Notes\n\nPreferences and working notes for this workspace.\n- Agent note: learned about go channels", kind: "notes", want: false},
 		{name: "default notes prose but kind mission", content: "# Notes\n\nPreferences and working notes for this workspace.", kind: "mission", want: false},
 		{name: "placeholder in notes", content: "# Notes\n\n{todo}", kind: "notes", want: true},
 		{name: "brace in real content", content: "Use {curly braces} in code", kind: "notes", want: true},

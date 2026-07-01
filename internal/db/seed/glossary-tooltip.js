@@ -1,5 +1,5 @@
 (function() {
-  var m = window.location.pathname.match(/\/api\/lesson-html\/([^/]+)\//);
+  var m = window.location.pathname.match(/\/api\/(?:lesson|ref)-html\/([^/]+)\//);
   if (!m) return;
   var wsName = m[1];
   var tip = document.createElement('div');

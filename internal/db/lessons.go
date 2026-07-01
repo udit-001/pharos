@@ -13,11 +13,3 @@ func scanLesson(row interface{ Scan(...any) error }) (Lesson, error) {
 func scanLessons(rows RowScanner) ([]Lesson, error) {
 	return scanRows(rows, "lesson", scanLesson)
 }
-
-// LessonCount returns the number of lessons in a workspace. Used by
-// GetWorkspaces for count enrichment.
-func (s *Store) lessonCount(workspaceID int64) int {
-	var count int
-	s.db.Get(&count, "SELECT COUNT(*) FROM lessons WHERE workspace_id = ?", workspaceID)
-	return count
-}

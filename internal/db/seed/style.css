@@ -192,6 +192,17 @@ button:hover, .btn:hover { opacity: 0.9; }
   overflow-x: auto;
   text-align: center;
 }
+/* Cap diagram height so tall vertical flowcharts don't consume a huge scroll
+   run. The SVG scales down to fit (whole diagram visible at a glance); the
+   expand button (mermaid-lightbox) opens it full-size for readable detail. */
+.mermaid svg {
+  max-width: 100%;
+  max-height: 65vh;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
 [data-theme="dark"] .mermaid {
   background: var(--slate-50);
 }

@@ -13,10 +13,12 @@ Before creating anything, check whether the work already exists. A workspace is 
 
 Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:
 
-- `MISSION.md`: The _reason_ the user is learning. Read with `pharos mission show` (or `pharos mission show --json`), update with `pharos mission edit --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
-- `RESOURCES.md`: Curated knowledge sources and communities. Read with `pharos resources show` (or `pharos resources show --json`), update with `pharos resources edit --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
+- `MISSION.md`: The _reason_ the user is learning. Read with `pharos mission read` (or `pharos mission read --json`), update with `pharos mission edit --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
+- `RESOURCES.md`: Curated knowledge sources and communities. Read with `pharos resources read` (or `pharos resources read --json`), update with `pharos resources edit --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
 - **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary create "<term>" "<definition>"`, display with `pharos glossary list` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
-- `NOTES.md`: Scratchpad for preferences and working notes. Read with `pharos notes show` (or `pharos notes show --json`), update with `pharos notes edit --body-file <path>` or `pharos notes edit --append --body-file <path>`.
+- **Questions**: The item bank the workspace's quizzes draw from, stored in the database. Create with `pharos question create "<title>" --mode choice|recall --body-file <path>`, list with `pharos question list`. See [QUESTION-FORMAT.md](./QUESTION-FORMAT.md) for authoring craft.
+- **Quizzes**: Ordered question sets the learner takes in the dashboard, stored in the database. Create with `pharos quiz create "<title>" --items "slug1,slug2"`, list with `pharos quiz list`.
+- `NOTES.md`: Scratchpad for preferences and working notes. Read with `pharos notes read` (or `pharos notes read --json`), update with `pharos notes edit --body-file <path>` or `pharos notes edit --append --body-file <path>`.
 - `./lessons/*.html`: Self-contained lesson HTML files. Create with `pharos lesson create "<title>" --body-file <path>`.
 - `./learning-records/*.md`: ADR-style records of what was learned. Create with `pharos record create "<title>" --body-file <path>`.
 - `./reference/*.html`: Reference documents — cheat sheets, syntax guides. Create with `pharos reference create "<title>" --body-file <path>`.
@@ -81,13 +83,13 @@ A lesson is the main thing you produce — the unit in which knowledge and skill
 
 Before creating a lesson, search for an existing one on the same topic: `pharos search "<topic>"`. Same principle — if a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate under a new number. The sequence stays tight; the learner isn't served two lessons on the same thing.
 
-A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`) — see [Assets](#assets) for the path rules.
+A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`).
 
 The lesson should be short, and completable very quickly. Learners' working memory is very small, and we need to stay within it. But each lesson should give the user a single tangible win that they can build on. It should be directly tied to the mission, and should be in the user's zone of proximal development.
 
 A lesson isn't done when the file is written — it's done when the user is looking at it in the dashboard. After creating or revising a lesson, **present** it: `pharos lesson show <seq>`. This starts the dashboard if needed and opens the lesson in the browser. The dashboard renders the lesson with correct assets, navigation, and styling — the user should never open the raw HTML file directly.
 
-The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/next. Don't rebuild that chrome inside the lesson: a `← Previous` / `Next →` footer duplicates the dashboard and goes stale the moment lessons are reordered or inserted. What a lesson *does* carry is **contextual links** — mid-prose anchors to another lesson or a reference document that illuminates the point being made, placed where the reader would want it, not where it falls in the sequence. These links need special routing because a lesson renders inside an iframe — see [Assets](#assets) for the mechanism.
+The dashboard owns **navigation** between lessons — sidebar, sequencing, prev/next. Don't rebuild that chrome inside the lesson: a `← Previous` / `Next →` footer duplicates the dashboard and goes stale the moment lessons are reordered or inserted. What a lesson *does* carry is **contextual links** — mid-prose anchors to another lesson or a reference document that illuminates the point being made, placed where the reader would want it, not where it falls in the sequence. These links need special routing because a lesson renders inside an iframe — see [references/pharos-cli.md](references/pharos-cli.md) for the route table.
 
 Each lesson should recommend a primary source for the user to read or watch. This should be the most high-quality, high-trust resource you found on the topic.
 
@@ -96,16 +98,32 @@ Every external link in a lesson must use `target="_blank" rel="noopener noreferr
 
 ## Assets
 
-HTML pages (lessons and references) are built from reusable **components**, stored in `./assets/`: stylesheets, quiz widgets, simulators, diagram helpers — anything a second page could reuse.
+HTML pages (lessons and references) are built from reusable **assets** in
+`./assets/`. Two kinds:
 
-Reuse is the default, not the exception. Before authoring a lesson or reference, check what assets already exist: `pharos asset list`. Build from the components already there. When a page needs something new and reusable, create it with `pharos asset create <filename> --body-file <path>` — never inline code a future page would duplicate.
+- **User components** — stylesheets, inline quiz widgets, simulators you author with
+  `pharos asset create <filename> --body-file <path>`.
+- **Vendored or seeded assets** — third-party libraries: **mermaid** for
+  diagrams, **highlightjs** for code highlighting (plus mermaid-lightbox for
+  full-size diagram view); and the framework's universal files (style.css,
+  glossary-tooltip.js, copy-code.js, the Inter font). Install with
+  `pharos asset add <name>`; force-sync to the current binary with
+  `pharos asset redeploy <name>`.
 
-A shared stylesheet is the first component every workspace earns: every HTML page — lessons and references alike — links it, so the workspace looks like one consistent course rather than a pile of one-offs. See [PAGE-THEME.md](./PAGE-THEME.md) for the design system — Nord palette, component patterns, and theming conventions. As the workspace grows, so should the component library.
+Reuse is the default, not the exception. Before authoring a lesson or
+reference, run `pharos asset list` and reuse an existing asset for every
+shared concern rather than inlining code a second page would duplicate.
 
-Each HTML page renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>` or `/api/ref-html/<workspace>/<file>`, so two link types resolve differently from inside it:
+A shared stylesheet ships with every workspace (`assets/style.css`, seeded) —
+extend it rather than creating per-page styles. See [PAGE-THEME.md](./PAGE-THEME.md)
+for the design system (Nord palette, component patterns, theming
+conventions). As the workspace grows, so should the component library.
 
-- **Asset references** (a stylesheet, script, or image the page loads) resolve against the iframe's own URL — so they are **root-relative**: `<link href="assets/style.css">`, never `../assets/style.css`. The `../` climbs out of the iframe's document root and 404s.
-- **Contextual links** (clicking to another dashboard page) must escape the iframe with an absolute route and `target="_top"`. See [references/pharos-cli.md](references/pharos-cli.md) for the complete route table covering mission, glossary, resources, notes, lessons, records, and references — never guess a URL pattern. A bare `lessons/0002.html` link would load inside the iframe and break the sidebar.
+Asset paths are **root-relative** — `assets/style.css`, never
+`../assets/style.css` (the iframe serves pages from
+`/api/lesson-html/…`). Contextual links to other dashboard pages use
+absolute routes with `target="_top"`; see [references/pharos-cli.md](references/pharos-cli.md)
+for the route table.
 
 ## The Mission
 
@@ -124,6 +142,7 @@ Each lesson, the user should always feel as if they are being challenged 'just e
 The user may specify an exact thing they want to learn. If they don't, figure out their zone of proximal development by:
 
 - Reading their `learning-records`
+- Checking `pharos quiz list --weak` and `pharos question list --weak` for where retrieval is weakest
 - Figuring out the right thing to teach them based on their mission
 - Teach the most relevant thing that fits in their zone of proximal development
 
@@ -139,14 +158,21 @@ For acquiring knowledge, difficulty is the enemy. It eats working memory you nee
 
 If knowledge is all about acquisition, skills are about durability and flexibility. Make the knowledge stick.
 
-For skill acquisition, difficulty is the tool. Effortful retrieval is what builds storage strength. Skills should be taught through interactive lessons. There are several tools at your disposal:
+For skill acquisition, difficulty is the tool. Effortful retrieval is what builds storage strength. Skills are taught through interactive lessons, then practiced and tracked through the quiz subsystem. Each retrieval moment has its own instrument — recognise the moment, then reach for the one that fits:
 
-- Interactive lessons, using quizzes and light in-browser tasks
-- Lessons which guide the user through a list of real-world steps to take (for instance, yoga poses)
+- **In-lesson check** — when the learner has just read an explanation and you want to confirm they understood, not just nodded along, embed a short inline quiz in the lesson HTML. Formative and in-context; the feedback is immediate. It is ephemeral: do not track or supersede it.
+- **Practice quiz** — when a stretch is done and the goal is to pull it *out of memory*, build a `pharos quiz` from `pharos question` items. Scored, with a review page, taken in the dashboard. Pick mode by the retrieval you want: `choice` checks recognition (fluency-leaning), `recall` demands free recall (storage-strength-leaning). Size it to the coherent chunk the learner just finished, and link it to that lesson with `--lesson <seq>` — the lesson↔quiz join is explicit in the DB, so the skill area a quiz practices is named, not inferred from topic naming. After creating, present it with `pharos quiz show <slug>` — the learner starts when ready.
+- **Weakness signal** — when the learner returns with limited time, or you're choosing what to teach next, run `pharos quiz list --weak` (weakest skill areas) then `pharos question list --weak` (specific items dragging them down). Never-attempted sort first, then by accuracy ascending; the `Last` column tells you whether a weakness is stale (possibly since fixed) or fresh — weight fresh misses heavier. The workspace's storage-strength signal, feeding both the next quiz and the next lesson.
+- **Progress** — tracked attempts and the review page let the learner watch a score climb across retakes. To see the trajectory (is accuracy improving?), run `pharos quiz attempts <slug>` — it prints the completed-attempt history with a trend summary; the motivation loop, distinct from the retrieval itself.
+- **Real-world steps** — for procedural skills (yoga poses, lifts), the instrument is a lesson that walks the learner through the steps and asks them to perform them. The performance itself is the retrieval; feedback comes from doing it.
 
-Each of these should be based on a **feedback loop**, where the user receives feedback on their performance. This feedback loop should be as tight as possible, giving feedback immediately - and ideally automatically.
+Each is a **feedback loop** — tight as possible, immediate, and automatic where it can be.
 
-For quizzes, each answer should be exactly the same number of words (and characters, if possible). Don't give the user any clues about the answer through formatting.
+### Promoting an inline check
+
+An inline check is ephemeral, but a struggle it reveals is worth keeping. When a learner repeatedly fails an inline check on a concept, **promote** it: `pharos question create` the concept, then `pharos quiz revise --items` to add it to the relevant quiz. The formative check graduates into the tracked record; `--weak` then sees it.
+
+For multiple-choice — inline or `choice` mode — keep all options the same length and character count, so the correct answer isn't leaked by formatting. See [QUESTION-FORMAT.md](./QUESTION-FORMAT.md) for config shapes and authoring rules.
 
 ## Acquiring Wisdom
 
@@ -190,7 +216,7 @@ Glossaries, in particular, are an essential reference. Once one is created, it s
 
 ## `NOTES.md`
 
-The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. Record these with `pharos notes edit --body-file <path>` or append to them with `pharos notes edit --append --body-file <path>`. To review existing notes, use `pharos notes show` (or `pharos notes show --json`).
+The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. Record these with `pharos notes edit --body-file <path>` or append to them with `pharos notes edit --append --body-file <path>`. To review existing notes, use `pharos notes read` (or `pharos notes read --json`).
 
 After each session, check `NOTES.md` for user preferences before starting the next session. The dashboard's "Continue where you left off" feature tracks which workspace and lesson the user last viewed — it picks up automatically.
 
