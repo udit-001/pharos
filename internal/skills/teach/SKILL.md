@@ -16,7 +16,7 @@ Treat the current directory as a teaching workspace. The state of their learning
 - `MISSION.md`: The _reason_ the user is learning. Read with `pharos mission read` (or `pharos mission read --json`), update with `pharos mission edit --body-file <path>`. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
 - `RESOURCES.md`: Curated knowledge sources and communities. Read with `pharos resources read` (or `pharos resources read --json`), update with `pharos resources edit --body-file <path>`. Use the format in [RESOURCES-FORMAT.md](./RESOURCES-FORMAT.md).
 - **Glossary**: Canonical terminology for the workspace, stored in the database. Add terms with `pharos glossary create "<term>" "<definition>"`, display with `pharos glossary list` or the dashboard. See [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md) for term format convention.
-- **Questions**: The item bank the workspace's quizzes draw from, stored in the database. Create with `pharos question create "<title>" --mode choice|recall --body-file <path>`, list with `pharos question list`. See [QUESTION-FORMAT.md](./QUESTION-FORMAT.md) for authoring craft.
+- **Questions**: The item bank the workspace's quizzes draw from, stored in the database. The title **is** the question stem — full sentence, no character limit. Create with `pharos question create "<title>" --mode choice|recall --body-file <path>`, list with `pharos question list`. See [QUESTION-FORMAT.md](./QUESTION-FORMAT.md) for authoring craft.
 - **Quizzes**: Ordered question sets the learner takes in the dashboard, stored in the database. Create with `pharos quiz create "<title>" --items "slug1,slug2"`, list with `pharos quiz list`.
 - `NOTES.md`: Scratchpad for preferences and working notes. Read with `pharos notes read` (or `pharos notes read --json`), update with `pharos notes edit --body-file <path>` or `pharos notes edit --append --body-file <path>`.
 - `./lessons/*.html`: Self-contained lesson HTML files. Create with `pharos lesson create "<title>" --body-file <path>`.
@@ -63,7 +63,7 @@ Fluency can give the user an illusory sense of mastery, but storage strength is 
 
 ## Titles
 
-Every title in a workspace — workspace display name, lesson titles, record titles, reference titles — appears in breadcrumbs, the sidebar, and search results. Long titles crowd the chrome and hide the concept.
+Every title in a workspace — workspace display name, lesson titles, record titles, reference titles — appears in breadcrumbs, the sidebar, and search results. Long titles crowd the chrome and hide the concept. Question titles are excluded from these rules — they aren't displayed in chrome and store the full question stem the learner reads.
 
 - **Max 50 characters.** A longer title means the scope is too wide — split it.
 - **Noun phrases, not sentences.** "SQL JOINs", not "How to join tables in SQL".
