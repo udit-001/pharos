@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/db"
@@ -47,9 +46,9 @@ The slug is derived from the title. Examples:
 		if bodyFile == "" {
 			return fmt.Errorf("--body-file is required\n  Write the question content to a file, then: pharos question create %q --workspace %q --mode %q --body-file <path>", title, ws.Name, mode)
 		}
-		data, err := os.ReadFile(bodyFile)
+		data, err := readBodyFile(bodyFile)
 		if err != nil {
-			return fmt.Errorf("read body file: %w", err)
+			return err
 		}
 
 		// Build the typed config from mode + body file, validate it, then

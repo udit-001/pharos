@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 
@@ -198,9 +197,9 @@ Examples:
 			return fmt.Errorf("--body-file is required\n  pharos asset create %q --workspace %q --body-file <path>", filename, ws.Name)
 		}
 
-		data, err := os.ReadFile(bodyFile)
+		data, err := readBodyFile(bodyFile)
 		if err != nil {
-			return fmt.Errorf("read body file: %w", err)
+			return err
 		}
 
 		if err := wsStore.WriteAsset(filename, data); err != nil {

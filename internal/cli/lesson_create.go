@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/db"
@@ -36,9 +35,9 @@ Examples:
 		if bodyFile == "" {
 			return fmt.Errorf("--body-file is required\n  Write the lesson HTML to a file, then: pharos lesson create %q --workspace %q --body-file <path>", title, ws.Name)
 		}
-		data, err := os.ReadFile(bodyFile)
+		data, err := readBodyFile(bodyFile)
 		if err != nil {
-			return fmt.Errorf("read body file: %w", err)
+			return err
 		}
 
 		created, err := wsStore.CreateLesson(title, string(data))

@@ -146,9 +146,9 @@ func truncate(s string, max int) string {
 // touches last_studied, and prints a success message. Used by mission,
 // resources, and glossary commands for non-interactive updates.
 func writeWorkspaceFile(wsStore *db.WorkspaceStore, targetPath, bodyFile, label string) error {
-	data, err := os.ReadFile(bodyFile)
+	data, err := readBodyFile(bodyFile)
 	if err != nil {
-		return fmt.Errorf("read body file: %w", err)
+		return err
 	}
 	if err := os.WriteFile(targetPath, data, 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", label, err)

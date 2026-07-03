@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -41,9 +40,9 @@ Examples:
 		if bodyFile == "" {
 			return fmt.Errorf("--body-file is required")
 		}
-		data, err := os.ReadFile(bodyFile)
+		data, err := readBodyFile(bodyFile)
 		if err != nil {
-			return fmt.Errorf("read body file: %w", err)
+			return err
 		}
 
 		summary, _ := cmd.Flags().GetString("summary")

@@ -66,9 +66,9 @@ Examples:
 		appendMode, _ := cmd.Flags().GetBool("append")
 
 		if bodyFile != "" {
-			data, err := os.ReadFile(bodyFile)
+			data, err := readBodyFile(bodyFile)
 			if err != nil {
-				return fmt.Errorf("read body file: %w", err)
+				return err
 			}
 			if appendMode {
 				existing, _ := os.ReadFile(notesPath)

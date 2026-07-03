@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/db"
@@ -66,9 +65,9 @@ Examples:
 
 		var configPtr *string
 		if hasBody {
-			data, err := os.ReadFile(bodyFile)
+			data, err := readBodyFile(bodyFile)
 			if err != nil {
-				return fmt.Errorf("read body file: %w", err)
+				return err
 			}
 
 			effectiveMode := modeFlag
