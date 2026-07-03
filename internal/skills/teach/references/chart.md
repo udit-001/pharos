@@ -24,6 +24,7 @@ Pick the mark from the shape of the data, not from what "looks nice":
 | Rule | Why |
 |---|---|
 | Always set `"width": "container"` | Chart fills its card; responsive |
+| Use the `.chart` class on the container; never override its `width` | Pins `width: 100%` so `"width": "container"` resolves; dropping the class reopens the zero-width bug |
 | Never set colour values in the spec | Nord palette comes from `vega-theme.js` config — overriding it breaks dark mode |
 | Keep ≤7 categorical series | The Nord categorical palette has 7 colours; beyond that, colours repeat and confuse |
 | Embed data inline (`data.values`) | Lessons must work offline — no external URLs |

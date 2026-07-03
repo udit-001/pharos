@@ -13,7 +13,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Palette | CSS custom properties on `:root` / `[data-theme="dark"]` |
 | FOUC prevention | Blocking `<script>` in `<head>` reads `localStorage('pharos_theme')`, falls back to `prefers-color-scheme`, sets `data-theme` |
 | Runtime theme sync | `postMessage` listener — dashboard sends `{type:'theme', theme:'dark'|'light'}` to iframes on toggle |
-| Shared styles | `assets/style.css` (variables, typography, layout, component classes); `assets/quiz.css` added per-workspace when a lesson has quizzes |
+| Shared styles | `assets/style.css` (variables, typography, layout, and component classes — quiz `.q`, `.callout`, `.source-box`); no per-page stylesheet needed for these |
 | Quiz interactivity | Inline `<script>` before `</body>` — binds to `.q` elements |
 | Font delivery | `@font-face` in `assets/style.css` → `assets/fonts/inter-latin.woff2` (vendored — works offline, no CDN) |
 | Copy code | `assets/copy-code.js` — adds copy button to `<pre>` on hover; opt-out per block via `data-no-copy` |
@@ -123,7 +123,7 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 Key rules:
 - **No `data-theme` on `<html>`** — the blocking script sets it dynamically
 - **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), optional glossary tooltip (`<script src="assets/glossary-tooltip.js">`), `<script src="assets/copy-code.js">`, and postMessage listener
-- **CSS links are root-relative** — no `../`, the iframe serves from `/api/lesson-html/<workspace>/<file>` or `/api/ref-html/<workspace>/<file>`
+- **CSS links are root-relative** — no `../`; see [references/pharos-cli.md](references/pharos-cli.md#links-inside-lesson-html-iframe-escape) for why
 
 ---
 
@@ -277,23 +277,47 @@ See [references/chart.md](references/chart.md) for the chart authoring recipe �
 
 ## Component Patterns (lessons only — design free)
 
-These are the functional building blocks for interactive lessons. References typically don't need them — they're cheat sheets, not interactive content. The teach skill should create appropriate CSS for each.
+These are the functional building blocks for interactive lessons. References typically don't need them — they're cheat sheets, not interactive content. Quiz, callout, and source-box styles are pre-seeded in `assets/style.css` — use the classes as shown below, no extra CSS needed.
 
 ### Quiz
 
-An inline knowledge check. Structure: a container `.q` with `data-answer` attribute, multiple `<button>` options, and an `.fb` feedback element. On click: disable all buttons, compare clicked text to `data-answer`, mark correct/incorrect, show feedback text.
+An inline knowledge check. Structure: a container `.q` with `data-answer` attribute, a question `<p>`, an `.options` wrapper of `<button>` options, and an `.fb` feedback element. On click: disable all buttons, compare clicked text to `data-answer`, mark correct/incorrect, show feedback text.
 
-Classes: `.correct` (green), `.incorrect` (red) — applied to buttons after answer.
+```html
+<div class="q" data-answer="Bar chart">
+  <p>Which chart compares quarterly revenue across 4 regions?</p>
+  <div class="options">
+    <button>Bar chart</button>
+    <button>Scatter plot</button>
+    <button>Pie chart</button>
+  </div>
+  <div class="fb"></div>
+</div>
+```
 
-The `.fb` element starts empty and only fills on click — hide it with `.fb:empty{display:none}`. Without this rule the padding and background render an empty box under every quiz before any answer is selected.
+**Styles are seeded in `assets/style.css`** — `.q`, `.q p`, `.q .options`, `.q button` (incl. `.correct`/`.incorrect`/`:disabled`), and `.q .fb`. Do not author a separate `quiz.css` or per-page `<style>` for the quiz; the question `<p>` goes *inside* `.q`, and buttons go inside `.options`. The interactivity JS (boilerplate before `</body>`) is fixed and binds to `.q` / `.fb`.
+
+The `.fb` element is hidden by default via `.fb:empty{display:none}` in `style.css` — it only reserves space once text is set on click.
 
 ### Callout
 
-A key takeaway or insight. Visually distinct from body paragraphs — uses accent border/background to draw attention.
+A key takeaway or insight. Visually distinct from body paragraphs — uses accent border/background to draw attention. Start with a bold label to signal intent:
+
+```html
+<div class="callout">
+<strong>Key rule:</strong> Lines imply continuity. Only use a line chart when the x-axis is truly ordered.
+</div>
+```
 
 ### Source box
 
-A recommendation for further reading. Subtle background, distinguishes it from callout.
+A recommendation for further reading. Subtle background, distinguishes it from callout. Contains a link:
+
+```html
+<div class="source-box">
+<strong>Primary resource:</strong> <a href="https://example.com" target="_blank" rel="noopener noreferrer">Example Gallery</a> — browse real specs.
+</div>
+```
 
 ### Tables
 

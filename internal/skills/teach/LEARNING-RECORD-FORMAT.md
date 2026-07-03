@@ -24,7 +24,7 @@ Only include these when they add genuine value. Most records won't need them.
 
 ## Numbering
 
-Scan `./learning-records/` for the highest existing number and increment by one.
+Sequence numbers are assigned by `pharos record create` — don't hand-number.
 
 ## When to write a learning record
 

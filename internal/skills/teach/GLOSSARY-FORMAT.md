@@ -25,4 +25,4 @@ pharos glossary list --json                                               # mach
 - **Use the glossary's own terms inside definitions.** Once a term is in the glossary, prefer it everywhere — including inside other definitions. This is what makes complex terms easier to grasp later.
 - **Group under categories** when natural clusters emerge. Pass `--category "Anatomy"` to assign a term to a subheading. A flat list is fine when terms cohere.
 - **Flag ambiguities explicitly.** If a term is used loosely in the wider field, note the resolution in the definition: "In this workspace, 'set' always means a working set — warm-ups are tracked separately."
-- **Revise as understanding deepens.** A definition the user wrote in week one may be wrong by week six. Update in place with `pharos glossary revise "<term>" --definition "..."`; do not leave stale entries.
+- **Revise as understanding deepens.** A definition the user wrote in week one may be wrong by week six. Update in place with `pharos glossary create "<term>" "new definition"`; do not leave stale entries.

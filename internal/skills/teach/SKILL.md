@@ -7,7 +7,7 @@ argument-hint: "What would you like to learn about?"
 
 The user has asked you to teach them something. This is a stateful request - they intend to learn the topic over multiple sessions.
 
-Before creating anything, check whether the work already exists. A workspace is curated through **revision**, not accumulation — the same principle applies at every level. Run `pharos workspace list` to check for an existing workspace on the topic; if one exists, switch to it with `pharos workspace use "<name>"` and continue where the learner left off. Only run `pharos workspace create "<topic>"` when no workspace covers the topic yet — follow the [title rules](#titles) for a concise display name. All file operations below use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
+**Search before creating.** Before creating any entity (workspace, lesson, question, reference), search for an existing one on the same topic. A workspace is curated through **revision**, not accumulation — revise instead of duplicating. All file operations use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
 
 ## Teaching Workspace
 
@@ -79,11 +79,9 @@ pharos workspace create "sql-joins" --topic "SQL Joins"  # same, but explicit to
 
 ## Lessons
 
-A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and titled `0001-<dash-case-name>.html` where the number increments each time.
+A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and titled `0001-<dash-case-name>.html` where the number increments each time. If a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate.
 
-Before creating a lesson, search for an existing one on the same topic: `pharos search "<topic>"`. Same principle — if a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate under a new number. The sequence stays tight; the learner isn't served two lessons on the same thing.
-
-A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Link shared stylesheets with root-relative paths (`assets/style.css`, never `../assets/style.css`).
+A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Asset and link paths follow the [iframe escape rules](references/pharos-cli.md#links-inside-lesson-html-iframe-escape).
 
 The lesson should be short, and completable very quickly. Learners' working memory is very small, and we need to stay within it. But each lesson should give the user a single tangible win that they can build on. It should be directly tied to the mission, and should be in the user's zone of proximal development.
 
@@ -123,11 +121,7 @@ extend it rather than creating per-page styles. See [PAGE-THEME.md](./PAGE-THEME
 for the design system (Nord palette, component patterns, theming
 conventions). As the workspace grows, so should the component library.
 
-Asset paths are **root-relative** — `assets/style.css`, never
-`../assets/style.css` (the iframe serves pages from
-`/api/lesson-html/…`). Contextual links to other dashboard pages use
-absolute routes with `target="_top"`; see [references/pharos-cli.md](references/pharos-cli.md)
-for the route table.
+Asset paths and contextual links follow the [iframe escape rules](references/pharos-cli.md#links-inside-lesson-html-iframe-escape) — never use `../` for assets or relative links for dashboard navigation.
 
 ## The Mission
 

@@ -72,11 +72,16 @@ pharos notes edit --append --body-file <path>  # Append to file
 ## Glossary
 
 ```bash
-pharos glossary list                              # Display glossary terms
-pharos glossary list --json                       # Display glossary terms as JSON
-pharos glossary create "<term>" "<definition>"     # Add or update a term
-pharos glossary delete "<term>"                    # Remove a term
+pharos glossary list                                # Display terms, grouped by category
+pharos glossary list --json                         # Display terms as JSON
+pharos glossary create "<term>" "<definition>"       # Add or update a term
+pharos glossary create "<term>" "<def>" --category "..."  # Group under a heading
+pharos glossary create "<term>" "<def>" --avoid "..."     # Flag synonyms to avoid
+pharos glossary delete "<term>"                      # Remove a term
 ```
+
+`--category` groups terms under a heading (e.g. "Diagnostic & Clinical"); `list` prints one
+section per category. `--avoid` records synonyms or phrasing to steer away from for this term.
 
 ## Lessons
 
@@ -84,7 +89,7 @@ pharos glossary delete "<term>"                    # Remove a term
 pharos lesson create "<title>" --body-file <path>  # Create a new lesson
 pharos lesson list                                  # List lessons
 pharos lesson list --search "<q>"                   # Search lessons
-pharos lesson revise <seq> --body-file <path>       # Revise an existing lesson
+pharos lesson revise <seq> --body-file <path>       # Revise a lesson (--title, --summary optional)
 pharos lesson show <seq>                            # Show in dashboard
 pharos lesson read <seq>                            # Read content + metadata
 pharos lesson read <seq> --meta-only                # Read metadata only
@@ -136,10 +141,12 @@ Two workspaces can each have a reference with the same slug.
 
 ```bash
 pharos question create "<title>" --mode choice|recall --body-file <path>  # Create a question (DB-only)
+pharos question revise <slug> [--title "..."] [--mode choice|recall --body-file <path>]  # Update in place
 pharos question list                                                       # List questions
 pharos question list --weak                                               # Sort by accuracy ascending (completed attempts only)
 pharos question list --weak --limit 5 --json                               # Top 5 weakest, machine-readable
 pharos question read <slug>                                                # Print metadata + config (correct option marked for choice)
+pharos question delete <slug>                                              # Delete (blocks if a quiz references it)
 ```
 
 Questions are DB-only (no file on disk) — the item bank a workspace's quizzes draw from.
@@ -148,7 +155,9 @@ A question's `--mode` selects its config shape and how `--body-file` is interpre
 - **choice** — `--body-file` is JSON: `{"options": ["A","B","C","D"], "key": 2}` where `key` is the 0-based index of the correct answer.
 - **recall** — `--body-file` is the reveal text shown after the learner self-grades.
 
-The slug is derived from the title. Before creating, `pharos question list` to reuse existing questions across quizzes rather than duplicating.
+The slug is derived from the title and **stays stable** across `revise` (it is not regenerated from the title), so quiz item references remain valid. Before creating, `pharos question list` to reuse existing questions across quizzes rather than duplicating. `revise` needs at least one of `--title`, `--mode`, or `--body-file`; `--mode` requires `--body-file` (the config shape changes with mode).
+
+`delete` blocks while any quiz still references the question — remove it from those quizzes first with `pharos quiz revise <quiz-slug> --items ...`.
 
 `--weak` surfaces what the learner struggles with: questions never answered in a completed attempt sort first, then by accuracy ascending, with a `Last` column showing when each was last attempted so you can tell stale weakness from fresh. This is the workspace's storage-strength signal — use it to decide what to practice or teach next.
 
@@ -163,6 +172,7 @@ pharos quiz revise <slug> [--items "slug1,slug2"] [--lesson <seq>]        # Upda
 pharos quiz read <slug>                                                   # Print metadata + question slugs + lesson link
 pharos quiz attempts <slug>                                               # Completed-attempt history + trend (is accuracy improving?)
 pharos quiz show <slug>                                                    # Show in dashboard
+pharos quiz delete <slug>                                                  # Delete (see below)
 ```
 
 Quizzes are DB-only ordered lists of question slugs, grouped under a title. The learner takes them in the dashboard (library → attempt → review); the CLI only authors them. `--items` is a comma-separated slug list in presentation order. `quiz list` shows the best score from completed attempts per quiz.
@@ -173,7 +183,7 @@ A quiz optionally links to the **lesson** whose skill it practices, via `--lesso
 
 `quiz attempts <slug>` shows the retake history with a trend summary (recent-half vs earlier-half average accuracy). It answers "is accuracy improving?" — the trajectory, where `--weak` is a snapshot. Per-attempt scores reconcile with `quiz list`'s best-score column (best = max of this series).
 
-`quiz revise --items` blocks while the quiz has in-progress attempts — wait for them to complete or be abandoned first. `--lesson` does not block (it's metadata that doesn't affect a running attempt).
+`quiz revise --items` blocks while the quiz has in-progress attempts — wait for them to complete or be abandoned first. `--lesson` does not block (it's metadata that doesn't affect a running attempt). `quiz delete` blocks the same way and cascades — all completed attempt history is removed with the quiz.
 
 After creating or revising a quiz, **present** it:
 
@@ -200,6 +210,7 @@ Assets are raw files (CSS, JS, images, fonts) with no database tracking.
 pharos start              # Start the read-only web UI (default :9090)
 pharos start --port 9090  # Custom port
 pharos start --no-open    # Don't auto-open the browser
+pharos stop               # Stop the running server (graceful SIGINT, cleans PID file)
 ```
 
 If already running, `pharos start` prints the URL and returns.
@@ -208,12 +219,8 @@ The dashboard opens on the current workspace if one is set.
 ## Skills
 
 ```bash
-pharos skills install --agent <name>   # Install skills (non-interactive)
-pharos skills check                    # Check if installed skills are current
+pharos skills check   # Check if installed skills are current
 ```
-
-Supported agents: `opencode`, `claude-code`, `codex`, `pi.dev`.
-`--agent` implies non-interactive — no prompts, always overwrites.
 
 ## Links inside lesson HTML (iframe escape)
 
@@ -261,7 +268,6 @@ Key rules:
 
 ```bash
 --json   # Machine-readable JSON output (all data-returning commands)
---db     # Custom database path (default: ~/.pharos/pharos.db)
 ```
 
 ## File naming (generated by the CLI)
