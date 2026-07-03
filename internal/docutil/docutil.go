@@ -12,11 +12,17 @@ const defaultNotesProse = "# Notes\n\nPreferences and working notes for this wor
 // the default seed prose. kind is the document kind ("mission",
 // "resources", "notes"). An unfilled doc renders as empty so the page
 // shows guidance instead of boilerplate.
+//
+// The {placeholder} marker check covers the seeded mission/resources
+// templates. It is intentionally skipped for notes: the notes seed has no
+// such markers (its unedited state is caught by defaultNotesProse below),
+// and real notes routinely contain "{" in code, JSON, or regex — applying
+// the heuristic there would hide a learner's actual notes.
 func IsTemplate(content, kind string) bool {
 	if content == "" {
 		return true
 	}
-	if strings.Contains(content, "{") {
+	if kind != "notes" && strings.Contains(content, "{") {
 		return true
 	}
 	if kind == "notes" && content == defaultNotesProse {

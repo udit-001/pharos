@@ -17,8 +17,8 @@ func TestIsTemplate(t *testing.T) {
 		{name: "edited notes", content: "# Notes\n\nI prefer dark mode.", kind: "notes", want: false},
 		{name: "appended notes", content: "# Notes\n\nPreferences and working notes for this workspace.\n- Agent note: learned about go channels", kind: "notes", want: false},
 		{name: "default notes prose but kind mission", content: "# Notes\n\nPreferences and working notes for this workspace.", kind: "mission", want: false},
-		{name: "placeholder in notes", content: "# Notes\n\n{todo}", kind: "notes", want: true},
-		{name: "brace in real content", content: "Use {curly braces} in code", kind: "notes", want: true},
+		{name: "braces in notes are real content", content: "# Notes\n\n{todo} and map[string]int{} are code, not a placeholder", kind: "notes", want: false},
+		{name: "brace in real content", content: "Use {curly braces} in code", kind: "notes", want: false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
