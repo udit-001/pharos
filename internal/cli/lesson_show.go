@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 var lessonShowCmd = &cobra.Command{
@@ -22,7 +21,7 @@ Examples:
 		}
 		return runShow(cmd, showSpec{
 			urlPath: func(wsName string) string {
-				return fmt.Sprintf("/w/%s/lessons/%d", wsName, n)
+				return urls.Lesson(wsName, n)
 			},
 			label: "lesson",
 		})

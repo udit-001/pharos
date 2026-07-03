@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 var recordShowCmd = &cobra.Command{
@@ -22,7 +21,7 @@ Examples:
 		}
 		return runShow(cmd, showSpec{
 			urlPath: func(wsName string) string {
-				return fmt.Sprintf("/w/%s/records/%d", wsName, n)
+				return urls.Record(wsName, n)
 			},
 			label: "record",
 		})

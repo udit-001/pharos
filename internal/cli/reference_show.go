@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 var refShowCmd = &cobra.Command{
@@ -19,7 +18,7 @@ Examples:
 		slug := args[0]
 		return runShow(cmd, showSpec{
 			urlPath: func(wsName string) string {
-				return fmt.Sprintf("/w/%s/refs/%s", wsName, slug)
+				return urls.Ref(wsName, slug)
 			},
 			label: "reference",
 		})
