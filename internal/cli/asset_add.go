@@ -37,8 +37,8 @@ Examples:
 			return fmt.Errorf("unknown asset %q\n  Available: %s", name, knownAssetsString())
 		}
 
-		// Idempotent add: don't re-download a lib that's already present.
-		libData, err := fetchLib(spec, wsStore, false)
+		// Idempotent add: don't re-download files already present.
+		spec, libData, err := resolve(spec, wsStore, false)
 		if err != nil {
 			return err
 		}

@@ -19,6 +19,7 @@ type AssetSpec struct {
 	DefaultVersion string            // pinned; "" for embedded-only
 	URLTemplate    string            // {{VERSION}} placeholder; "" for embedded-only
 	Files          map[string][]byte // embedded content (companions + seeded files)
+	Downloads      map[string]string // filename -> {{VERSION}} URL template; extra network-fetched files (CSS, fonts)
 }
 
 // AssetResult reports what InstallAsset did — observable through the
@@ -42,6 +43,14 @@ func (w *WorkspaceStore) safeAssetPath(filename string) (string, error) {
 		return "", fmt.Errorf("invalid asset path %q", filename)
 	}
 	return target, nil
+}
+
+// AssetPath returns the absolute, traversal-safe path for an asset filename,
+// or an error if it escapes the assets/ directory. Exported so the HTTP layer
+// can serve asset files — including subdirectories (fonts/, contrib/) —
+// without re-implementing the traversal check that safeAssetPath enforces.
+func (w *WorkspaceStore) AssetPath(filename string) (string, error) {
+	return w.safeAssetPath(filename)
 }
 
 // WriteAsset writes data to the workspace's assets/ directory, creating

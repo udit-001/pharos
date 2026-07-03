@@ -91,8 +91,8 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /search", handleSearchPage(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/{file}", handleLessonHTML(store))
 	mux.HandleFunc("GET /api/ref-html/{name}/{file}", handleRefHTML(store))
-	mux.HandleFunc("GET /api/lesson-html/{name}/assets/{file}", handleAssetFile(store))
-	mux.HandleFunc("GET /api/ref-html/{name}/assets/{file}", handleAssetFile(store))
+	mux.HandleFunc("GET /api/lesson-html/{name}/assets/{file...}", handleAssetFile(store))
+	mux.HandleFunc("GET /api/ref-html/{name}/assets/{file...}", handleAssetFile(store))
 	mux.HandleFunc("POST /api/attempt", jsonHandler(handleSubmitAttempt(store)))
 	mux.HandleFunc("POST /api/quiz-attempt/{id}/complete", jsonHandler(handleCompleteQuizAttempt(store)))
 	mux.HandleFunc("POST /api/quiz-attempt/{id}/abandon", jsonHandler(handleAbandonQuizAttempt(store)))
@@ -1178,7 +1178,11 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		ws := wsStore.Workspace()
-		http.ServeFile(w, r, filepath.Join(ws.Path, "assets", file))
+		path, err := wsStore.AssetPath(file)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, path)
 	}
 }

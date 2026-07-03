@@ -201,6 +201,34 @@ Include in the lesson `<head>`:
 
 Code block language is auto-detected, but explicit `<pre><code class="language-js">` is recommended for accuracy.
 
+### KaTeX math rendering (on-demand)
+
+For mathematical notation (equations, formulas, proofs) in lessons. Add it once:
+
+```
+pharos asset add katex
+```
+
+This downloads the KaTeX library, CSS, and woff2 fonts, and writes `katex-render.js` (auto-renders math on load). Include in the lesson `<head>`:
+
+```html
+<link rel="stylesheet" href="assets/katex.min.css">
+<script src="assets/katex.min.js"></script>
+<script src="assets/contrib/auto-render.min.js"></script>
+<script src="assets/katex-render.js"></script>
+```
+
+**Delimiters** (handled by `katex-render.js`):
+
+| Syntax | Mode | Example |
+|--------|------|---------|
+| `$...$` | inline | The energy $E = mc^2$ is famous. |
+| `$$...$$` | display | `$$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt\pi}{2}$$` |
+| `\(...\)` | inline | `\(\alpha + \beta\)` |
+| `\[...\]` | display | `\[\sum_{n=1}^{\infty} \frac{1}{n^2}\]` |
+
+> **Theming:** KaTeX renders semantic HTML/CSS whose `.katex` root inherits `color` from the container. Fraction bars, radicals, and `\vec` arrows all use `currentColor`. No JS retint needed on theme toggle. Explicit `\color{...}` / `\textcolor{...}` in LaTeX stays fixed across themes by design.
+
 ### Adding a new vendored asset
 
 1. Place the file in `internal/db/seed/` (or a subdirectory like `fonts/`).

@@ -105,10 +105,10 @@ HTML pages (lessons and references) are built from reusable **assets** in
   `pharos asset create <filename> --body-file <path>`.
 - **Vendored or seeded assets** — third-party libraries: **mermaid** for
   diagrams, **highlightjs** for code highlighting (plus mermaid-lightbox for
-  full-size diagram view); and the framework's universal files (style.css,
-  glossary-tooltip.js, copy-code.js, the Inter font). Install with
-  `pharos asset add <name>`; force-sync to the current binary with
-  `pharos asset redeploy <name>`.
+  full-size diagram view), **katex** for math notation; and the framework's
+  universal files (style.css, glossary-tooltip.js, copy-code.js, the Inter
+  font). Install with `pharos asset add <name>`; force-sync to the current
+  binary with `pharos asset redeploy <name>`.
 
 Reuse is the default, not the exception. Before authoring a lesson or
 reference, run `pharos asset list` and reuse an existing asset for every

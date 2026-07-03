@@ -35,9 +35,9 @@ Examples:
 			return fmt.Errorf("unknown asset %q\n  Available: %s", name, knownAssetsString())
 		}
 
-		// redeploy always fetches the lib so it's overwritten to the
+		// redeploy always re-fetches so files are overwritten to the
 		// current pinned version.
-		libData, err := fetchLib(spec, wsStore, true)
+		spec, libData, err := resolve(spec, wsStore, true)
 		if err != nil {
 			return err
 		}
