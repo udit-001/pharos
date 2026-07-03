@@ -5,6 +5,8 @@ import "github.com/spf13/cobra"
 var lessonCmd = &cobra.Command{
 	Use:   "lesson",
 	Short: "Manage lessons in a workspace",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Create, list, and manage lesson files.
 
 Lessons are self-contained HTML files in the workspace's lessons/

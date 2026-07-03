@@ -8,6 +8,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// runShowHelp prints the command's help and returns nil. It is the RunE for
+// parent commands (those that only group subcommands) so cobra treats them as
+// runnable — which in turn lets Args validation (e.g. cobra.NoArgs) run and
+// reject unknown subcommands instead of silently printing help and exiting 0.
+func runShowHelp(cmd *cobra.Command, _ []string) error {
+	return cmd.Help()
+}
+
 // parseSeq converts a string argument to a sequence number.
 func parseSeq(s string) (int, error) {
 	n, err := strconv.Atoi(s)

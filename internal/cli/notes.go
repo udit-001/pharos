@@ -10,6 +10,8 @@ import (
 var notesCmd = &cobra.Command{
 	Use:   "notes",
 	Short: "Manage the workspace notes",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Display or edit the NOTES.md file for a workspace.
 
 Notes are a scratchpad for preferences and working notes. Use
@@ -52,7 +54,7 @@ Examples:
   pharos notes edit --body-file /tmp/notes.md
   pharos notes edit --append --body-file /tmp/new-note.md
   pharos notes edit`,
-	Args: cobra.NoArgs,
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
 		wsName, _ := cmd.Flags().GetString("workspace")

@@ -7,6 +7,8 @@ import (
 var skillsCmd = &cobra.Command{
 	Use:   "skills",
 	Short: "Manage agent skills for this project",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Install or uninstall the pharos skill into your AI coding agent so it
 knows how to use the CLI to manage learning workspaces.
 

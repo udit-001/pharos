@@ -14,6 +14,8 @@ const (
 var tailwindCmd = &cobra.Command{
 	Use:   "tailwind",
 	Short: "Manage the Tailwind CSS CLI binary",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Download and manage the Tailwind CSS standalone CLI binary.
 
 The Tailwind CSS standalone CLI is required for CSS compilation.

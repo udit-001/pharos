@@ -5,6 +5,8 @@ import "github.com/spf13/cobra"
 var recordCmd = &cobra.Command{
 	Use:   "record",
 	Short: "Manage learning records in a workspace",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Create, list, and manage learning records.
 
 Learning records are ADR-style documents in the workspace's

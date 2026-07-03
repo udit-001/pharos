@@ -9,6 +9,8 @@ import (
 var missionCmd = &cobra.Command{
 	Use:   "mission",
 	Short: "Manage the workspace mission",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Display or edit the MISSION.md file for a workspace.
 
 The mission captures why you're learning a topic and what
@@ -48,7 +50,7 @@ var missionEditCmd = &cobra.Command{
 Examples:
   pharos mission edit --body-file /tmp/mission.md
   pharos mission edit`,
-	Args: cobra.NoArgs,
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
 		wsName, _ := cmd.Flags().GetString("workspace")

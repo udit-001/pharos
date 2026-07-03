@@ -5,6 +5,8 @@ import "github.com/spf13/cobra"
 var refCmd = &cobra.Command{
 	Use:   "reference",
 	Short: "Manage reference documents in a workspace",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Create and list reference documents (cheat sheets).
 
 References are the compressed essence of lessons — syntax

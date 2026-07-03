@@ -14,6 +14,8 @@ import (
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Manage database migrations",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Run, roll back, and inspect database migrations.
 
 Migrations are stored in the project's migrations/ directory and

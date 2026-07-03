@@ -9,6 +9,8 @@ import (
 var resourcesCmd = &cobra.Command{
 	Use:   "resources",
 	Short: "Manage the workspace resources",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Display or edit the RESOURCES.md file for a workspace.
 
 Resources are the curated set of trusted sources for this topic.
@@ -48,7 +50,7 @@ var resourcesEditCmd = &cobra.Command{
 Examples:
   pharos resources edit --body-file /tmp/resources.md
   pharos resources edit`,
-	Args: cobra.NoArgs,
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
 		wsName, _ := cmd.Flags().GetString("workspace")

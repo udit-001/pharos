@@ -5,6 +5,8 @@ import "github.com/spf13/cobra"
 var glossaryCmd = &cobra.Command{
 	Use:   "glossary",
 	Short: "Manage workspace glossary terms",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Display, add, and delete glossary terms for a workspace.
 
 The glossary records canonical terminology for this workspace.

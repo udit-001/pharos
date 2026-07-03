@@ -12,6 +12,8 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "View and manage pharos configuration",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `View and update pharos configuration.
 
 The config file (pharos.toml) lives in your platform app config

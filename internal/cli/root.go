@@ -65,6 +65,10 @@ without needing --workspace.`,
 		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "init" || cmd.Name() == "config" || cmd.Name() == "migrate" || cmd.Name() == "dev" || cmd.Name() == "upgrade" || cmd.Name() == "tailwind" || cmd.Name() == "build" {
 			return nil
 		}
+		// Parent commands only ever print help or error on args — no DB needed.
+		if cmd.HasSubCommands() {
+			return nil
+		}
 		// Migrate and tailwind subcommands also handle their own DB
 		if cmd.Parent() != nil && (cmd.Parent().Name() == "migrate" || cmd.Parent().Name() == "tailwind" || cmd.Parent().Name() == "skills") {
 			return nil

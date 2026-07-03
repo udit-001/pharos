@@ -12,6 +12,8 @@ import (
 var assetCmd = &cobra.Command{
 	Use:   "asset",
 	Short: "Manage workspace assets",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Manage reusable components (stylesheets, scripts, images) in the
 workspace's assets/ directory.
 

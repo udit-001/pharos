@@ -5,6 +5,8 @@ import "github.com/spf13/cobra"
 var questionCmd = &cobra.Command{
 	Use:   "question",
 	Short: "Manage questions in a workspace",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Create, revise, list, and delete questions.
 
 Questions are DB-only entities (no file on disk) used to build quizzes.

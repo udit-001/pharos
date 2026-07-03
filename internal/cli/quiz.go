@@ -5,6 +5,8 @@ import "github.com/spf13/cobra"
 var quizCmd = &cobra.Command{
 	Use:   "quiz",
 	Short: "Manage quizzes in a workspace",
+	Args:  cobra.NoArgs,
+	RunE:  runShowHelp,
 	Long: `Create, revise, list, and delete quizzes.
 
 A quiz is an ordered list of question slugs grouped under a title.
