@@ -34,6 +34,9 @@ var mermaidThemeJS []byte
 //go:embed katex-render.js
 var katexRenderJS []byte
 
+//go:embed vega-theme.js
+var vegaThemeJS []byte
+
 // knownAssets is the registry of installable assets — vendored (a downloaded
 // lib plus embedded companions) and seeded (embedded-only universal files).
 // The CLI builds db.AssetSpec values from this map; the store installs them
@@ -68,6 +71,14 @@ var knownAssets = map[string]db.AssetSpec{
 		URLTemplate:    "https://cdn.jsdelivr.net/npm/katex@{{VERSION}}/dist/katex.min.js",
 		Files:          map[string][]byte{"katex-render.js": katexRenderJS},
 		Downloads:      katexDownloads,
+	},
+	"vega": {
+		Source:         "vendored",
+		Filename:       "vega-lite.min.js",
+		DefaultVersion: "6",
+		URLTemplate:    "https://cdn.jsdelivr.net/npm/vega-lite@{{VERSION}}/build/vega-lite.min.js",
+		Files:          map[string][]byte{"vega-theme.js": vegaThemeJS},
+		Downloads:      vegaDownloads,
 	},
 	"style": {
 		Source: "seeded",
@@ -128,6 +139,15 @@ var katexDownloads = func() map[string]string {
 	}
 	return dl
 }()
+
+// vegaDownloads pins the companion runtime libs to their compatible majors.
+// vega-lite is the primary lib (Filename above, respects --version); vega
+// and vega-embed are co-required but ship different major versions, so their
+// URLs hardcode the major rather than using {{VERSION}}.
+var vegaDownloads = map[string]string{
+	"vega.min.js":       "https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js",
+	"vega-embed.min.js": "https://cdn.jsdelivr.net/npm/vega-embed@7/build/vega-embed.min.js",
+}
 
 // knownAssetsString returns a sorted, comma-separated list of registry names
 // for error messages.

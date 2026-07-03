@@ -229,12 +229,49 @@ This downloads the KaTeX library, CSS, and woff2 fonts, and writes `katex-render
 
 > **Theming:** KaTeX renders semantic HTML/CSS whose `.katex` root inherits `color` from the container. Fraction bars, radicals, and `\vec` arrows all use `currentColor`. No JS retint needed on theme toggle. Explicit `\color{...}` / `\textcolor{...}` in LaTeX stays fixed across themes by design.
 
-### Adding a new vendored asset
+### Vega-Lite charts (on-demand)
 
-1. Place the file in `internal/db/seed/` (or a subdirectory like `fonts/`).
-2. Add a `//go:embed` directive in `internal/db/seed.go`.
-3. Wire it into the seed write loop in `seedWorkspaceDefaults` (following the text-files or binary-assets pattern).
-4. For fonts, declare the corresponding `@font-face` in `seed/style.css`.
+For **charts** — quantitative data on axes (bar, line, scatter, histogram, area). Not for diagrams (use mermaid) or equations (use katex). Add it once:
+
+```
+pharos asset add vega
+```
+
+`pharos asset add vega` writes four files to `assets/`: `vega.min.js`, `vega-lite.min.js`, `vega-embed.min.js` (downloaded from CDN), and `vega-theme.js` (embedded Nord theming companion).
+
+Include in the lesson `<head>` — **order matters** (vega → vega-lite → vega-embed → theme):
+
+```html
+<script src="assets/vega.min.js"></script>
+<script src="assets/vega-lite.min.js"></script>
+<script src="assets/vega-embed.min.js"></script>
+<script src="assets/vega-theme.js"></script>
+```
+
+**Convention — pure JSON, zero JS.** Write the chart spec as a JSON object inside a `<script type="application/json" id="my-chart">` tag, then place a `<div class="chart" data-vega="my-chart"></div>` where the chart should appear. The companion auto-discovers the pair, renders via `vegaEmbed` with Nord theming, and re-renders on theme toggle:
+
+```html
+<div class="chart" data-vega="accuracy-chart"></div>
+<script type="application/json" id="accuracy-chart">
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "width": "container", "height": 220,
+  "mark": { "type": "bar", "cornerRadiusEnd": 4, "tooltip": true },
+  "encoding": {
+    "x": { "field": "topic", "type": "nominal", "title": null },
+    "y": { "field": "score", "type": "quantitative", "scale": { "domain": [0, 100] } }
+  },
+  "data": { "values": [
+    { "topic": "Algebra", "score": 86 },
+    { "topic": "Calculus", "score": 64 }
+  ] }
+}
+</script>
+```
+
+See [references/chart.md](references/chart.md) for the chart authoring recipe — chart-type selection, data limits, and worked specs.
+
+> **Theming:** `vega-theme.js` injects the Nord palette via `vegaEmbed`'s `config` option, read fresh from `data-theme` at each render. Theme switching triggers a clean re-render from the JSON spec — no cached-SVG retint (unlike mermaid, whose colours are baked into per-diagram `<style>`). The spec never needs colour values; they come from the config.
 
 ---
 

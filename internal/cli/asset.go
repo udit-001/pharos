@@ -30,8 +30,8 @@ var assetListCmd = &cobra.Command{
 
   Seeded   — universal defaults every workspace starts with (style.css,
              glossary-tooltip.js, copy-code.js, the Inter font).
-  Vendored — third-party libraries added on demand (mermaid, highlightjs,
-             mermaid-lightbox).
+   Vendored — third-party libraries added on demand (mermaid, highlightjs,
+              katex, vega, mermaid-lightbox).
   User     — components authored with 'pharos asset create'.
 
 Each row shows whether the asset is fully present and the command that acts
@@ -146,13 +146,18 @@ type regEntry struct {
 	Hint    string `json:"hint"`
 }
 
-// specPresent reports whether every file a spec owns (its lib Filename plus
-// all embedded Files) is present on disk.
+// specPresent reports whether every file a spec owns (its lib Filename,
+// embedded Files, and Downloads) is present on disk.
 func specPresent(spec db.AssetSpec, presentSet map[string]bool) bool {
 	if spec.Filename != "" && !presentSet[spec.Filename] {
 		return false
 	}
 	for f := range spec.Files {
+		if !presentSet[f] {
+			return false
+		}
+	}
+	for f := range spec.Downloads {
 		if !presentSet[f] {
 			return false
 		}
