@@ -134,8 +134,17 @@ func TestQuizLibraryRendersQuizzes(t *testing.T) {
 
 func TestQuizLibraryEmptyState(t *testing.T) {
 	out := QuizLibrary(QuizLibraryData{Workspace: Workspace{Name: "alpha"}})
-	if !strings.Contains(out, "No quizzes yet.") {
-		t.Errorf("expected empty state, got:\n%s", out)
+	for _, want := range []string{
+		"Quizzes test what you've learned.",
+		`"Quiz me on what I've learned"`,
+		"bg-white rounded-lg border border-slate-200", // card, matching documentView empty state
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected empty state to contain %q, got:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "0 quizzes") {
+		t.Errorf("empty state should not show a zero count, got:\n%s", out)
 	}
 }
 
