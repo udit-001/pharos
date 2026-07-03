@@ -14,9 +14,15 @@
  * colours are baked into per-diagram <style> at render time).
  */
 (function () {
-  var NORD_CATEGORICAL = [
-    '#5e81ac', '#bf616a', '#a3be8c', '#d08770',
+  // WCAG 1.4.11-compliant Nord palettes — 3:1+ contrast against both
+  // dark (#3b4252) and light (#ffffff) page backgrounds.
+  var NORD_CATEGORICAL_DARK = [
+    '#7ba3c8', '#d08088', '#a3be8c', '#d08770',
     '#b48ead', '#88c0d0', '#ebcb8b'
+  ];
+  var NORD_CATEGORICAL_LIGHT = [
+    '#3d5a80', '#8b3a42', '#6b8c5a', '#a05a3c',
+    '#7a5a82', '#5a8a96', '#a08840'
   ];
 
   function configFor(theme) {
@@ -31,10 +37,12 @@
         'guide-title': { fill: dark ? '#d8dee9' : '#3b4252', fontSize: 11, fontWeight: 600 }
       },
       axis: {
-        domainColor: dark ? '#434c5e' : '#d8dee9',
-        tickColor: dark ? '#434c5e' : '#d8dee9',
-        gridColor: dark ? '#3b4252' : '#eceff4',
-        gridOpacity: 0.7,
+        domainColor: dark ? '#81a1c1' : '#4c566a',
+        tickColor: dark ? '#81a1c1' : '#4c566a',
+        gridColor: dark ? '#88c0d0' : '#4c566a',
+        gridOpacity: 0.3,
+        domainOpacity: 0.3,
+        tickOpacity: 0.3,
         labelFontSize: 11,
         titleFontSize: 11
       },
@@ -42,7 +50,7 @@
         labelColor: dark ? '#aebbcf' : '#4c566a',
         titleColor: dark ? '#d8dee9' : '#3b4252'
       },
-      range: { category: NORD_CATEGORICAL }
+      range: { category: dark ? NORD_CATEGORICAL_DARK : NORD_CATEGORICAL_LIGHT }
     };
   }
 
@@ -50,7 +58,7 @@
     return document.documentElement.dataset.theme || 'light';
   }
 
-  function renderOne(el) {
+  function renderOne(el, theme) {
     var id = el.getAttribute('data-vega');
     if (!id) return;
     var script = document.getElementById(id);
@@ -64,18 +72,18 @@
     }
     if (typeof vegaEmbed !== 'function') return;
     vegaEmbed(el, spec, {
-      config: configFor(currentTheme()),
+      config: configFor(theme || currentTheme()),
       actions: false,
       renderer: 'svg'
     });
   }
 
-  function renderAll() {
-    document.querySelectorAll('.chart[data-vega]').forEach(renderOne);
+  function renderAll(theme) {
+    document.querySelectorAll('.chart[data-vega]').forEach(function(el) { renderOne(el, theme); });
   }
 
-  document.addEventListener('DOMContentLoaded', renderAll);
+  document.addEventListener('DOMContentLoaded', function() { renderAll(); });
   window.addEventListener('message', function (e) {
-    if (e.data && e.data.type === 'theme') renderAll();
+    if (e.data && e.data.type === 'theme') renderAll(e.data.theme);
   });
 })();
