@@ -142,7 +142,8 @@ func runDev() error {
 	if !debounce.Stop() {
 		<-debounce.C
 	}
-	fmt.Printf("[dev] pharos v%s ready → http://127.0.0.1:%d  (Ctrl-C to stop)\n", version.Version, devFlags.port)
+	fmt.Printf("[dev] pharos ready (%s)\n", version.DisplayVersion())
+	fmt.Printf("[dev] http://127.0.0.1:%d  (Ctrl-C to stop)\n", devFlags.port)
 
 	for {
 		select {

@@ -93,16 +93,16 @@ func runBuild() error {
 		return fmt.Errorf("go build failed: %w", err)
 	}
 
-	v := version.Version
+	v := version.DisplayVersion()
 	if version.Commit != "" {
 		short := version.Commit
 		if len(short) > 7 {
 			short = short[:7]
 		}
-		v += fmt.Sprintf(" (%s)", short)
+		v += fmt.Sprintf(", %s", short)
 	}
 	fmt.Println()
-	fmt.Printf("  ✓ Built pharos v%s\n", v)
+	fmt.Printf("  ✓ Built pharos (%s)\n", v)
 	fmt.Println()
 
 	return nil

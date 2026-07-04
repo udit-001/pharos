@@ -45,7 +45,7 @@ restarted afterwards.`,
 		fmt.Println()
 		fmt.Printf("  Checking for upgrades...\n")
 
-		fmt.Printf("  Current version: v%s\n", version.Version)
+		fmt.Printf("  Current version: %s\n", version.DisplayVersion())
 
 		latest, err := latestVersionFromProxy(goPath)
 		if err != nil {
@@ -56,7 +56,7 @@ restarted afterwards.`,
 		current := strings.TrimPrefix(version.Version, "v")
 		tag := strings.TrimPrefix(latest, "v")
 		if !upgradeForce && current != "" && current != "dev" && semverCompare(current, tag) >= 0 {
-			fmt.Printf("  Already up to date (v%s)\n", current)
+			fmt.Printf("  Already up to date (%s)\n", version.DisplayVersion())
 			fmt.Println()
 			return nil
 		}

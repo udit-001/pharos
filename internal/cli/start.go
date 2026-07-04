@@ -73,7 +73,7 @@ Examples:
 				return nil
 			}
 		fmt.Println()
-		fmt.Printf("  Pharos v%s dashboard already running\n", version.Version)
+		fmt.Printf("  Pharos dashboard already running (%s)\n", version.DisplayVersion())
 		fmt.Printf("  %s\n", url)
 		fmt.Println()
 			return nil
@@ -100,7 +100,7 @@ Examples:
 				return nil
 			}
 			fmt.Println()
-			fmt.Printf("  Pharos v%s server started in background (PID: %d)\n", version.Version, c.Process.Pid)
+			fmt.Printf("  Pharos server started in background (%s, PID: %d)\n", version.DisplayVersion(), c.Process.Pid)
 			fmt.Printf("  %s\n", url)
 			fmt.Println()
 			return nil
@@ -108,7 +108,7 @@ Examples:
 
 		if !startFlags.daemon {
 			fmt.Println()
-			fmt.Printf("  Starting Pharos v%s dashboard...\n", version.Version)
+			fmt.Println("  Starting Pharos dashboard...")
 			fmt.Println()
 		}
 
