@@ -11,7 +11,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Concern | Mechanism |
 |---|---|
 | Palette | CSS custom properties on `:root` / `[data-theme="dark"]` |
-| FOUC prevention | Blocking `<script>` in `<head>` reads `localStorage('pharos_theme')`, falls back to `prefers-color-scheme`, sets `data-theme` |
+| FOUC prevention | Blocking `<script>` in `<head>` reads `localStorage('pharos_theme')`, resolves `'system'`/`null` via `prefers-color-scheme`, sets `data-theme` |
 | Runtime theme sync | `postMessage` listener — dashboard sends `{type:'theme', theme:'dark'|'light'}` to iframes on toggle |
 | Shared styles | `assets/style.css` (variables, typography, layout, and component classes — quiz `.q`, `.callout`, `.source-box`); no per-page stylesheet needed for these |
 | Quiz interactivity | Inline `<script>` before `</body>` — binds to `.q` elements |
@@ -80,7 +80,7 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Page Title</title>
 <link rel="stylesheet" href="assets/style.css">
-<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
+<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 </head>
 <body>
 
