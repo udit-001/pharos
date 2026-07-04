@@ -50,7 +50,7 @@ var resourcesEditCmd = &cobra.Command{
 Examples:
   pharos resources edit --body-file /tmp/resources.md
   pharos resources edit`,
-	Args:  cobra.NoArgs,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
 		wsName, _ := cmd.Flags().GetString("workspace")
