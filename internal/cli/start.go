@@ -72,10 +72,10 @@ Examples:
 				printJSON(map[string]any{"url": url, "running": true, "port": info.Port})
 				return nil
 			}
-		fmt.Println()
-		fmt.Printf("  Pharos dashboard already running (%s)\n", version.DisplayVersion())
-		fmt.Printf("  %s\n", url)
-		fmt.Println()
+			fmt.Println()
+			fmt.Printf("  Pharos dashboard already running (%s)\n", version.DisplayVersion())
+			fmt.Printf("  %s\n", url)
+			fmt.Println()
 			return nil
 		}
 
