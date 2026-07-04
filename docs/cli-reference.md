@@ -38,6 +38,7 @@ pharos workspace list                    # List all workspaces
 pharos workspace stats                   # Show learning statistics (with bar charts)
 pharos workspace use "<name>"            # Set as current workspace
 pharos workspace current                 # Show current workspace
+pharos workspace rename "<new name>"     # Update display name (directory slug unchanged)
 pharos workspace delete "<name>"         # Delete workspace and directory
 pharos workspace delete "<name>" --force # Skip confirmation prompt
 ```
@@ -115,8 +116,54 @@ pharos glossary delete "<term>" -w "<workspace>"                      # Remove a
 ## Assets
 
 ```bash
-pharos asset list -w "<workspace>"                  # List workspace assets
+pharos asset list -w "<workspace>"                  # List workspace assets (seeded, vendored, user)
 pharos asset create <filename> -w "<workspace>" --body-file <path>  # Create or overwrite asset file
+pharos asset add <name> -w "<workspace>"            # Install a vendored/seeded asset (skips if present)
+pharos asset redeploy <name> -w "<workspace>"       # Force-sync asset to current binary version
+pharos asset delete <filename> -w "<workspace>"     # Remove an asset file
+```
+
+## Questions
+
+Questions are DB-only entities used to build quizzes. Two modes:
+- **choice** — `--body-file` is JSON `{"options": [...], "key": N}` (0-based correct index)
+- **recall** — `--body-file` is the reveal text shown after self-grading
+
+```bash
+pharos question create "<title>" -w "<ws>" --mode choice --body-file <path>   # Create a choice question
+pharos question create "<title>" -w "<ws>" --mode recall --body-file <path>   # Create a recall question
+pharos question create "<title>" -w "<ws>" --mode choice --body-file <path> --stimulus-file <html>  # With stimulus
+
+pharos question list -w "<workspace>"               # List questions
+pharos question list -w "<workspace>" --weak        # Sort by accuracy ascending (struggles first)
+pharos question list -w "<workspace>" --limit N     # Max results
+pharos question read <slug> -w "<workspace>"        # Read question content and metadata
+pharos question revise <slug> -w "<workspace>" --title "<new>"       # Update title
+pharos question revise <slug> -w "<workspace>" --body-file <path>    # Update config
+pharos question revise <slug> -w "<workspace>" --mode recall --body-file <path>  # Change mode
+pharos question revise <slug> -w "<workspace>" --stimulus-file <path>  # Add/replace stimulus
+pharos question revise <slug> -w "<workspace>" --clear-stimulus       # Remove stimulus
+pharos question delete <slug> -w "<workspace>"      # Delete (blocks if a quiz references it)
+```
+
+## Quizzes
+
+Quizzes are DB-only ordered lists of question slugs. Taken in the web dashboard.
+
+```bash
+pharos quiz create "<title>" -w "<ws>" --items "slug1,slug2"             # Create a quiz
+pharos quiz create "<title>" -w "<ws>" --items "slug1" --description "..."  # With description
+pharos quiz create "<title>" -w "<ws>" --items "slug1" --lesson <seq>    # Link to a lesson
+
+pharos quiz list -w "<workspace>"                   # List quizzes with best scores
+pharos quiz list -w "<workspace>" --weak            # Sort by lowest accuracy first
+pharos quiz list -w "<workspace>" --limit N         # Max results
+pharos quiz read <slug> -w "<workspace>"            # Read quiz metadata and items
+pharos quiz show <slug> -w "<workspace>"            # Open quiz in web dashboard
+pharos quiz revise <slug> -w "<ws>" --items "slug1,slug2"  # Update items (blocks if in-progress attempts)
+pharos quiz revise <slug> -w "<ws>" --lesson <seq>         # Link/unlink lesson (0 to unlink)
+pharos quiz attempts <slug> -w "<workspace>"        # Show attempt history and trend
+pharos quiz delete <slug> -w "<workspace>"          # Delete (blocks if in-progress attempts)
 ```
 
 ## Migrations
@@ -143,6 +190,7 @@ pharos search --rebuild-index --all               # Rebuild index across all wor
 ```bash
 pharos config read                                # Read current configuration
 pharos config set data_dir ~/my-pharos            # Change the data directory
+pharos config set auto_submit_choice on           # Auto-submit choice questions on selection
 ```
 
 ## Skills
@@ -152,6 +200,9 @@ pharos skills install                 # Interactively install pharos skill into 
 pharos skills install --agent opencode  # Install for a specific agent
 pharos skills install --project       # Install at project level (not global)
 pharos skills check                   # Check installed skills and their status
+pharos skills uninstall               # Remove installed skills (interactive)
+pharos skills uninstall --orphans     # Remove only orphaned installs at old locations
+pharos skills uninstall --all         # Remove all discovered installs
 ```
 
 ## Maintenance
@@ -168,7 +219,6 @@ pharos dev                            # Hot-reload dev server
 
 ```bash
 --json      # Machine-readable JSON output (most commands)
---db        # Custom database path (default: ~/.pharos/pharos.db)
 ```
 
 ## File Naming
@@ -180,6 +230,7 @@ The CLI generates filenames automatically from titles:
 | Lesson     | `0001-dash-case-name.html`      | `0001-sql-joins.html`           |
 | Record     | `0001-dash-case-title.md`       | `0001-understood-inner-join.md` |
 | Reference  | Slug-based (from title)         | `notation-cheat-sheet.html`     |
+| Question   | Slug-based (from title)         | `what-is-a-join` (DB-only; stimulus HTML in `questions/`) |
 
 ## Workspace Layout
 
@@ -192,14 +243,13 @@ The CLI generates filenames automatically from titles:
 ├── lessons/              # Self-contained lesson HTML files
 ├── learning-records/     # ADR-style records of what was learned
 ├── reference/            # Cheat sheets and reference documents
+├── questions/            # Stimulus HTML files for questions (optional)
 └── assets/               # Reusable components (style.css, etc.)
 ```
 
 ## Data
 
-SQLite database at `~/.pharos/pharos.db` (configurable via `--db` or `config set data_dir`).
+SQLite database at `~/.pharos/pharos.db` (configurable via `config set data_dir`).
 
-6 tables: `workspaces`, `lessons`, `learning_records`, `references_t`, `settings`, `glossary_terms`.
 FTS5 full-text search (Porter tokenizer) on lessons, records, and references.
-12 migrations (see `pharos migrate status`).
 All mutations happen through the CLI — the web UI is read-only.
