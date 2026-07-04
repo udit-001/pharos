@@ -12,6 +12,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/version"
 )
 
 // devFlags holds the flags for `pharos dev`.
@@ -141,7 +142,7 @@ func runDev() error {
 	if !debounce.Stop() {
 		<-debounce.C
 	}
-	fmt.Printf("[dev] ready → http://127.0.0.1:%d  (Ctrl-C to stop)\n", devFlags.port)
+	fmt.Printf("[dev] pharos v%s ready → http://127.0.0.1:%d  (Ctrl-C to stop)\n", version.Version, devFlags.port)
 
 	for {
 		select {

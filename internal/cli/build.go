@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/version"
 )
 
 const buildOutput = "bin/pharos"
@@ -92,8 +93,16 @@ func runBuild() error {
 		return fmt.Errorf("go build failed: %w", err)
 	}
 
+	v := version.Version
+	if version.Commit != "" {
+		short := version.Commit
+		if len(short) > 7 {
+			short = short[:7]
+		}
+		v += fmt.Sprintf(" (%s)", short)
+	}
 	fmt.Println()
-	fmt.Println("  ✓ Built pharos")
+	fmt.Printf("  ✓ Built pharos v%s\n", v)
 	fmt.Println()
 
 	return nil

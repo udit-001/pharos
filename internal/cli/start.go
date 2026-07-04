@@ -14,6 +14,7 @@ import (
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/server"
 	"github.com/udit-001/pharos/internal/urls"
+	"github.com/udit-001/pharos/internal/version"
 )
 
 func startDaemon(port int) (*exec.Cmd, error) {
@@ -71,10 +72,10 @@ Examples:
 				printJSON(map[string]any{"url": url, "running": true, "port": info.Port})
 				return nil
 			}
-			fmt.Println()
-			fmt.Printf("  Pharos dashboard already running\n")
-			fmt.Printf("  %s\n", url)
-			fmt.Println()
+		fmt.Println()
+		fmt.Printf("  Pharos v%s dashboard already running\n", version.Version)
+		fmt.Printf("  %s\n", url)
+		fmt.Println()
 			return nil
 		}
 
@@ -99,7 +100,7 @@ Examples:
 				return nil
 			}
 			fmt.Println()
-			fmt.Printf("  Pharos server started in background (PID: %d)\n", c.Process.Pid)
+			fmt.Printf("  Pharos v%s server started in background (PID: %d)\n", version.Version, c.Process.Pid)
 			fmt.Printf("  %s\n", url)
 			fmt.Println()
 			return nil
@@ -107,7 +108,7 @@ Examples:
 
 		if !startFlags.daemon {
 			fmt.Println()
-			fmt.Println("  Starting Pharos dashboard...")
+			fmt.Printf("  Starting Pharos v%s dashboard...\n", version.Version)
 			fmt.Println()
 		}
 

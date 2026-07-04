@@ -45,11 +45,13 @@ restarted afterwards.`,
 		fmt.Println()
 		fmt.Printf("  Checking for upgrades...\n")
 
+		fmt.Printf("  Current version: v%s\n", version.Version)
+
 		latest, err := latestVersionFromProxy(goPath)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("  Latest version: %s\n", latest)
+		fmt.Printf("  Latest version:  %s\n", latest)
 
 		current := strings.TrimPrefix(version.Version, "v")
 		tag := strings.TrimPrefix(latest, "v")
