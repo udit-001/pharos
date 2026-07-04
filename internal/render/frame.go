@@ -72,8 +72,10 @@ func sidebarBody(f Frame) string {
 	}
 	// Quizzes: single link to the library page (not per-item, to avoid
 	// clutter as the collection grows — matches the Glossary pattern).
-	quizActive := at == "quiz" || at == "quiz-library"
-	b.WriteString(sidebarSection("Quizzes", "quizzes", sidebarLink(urls.QuizLibrary(ws.Name), iconClipboardList(), "All quizzes", quizActive), len(f.Sidebar.Quizzes), quizActive))
+	if len(f.Sidebar.Quizzes) > 0 {
+		quizActive := at == "quiz" || at == "quiz-library"
+		b.WriteString(sidebarSection("Quizzes", "quizzes", sidebarLink(urls.QuizLibrary(ws.Name), iconClipboardList(), "All quizzes", quizActive), len(f.Sidebar.Quizzes), quizActive))
+	}
 	if len(f.Sidebar.Records) > 0 {
 		var items strings.Builder
 		for _, r := range f.Sidebar.Records {
