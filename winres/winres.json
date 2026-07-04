@@ -3,21 +3,28 @@
     "#1": {
       "0000": {
         "fixed": {
-          "file_version": "0.3.0.0",
-          "product_version": "0.3.0.0"
+          "file_version": "0.6.1.0",
+          "product_version": "0.6.1.0"
         },
         "info": {
           "0409": {
             "CompanyName": "udit-001",
-            "FileDescription": "Pharos - CLI for AI-guided learning workspaces",
-            "FileVersion": "0.3.0",
+            "FileDescription": "Pharos",
+            "FileVersion": "0.6.1-next",
             "InternalName": "pharos",
             "LegalCopyright": "MIT License",
             "OriginalFilename": "pharos.exe",
             "ProductName": "Pharos",
-            "ProductVersion": "0.3.0"
+            "ProductVersion": "0.6.1-next"
           }
         }
+      }
+    }
+  },
+  "RT_ICON": {
+    "#1": {
+      "0000": {
+        "icon": "pharos.ico"
       }
     }
   },
@@ -26,7 +33,7 @@
       "0409": {
         "identity": {
           "name": "Pharos",
-          "version": "0.3.0.0"
+          "version": "0.6.1.0"
         },
         "description": "CLI + read-only web dashboard for AI-guided learning workspaces",
         "execution-level": "as invoker",

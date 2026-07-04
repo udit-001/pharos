@@ -45,7 +45,7 @@ if [[ $# -ge 1 ]]; then
         "info": {
           "0409": {
             "CompanyName": "udit-001",
-            "FileDescription": "Pharos - CLI for AI-guided learning workspaces",
+            "FileDescription": "Pharos",
             "FileVersion": "$VERSION",
             "InternalName": "pharos",
             "LegalCopyright": "MIT License",
@@ -54,6 +54,13 @@ if [[ $# -ge 1 ]]; then
             "ProductVersion": "$VERSION"
           }
         }
+      }
+    }
+  },
+  "RT_ICON": {
+    "#1": {
+      "0000": {
+        "icon": "pharos.ico"
       }
     }
   },
