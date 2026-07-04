@@ -1,0 +1,20 @@
+#!/bin/sh
+# Pre-commit hook: checks staged Go files with gofmt.
+# Skips if no .go files are staged.
+#
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.go$' || true)
+if [ -z "$staged" ]; then
+    exit 0
+fi
+
+unformatted=$(gofmt -l $staged)
+if [ -n "$unformatted" ]; then
+    echo "error: Go files are not gofmt-compliant:"
+    echo "$unformatted"
+    echo "Fix with: gofmt -w" $unformatted
+    exit 1
+fi
