@@ -16,7 +16,7 @@ func NewLayout(root string) Layout {
 
 // Subdirs returns the workspace subdirectory names in creation order.
 func (l Layout) Subdirs() []string {
-	return []string{"lessons", "learning-records", "reference", "assets"}
+	return []string{"lessons", "learning-records", "reference", "questions", "assets"}
 }
 
 // LessonPath returns the absolute path for a lesson file.
@@ -52,6 +52,16 @@ func (l Layout) RecordRelPath(filename string) string {
 // RefRelPath returns the relative path for a reference file (stored in DB).
 func (l Layout) RefRelPath(filename string) string {
 	return filepath.Join("reference", filename)
+}
+
+// QuestionPath returns the absolute path for a question stimulus file.
+func (l Layout) QuestionPath(filename string) string {
+	return filepath.Join(l.Root, "questions", filename)
+}
+
+// QuestionRelPath returns the relative path for a question stimulus file (stored in DB).
+func (l Layout) QuestionRelPath(filename string) string {
+	return filepath.Join("questions", filename)
 }
 
 // MissionPath returns the absolute path to MISSION.md.

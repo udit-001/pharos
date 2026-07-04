@@ -357,14 +357,14 @@ func TestQuizLibraryAndDetailPages(t *testing.T) {
 		Title:  "Strongest ASD risk gene",
 		Mode:   "choice",
 		Config: `{"options":["CHD8","FMR1"],"key":0}`,
-	}); err != nil {
+	}, ""); err != nil {
 		t.Fatalf("seed question: %v", err)
 	}
 	if _, err := wsStore.AddQuestion(db.Question{
 		Title:  "ASD heritability range",
 		Mode:   "recall",
 		Config: `{"reveal_text":"60-90%"}`,
-	}); err != nil {
+	}, ""); err != nil {
 		t.Fatalf("seed question: %v", err)
 	}
 	if _, err := wsStore.AddQuiz(db.Quiz{
@@ -423,7 +423,7 @@ func TestQuizAttemptAPIFlow(t *testing.T) {
 		Title:  "Capital of France",
 		Mode:   "choice",
 		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("seed question: %v", err)
 	}

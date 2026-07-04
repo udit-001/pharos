@@ -29,6 +29,7 @@
   function renderDots() {
     var c = document.getElementById('attempt-dots');
     if (!c) return;
+    if (questions.length < 2) { c.innerHTML = ''; return; }
     c.innerHTML = '';
     for (var i = 0; i < questions.length; i++) {
       var d = document.createElement('span');
@@ -86,41 +87,63 @@
     var card = document.getElementById('question-area');
     var isAnswered = !!answeredIds[q.id];
     var resp = responses[q.id];
-    var html = '';
+    var answer = '';
 
     if (q.mode === 'choice') {
       if (isAnswered && resp) {
-        html = '<h3 class="text-lg font-medium text-slate-800 leading-relaxed mb-5">' + q.title + '</h3>';
-        html += answeredChoiceHTML(q, resp.selected, resp.correctIndex);
+        answer += '<h3 class="text-lg font-medium text-slate-800 leading-relaxed mb-5">' + q.title + '</h3>';
+        answer += answeredChoiceHTML(q, resp.selected, resp.correctIndex);
       } else {
-        html = '<h3 class="text-lg font-medium text-slate-800 leading-relaxed mb-5">' + q.title + '</h3>';
-        html += '<div class="space-y-2" id="options">';
+        answer += '<h3 class="text-lg font-medium text-slate-800 leading-relaxed mb-5">' + q.title + '</h3>';
+        answer += '<div class="space-y-2" id="options">';
         for (var i = 0; i < q.options.length; i++) {
-          html += '<button data-idx="' + i + '" class="option-btn w-full text-left flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors cursor-pointer text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-700">';
-          html += '<span class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs text-slate-500 shrink-0">' + letters[i] + '</span>';
-          html += q.options[i] + '</button>';
+          answer += '<button data-idx="' + i + '" class="option-btn w-full text-left flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors cursor-pointer text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-700">';
+          answer += '<span class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs text-slate-500 shrink-0">' + letters[i] + '</span>';
+          answer += q.options[i] + '</button>';
         }
-        html += '</div>';
+        answer += '</div>';
       }
     } else if (q.mode === 'recall') {
       if (isAnswered && resp) {
-        html = '<div class="p-6 rounded-lg border border-slate-200 bg-white"><p class="text-lg font-medium text-slate-800 leading-relaxed mb-3">' + q.title + '</p>';
-        html += '<div class="p-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-700 leading-relaxed mb-4">' + q.reveal + '</div>';
-        html += '<div class="text-xs ' + (resp.isCorrect ? 'text-emerald-600' : 'text-red-600') + '">' + (resp.isCorrect ? 'You marked this as known.' : 'You marked this for review.') + '</div></div>';
+        answer += '<div class="p-6 rounded-lg border border-slate-200 bg-white"><p class="text-lg font-medium text-slate-800 leading-relaxed mb-3">' + q.title + '</p>';
+        answer += '<div class="p-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-700 leading-relaxed mb-4">' + q.reveal + '</div>';
+        answer += '<div class="text-xs ' + (resp.isCorrect ? 'text-emerald-600' : 'text-red-600') + '">' + (resp.isCorrect ? 'You marked this as known.' : 'You marked this for review.') + '</div></div>';
       } else {
-        html = '<div id="flashcard" tabindex="0" role="button" aria-label="Flip card" class="relative cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-blue-700 rounded-lg" style="perspective:1000px" onclick="var i=document.getElementById(\'flashcard-inner\');if(!document.getElementById(\'flashcard\').dataset.locked){i.style.transform=i.style.transform?\'\':\'rotateY(180deg)\';i.classList.toggle(\'flipped\');if(i.classList.contains(\'flipped\')&&!document.getElementById(\'flashcard\').dataset.gradeShown){window._showGradeButtons()}}">';
-        html += '<div id="flashcard-inner" class="relative transition-transform duration-500" style="transform-style:preserve-3d;display:grid">';
-        html += '<div id="card-front" class="flex items-center justify-center p-6 rounded-lg border border-slate-200 bg-white text-center" style="backface-visibility:hidden;grid-area:1/1;min-height:200px">';
-        html += '<div><p class="text-lg font-medium text-slate-800 leading-relaxed">' + q.title + '</p>';
-        html += '<p class="text-xs text-slate-400 italic mt-4">Tap to reveal answer</p></div>';
-        html += '</div>';
-        html += '<div id="card-back" aria-hidden="true" class="flex items-center justify-center p-6 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center overflow-y-auto" style="backface-visibility:hidden;transform:rotateY(180deg);grid-area:1/1;min-height:200px;max-height:400px">';
-        html += '<p class="text-base text-slate-700 leading-relaxed">' + q.reveal + '</p>';
-        html += '</div>';
-        html += '</div></div>';
+        answer += '<div id="flashcard" tabindex="0" role="button" aria-label="Flip card" class="relative cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-blue-700 rounded-lg" style="perspective:1000px" onclick="var i=document.getElementById(\'flashcard-inner\');if(!document.getElementById(\'flashcard\').dataset.locked){i.style.transform=i.style.transform?\'\':\'rotateY(180deg)\';i.classList.toggle(\'flipped\');if(i.classList.contains(\'flipped\')&&!document.getElementById(\'flashcard\').dataset.gradeShown){window._showGradeButtons()}}">';
+        answer += '<div id="flashcard-inner" class="relative transition-transform duration-500" style="transform-style:preserve-3d;display:grid">';
+        answer += '<div id="card-front" class="flex items-center justify-center p-6 rounded-lg border border-slate-200 bg-white text-center" style="backface-visibility:hidden;grid-area:1/1;min-height:200px">';
+        answer += '<div><p class="text-lg font-medium text-slate-800 leading-relaxed">' + q.title + '</p>';
+        answer += '<p class="text-xs text-slate-400 italic mt-4">Tap to reveal answer</p></div>';
+        answer += '</div>';
+        answer += '<div id="card-back" aria-hidden="true" class="flex items-center justify-center p-6 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center overflow-y-auto" style="backface-visibility:hidden;transform:rotateY(180deg);grid-area:1/1;min-height:200px;max-height:400px">';
+        answer += '<p class="text-base text-slate-700 leading-relaxed">' + q.reveal + '</p>';
+        answer += '</div>';
+        answer += '</div></div>';
       }
     }
+
+    // A stimulus sits above the answer — narrower and height-capped so the
+    // chart and the answer both fit a laptop viewport without a side-by-side
+    // layout (which would shift width between stimulus and plain questions).
+    // aria-busy + a placeholder background cover the load; cleared on load.
+    var html = '';
+    if (q.rawUrl) {
+      html += '<div class="stimulus-frame relative max-w-2xl mx-auto mb-5">';
+      html += '<iframe src="' + q.rawUrl + '" loading="lazy" aria-busy="true" class="w-full rounded-lg border border-slate-200 bg-slate-100" style="height:40vh;max-height:300px;min-height:180px" title="' + q.title + '"></iframe>';
+      html += '<button type="button" data-stimulus-src="' + q.rawUrl + '" data-stimulus-title="' + q.title + '" class="stimulus-expand" title="Expand" aria-label="Expand stimulus to full size"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>';
+      html += '</div>';
+    }
+    html += answer;
     card.innerHTML = html;
+
+    var stimFrame = card.querySelector('iframe[aria-busy="true"]');
+    if (stimFrame) {
+      var clearBusy = function() { stimFrame.removeAttribute('aria-busy'); stimFrame.classList.remove('bg-slate-100'); };
+      try {
+        if (stimFrame.contentDocument && stimFrame.contentDocument.readyState === 'complete') clearBusy();
+        else stimFrame.addEventListener('load', clearBusy);
+      } catch(e) { stimFrame.addEventListener('load', clearBusy); }
+    }
 
     var actions = document.getElementById('attempt-actions');
     if (actions) actions.innerHTML = '';

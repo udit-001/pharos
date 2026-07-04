@@ -13,8 +13,9 @@ var questionCreateCmd = &cobra.Command{
 	Short: "Create a new question",
 	Long: `Create a new question in a workspace.
 
-Questions are DB-only (no file on disk). The --mode flag selects the
-config shape and how --body-file is interpreted:
+The --mode flag selects the config shape and how --body-file is
+interpreted. A question may optionally carry a stimulus (--stimulus-file),
+a standalone HTML file rendered in an iframe above the answer:
 
   choice: --body-file is a JSON object {"options": [...], "key": N}
           where "key" is the 0-based index of the correct answer.
@@ -22,6 +23,7 @@ config shape and how --body-file is interpreted:
 
 The slug is derived from the title. Examples:
   pharos question create "What is a JOIN?" --workspace "sql" --mode choice --body-file /tmp/q.json
+  pharos question create "Which segment grew most?" --workspace "sql" --mode choice --body-file /tmp/q.json --stimulus-file /tmp/chart.html
   pharos question create "Explain MVCC" --workspace "sql" --mode recall --body-file /tmp/reveal.txt`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -51,6 +53,16 @@ The slug is derived from the title. Examples:
 			return err
 		}
 
+		stimulusFile, _ := cmd.Flags().GetString("stimulus-file")
+		stimulusHTML := ""
+		if stimulusFile != "" {
+			sdata, err := readBodyFile(stimulusFile)
+			if err != nil {
+				return err
+			}
+			stimulusHTML = string(sdata)
+		}
+
 		// Build the typed config from mode + body file, validate it, then
 		// marshal back to JSON for storage. All parsing/validation lives
 		// behind the QuestionConfig interface.
@@ -77,7 +89,7 @@ The slug is derived from the title. Examples:
 			Title:  title,
 			Mode:   mode,
 			Config: string(configJSON),
-		})
+		}, stimulusHTML)
 		if err != nil {
 			return formatError("failed to save question", err)
 		}
@@ -91,6 +103,9 @@ The slug is derived from the title. Examples:
 		fmt.Printf("  ✓ Question created: %s\n", title)
 		fmt.Printf("    Slug: %s\n", created.Slug)
 		fmt.Printf("    Mode: %s\n", created.Mode)
+		if created.Filename != "" {
+			fmt.Printf("    Stimulus: %s\n", created.Filename)
+		}
 		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
 		fmt.Println()
 
@@ -103,4 +118,5 @@ func init() {
 	questionCreateCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	questionCreateCmd.Flags().String("mode", "", "Question mode: choice or recall (required)")
 	questionCreateCmd.Flags().String("body-file", "", "Read question content from a file (required)")
+	questionCreateCmd.Flags().String("stimulus-file", "", "Read a stimulus HTML file (optional; rendered in an iframe above the answer)")
 }

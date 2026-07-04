@@ -91,8 +91,10 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /search", handleSearchPage(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/{file}", handleLessonHTML(store))
 	mux.HandleFunc("GET /api/ref-html/{name}/{file}", handleRefHTML(store))
+	mux.HandleFunc("GET /api/question-html/{name}/{file}", handleQuestionHTML(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/assets/{file...}", handleAssetFile(store))
 	mux.HandleFunc("GET /api/ref-html/{name}/assets/{file...}", handleAssetFile(store))
+	mux.HandleFunc("GET /api/question-html/{name}/assets/{file...}", handleAssetFile(store))
 	mux.HandleFunc("POST /api/attempt", jsonHandler(handleSubmitAttempt(store)))
 	mux.HandleFunc("POST /api/quiz-attempt/{id}/complete", jsonHandler(handleCompleteQuizAttempt(store)))
 	mux.HandleFunc("POST /api/quiz-attempt/{id}/abandon", jsonHandler(handleAbandonQuizAttempt(store)))
@@ -895,12 +897,17 @@ func handleQuizAttemptPage(store *db.Store) http.HandlerFunc {
 			if rc, ok := cfg.(db.RecallConfig); ok {
 				reveal = rc.RevealText
 			}
+			rawURL := ""
+			if q.Filename != "" {
+				rawURL = fmt.Sprintf("/api/question-html/%s/%s", urls.PathEscape(name), urls.PathEscape(q.Filename))
+			}
 			questions = append(questions, render.AttemptQuestion{
 				ID:      q.ID,
 				Title:   q.Title,
 				Mode:    q.Mode,
 				Options: opts,
 				Reveal:  reveal,
+				RawURL:  rawURL,
 			})
 		}
 
@@ -979,6 +986,9 @@ func handleQuizReviewPage(store *db.Store) http.HandlerFunc {
 				QuestionID:    q.ID,
 				QuestionTitle: q.Title,
 				Mode:          q.Mode,
+			}
+			if q.Filename != "" {
+				ri.RawURL = fmt.Sprintf("/api/question-html/%s/%s", urls.PathEscape(name), urls.PathEscape(q.Filename))
 			}
 			if hasAtt {
 				ri.UserResponse = att.Response
@@ -1148,6 +1158,20 @@ func handleRefHTML(store *db.Store) http.HandlerFunc {
 		}
 		ws := wsStore.Workspace()
 		serveFileOr404(w, r, filepath.Join(ws.Path, "reference", file), "reference", file)
+	}
+}
+
+func handleQuestionHTML(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		file := r.PathValue("file")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			iframeNotFound(w, "workspace", name)
+			return
+		}
+		ws := wsStore.Workspace()
+		serveFileOr404(w, r, filepath.Join(ws.Path, "questions", file), "question", file)
 	}
 }
 

@@ -68,9 +68,10 @@ type Reference struct {
 	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
 }
 
-// Question represents a single question in a workspace. Questions are
-// DB-only (no file on disk). Config holds the mode-specific JSON; use
-// ParseConfig for typed access.
+// Question represents a single question in a workspace. The answer config
+// lives in the DB; a question may optionally carry a stimulus — a standalone
+// HTML file (chart/diagram/passage) rendered in an iframe during the attempt
+// and review. Filename/Path are empty when there is no stimulus.
 type Question struct {
 	ID          int64  `db:"id" json:"id"`
 	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
@@ -78,6 +79,8 @@ type Question struct {
 	Slug        string `db:"slug" json:"slug"`
 	Mode        string `db:"mode" json:"mode"`     // "choice" | "recall"
 	Config      string `db:"config" json:"config"` // raw JSON; use ParseConfig for typed access
+	Filename    string `db:"filename" json:"filename"` // stimulus HTML file, e.g. <slug>.html; empty = no stimulus
+	Path        string `db:"path" json:"path"`         // relative to workspace
 	CreatedAt   string `db:"created_at" json:"createdAt"`
 	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
 }

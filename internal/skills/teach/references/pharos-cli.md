@@ -140,8 +140,8 @@ Two workspaces can each have a reference with the same slug.
 ## Questions
 
 ```bash
-pharos question create "<title>" --mode choice|recall --body-file <path>  # Create a question (DB-only)
-pharos question revise <slug> [--title "..."] [--mode choice|recall --body-file <path>]  # Update in place
+pharos question create "<title>" --mode choice|recall --body-file <path> [--stimulus-file <path>]  # Create a question (DB-backed; optional stimulus)
+pharos question revise <slug> [--title "..."] [--mode choice|recall --body-file <path>] [--stimulus-file <path> | --clear-stimulus]  # Update in place
 pharos question list                                                       # List questions
 pharos question list --weak                                               # Sort by accuracy ascending (completed attempts only)
 pharos question list --weak --limit 5 --json                               # Top 5 weakest, machine-readable
@@ -149,13 +149,13 @@ pharos question read <slug>                                                # Pri
 pharos question delete <slug>                                              # Delete (blocks if a quiz references it)
 ```
 
-Questions are DB-only (no file on disk) — the item bank a workspace's quizzes draw from.
+Questions are DB-backed — the item bank a workspace's quizzes draw from. A question may optionally carry a stimulus file (see [QUESTION-FORMAT.md](../QUESTION-FORMAT.md)).
 A question's `--mode` selects its config shape and how `--body-file` is interpreted:
 
 - **choice** — `--body-file` is JSON: `{"options": ["A","B","C","D"], "key": 2}` where `key` is the 0-based index of the correct answer.
 - **recall** — `--body-file` is the reveal text shown after the learner self-grades.
 
-The slug is derived from the title and **stays stable** across `revise` (it is not regenerated from the title), so quiz item references remain valid. Before creating, `pharos question list` to reuse existing questions across quizzes rather than duplicating. `revise` needs at least one of `--title`, `--mode`, or `--body-file`; `--mode` requires `--body-file` (the config shape changes with mode).
+The slug is derived from the title and **stays stable** across `revise` (it is not regenerated from the title), so quiz item references remain valid. Before creating, `pharos question list` to reuse existing questions across quizzes rather than duplicating. `revise` needs at least one of `--title`, `--mode`, `--body-file`, `--stimulus-file`, or `--clear-stimulus`; `--mode` requires `--body-file` (the config shape changes with mode); `--stimulus-file` and `--clear-stimulus` are mutually exclusive.
 
 `delete` blocks while any quiz still references the question — remove it from those quizzes first with `pharos quiz revise <quiz-slug> --items ...`.
 
@@ -275,6 +275,7 @@ Key rules:
 - Lessons:    `0001-dash-case-name.html` (4-digit zero-padded sequence)
 - Records:    `0001-dash-case-title.md`
 - References: `<slug>.html` (descriptive, e.g. `sql-syntax.html`)
+- Question stimuli: `<slug>.html` in `questions/` (optional; only when `--stimulus-file` is given)
 - Assets:     `<filename>` (you choose the name)
 
 Sequence numbers are assigned by the CLI on creation — don't hand-number.
@@ -289,7 +290,8 @@ Sequence numbers are assigned by the CLI on creation — don't hand-number.
 ├── lessons/              # Self-contained lesson HTML files
 ├── learning-records/     # ADR-style records of what was learned
 ├── reference/            # Cheat sheets and reference documents
+├── questions/            # Optional question stimulus HTML files
 └── assets/               # Reusable components (style.css, etc.)
 ```
 
-Questions, quizzes, and quiz attempts are **DB-only** — they have no file on disk and are managed entirely via the CLI. The web dashboard is read-only — all mutations go through the CLI.
+Quizzes and quiz attempts are **DB-only** — they have no file on disk and are managed entirely via the CLI. Questions are DB-backed: the answer config lives in the database, and a question may optionally carry a stimulus HTML file in `questions/` (attached via `--stimulus-file`). The web dashboard is read-only — all mutations go through the CLI.

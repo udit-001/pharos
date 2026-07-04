@@ -289,8 +289,12 @@ func (w *WorkspaceStore) GetQuestionBySlug(slug string) (*Question, error) {
 
 // AddQuestion creates a new question in this workspace. WorkspaceID is set
 // automatically and the slug is derived from the title if empty. The caller
-// is responsible for validating the config (see Question.ParseConfig).
-func (w *WorkspaceStore) AddQuestion(q Question) (Question, error) {
+// is responsible for validating the config (see Question.ParseConfig). When
+// stimulusHTML is non-empty, it is written to questions/<slug>.html and the
+// filename/path are recorded; an empty stimulusHTML means no stimulus. The
+// insert and file write are wrapped in a transaction so a failed write
+// leaves no orphan row (mirrors CreateRef).
+func (w *WorkspaceStore) AddQuestion(q Question, stimulusHTML string) (Question, error) {
 	q.WorkspaceID = w.ws.ID
 	now := nowTimestamp()
 
@@ -298,14 +302,36 @@ func (w *WorkspaceStore) AddQuestion(q Question) (Question, error) {
 		q.Slug = Slugify(q.Title)
 	}
 
-	result, err := w.db().Exec(
-		`INSERT INTO questions (workspace_id, title, slug, mode, config, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		q.WorkspaceID, q.Title, q.Slug, q.Mode, q.Config, now, now,
+	if stimulusHTML != "" {
+		q.Filename = q.Slug + ".html"
+		q.Path = w.Layout().QuestionRelPath(q.Filename)
+	}
+
+	tx, err := w.db().Begin()
+	if err != nil {
+		return Question{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
+		`INSERT INTO questions (workspace_id, title, slug, mode, config, filename, path, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		q.WorkspaceID, q.Title, q.Slug, q.Mode, q.Config, q.Filename, q.Path, now, now,
 	)
 	if err != nil {
 		return Question{}, fmt.Errorf("add question: %w", err)
 	}
+
+	if stimulusHTML != "" {
+		if err := writeToFile(w.Layout().QuestionPath(q.Filename), stimulusHTML); err != nil {
+			return Question{}, fmt.Errorf("write question stimulus file: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Question{}, fmt.Errorf("commit tx: %w", err)
+	}
+
 	id, _ := result.LastInsertId()
 	q.ID = id
 	q.CreatedAt = now
@@ -317,10 +343,14 @@ func (w *WorkspaceStore) AddQuestion(q Question) (Question, error) {
 // quizzes and cannot be deleted until it is removed from their item lists.
 var ErrQuestionInUse = errors.New("question is referenced by one or more quizzes")
 
-// ReviseQuestion updates a question's title, mode, and/or config in place.
-// The slug is NOT regenerated from the title — it stays stable so existing
-// quiz item references remain valid. Only non-nil fields are applied.
-func (w *WorkspaceStore) ReviseQuestion(slug string, title *string, mode *string, config *string) (Question, error) {
+// ReviseQuestion updates a question's title, mode, config, and/or stimulus in
+// place. The slug is NOT regenerated from the title — it stays stable so
+// existing quiz item references remain valid. Only non-nil fields are applied.
+// For stimulus: nil leaves it unchanged; a pointer to "" clears it (and
+// removes the stimulus file after the DB is updated); a pointer to non-empty
+// HTML replaces it, overwriting the file in place (the slug is stable, so the
+// filename is too).
+func (w *WorkspaceStore) ReviseQuestion(slug string, title, mode, config, stimulus *string) (Question, error) {
 	current, err := w.GetQuestionBySlug(slug)
 	if err != nil {
 		return Question{}, err
@@ -339,19 +369,42 @@ func (w *WorkspaceStore) ReviseQuestion(slug string, title *string, mode *string
 		c = *config
 	}
 
+	filename := current.Filename
+	path := current.Path
+	if stimulus != nil {
+		if *stimulus == "" {
+			filename = ""
+			path = ""
+		} else {
+			filename = current.Slug + ".html"
+			path = w.Layout().QuestionRelPath(filename)
+			if err := writeToFile(w.Layout().QuestionPath(filename), *stimulus); err != nil {
+				return Question{}, fmt.Errorf("write question stimulus file: %w", err)
+			}
+		}
+	}
+
 	now := nowTimestamp()
 	result, err := w.db().Exec(
-		"UPDATE questions SET title = ?, mode = ?, config = ?, updated_at = ? WHERE id = ?",
-		t, m, c, now, current.ID,
+		"UPDATE questions SET title = ?, mode = ?, config = ?, filename = ?, path = ?, updated_at = ? WHERE id = ?",
+		t, m, c, filename, path, now, current.ID,
 	)
 	if err != nil {
 		return Question{}, fmt.Errorf("revise question: %w", err)
 	}
 	_ = result
 
+	// Clear: remove the now-orphaned file after the DB is updated, so a DB
+	// failure never leaves a row referencing a deleted file.
+	if stimulus != nil && *stimulus == "" && current.Filename != "" {
+		_ = os.Remove(w.Layout().QuestionPath(current.Filename))
+	}
+
 	current.Title = t
 	current.Mode = m
 	current.Config = c
+	current.Filename = filename
+	current.Path = path
 	current.UpdatedAt = now
 	return *current, nil
 }

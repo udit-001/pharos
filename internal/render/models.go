@@ -187,6 +187,7 @@ type QuizAttemptSummary struct {
 
 // AttemptQuestion is one question in the attempt page, embedded as JSON.
 // Options is empty for recall mode. Reveal is empty for choice mode.
+// RawURL is the stimulus iframe URL, empty when the question has no stimulus.
 // The correct answer is NOT included.
 type AttemptQuestion struct {
 	ID      int64    `json:"id"`
@@ -194,6 +195,7 @@ type AttemptQuestion struct {
 	Mode    string   `json:"mode"`
 	Options []string `json:"options,omitempty"`
 	Reveal  string   `json:"reveal,omitempty"`
+	RawURL  string   `json:"rawUrl,omitempty"`
 }
 
 // AttemptData drives the quiz attempt page.
@@ -216,9 +218,10 @@ type ReviewItem struct {
 	Mode          string
 	Options       []string
 	UserResponse  string
-	CorrectIndex  int // for choice mode
+	CorrectIndex  int    // for choice mode
 	IsCorrect     bool
 	RevealText    string // for recall mode
+	RawURL        string // stimulus iframe URL; empty when no stimulus
 }
 
 // QuizReviewData drives the quiz review page.

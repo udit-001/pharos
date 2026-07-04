@@ -187,7 +187,7 @@ func TestAddQuestionAndQuiz(t *testing.T) {
 		Title:  "Strongest ASD Risk Gene",
 		Mode:   "choice",
 		Config: `{"options":["CHD8","FMR1"],"key":0}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -275,7 +275,7 @@ func TestQuizAttemptLifecycle(t *testing.T) {
 		Title:  "Capital of France",
 		Mode:   "choice",
 		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestGetQuizScores(t *testing.T) {
 		Title:  "Capital of France",
 		Mode:   "choice",
 		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -398,7 +398,7 @@ func TestGetQuizAttemptHistory(t *testing.T) {
 		Title:  "Capital of France",
 		Mode:   "choice",
 		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -477,7 +477,7 @@ func TestQuizLessonLink(t *testing.T) {
 		Title:  "What is a JOIN?",
 		Mode:   "choice",
 		Config: `{"options":["a","b"],"key":0}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -565,7 +565,7 @@ func TestQuizLessonLinkErrors(t *testing.T) {
 		Title:  "What is a JOIN?",
 		Mode:   "choice",
 		Config: `{"options":["a","b"],"key":0}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -618,7 +618,7 @@ func TestQuizAttemptAbandon(t *testing.T) {
 		Title:  "q1",
 		Mode:   "choice",
 		Config: `{"options":["a","b"],"key":0}`,
-	})
+	}, "")
 	quiz, _ := alpha.AddQuiz(Quiz{Title: "Quiz", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
 
 	qa, _ := alpha.CreateQuizAttempt(quiz.ID)
@@ -1675,7 +1675,7 @@ func TestReviseQuestion(t *testing.T) {
 		Title:  "Capital of France",
 		Mode:   "choice",
 		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -1683,7 +1683,7 @@ func TestReviseQuestion(t *testing.T) {
 
 	// Revise title only — slug must stay stable.
 	newTitle := "Capital of France (updated)"
-	updated, err := ws.ReviseQuestion(q.Slug, &newTitle, nil, nil)
+	updated, err := ws.ReviseQuestion(q.Slug, &newTitle, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ReviseQuestion title: %v", err)
 	}
@@ -1696,7 +1696,7 @@ func TestReviseQuestion(t *testing.T) {
 
 	// Revise config only.
 	newConfig := `{"options":["Madrid","Paris","Berlin","Lyon"],"key":0}`
-	updated, err = ws.ReviseQuestion(q.Slug, nil, nil, &newConfig)
+	updated, err = ws.ReviseQuestion(q.Slug, nil, nil, &newConfig, nil)
 	if err != nil {
 		t.Fatalf("ReviseQuestion config: %v", err)
 	}
@@ -1721,9 +1721,88 @@ func TestReviseQuestionNotFound(t *testing.T) {
 	store := newTestStore(t)
 	ws := seedWorkspace(t, store, "alpha")
 
-	_, err := ws.ReviseQuestion("nonexistent", strPtr("x"), nil, nil)
+	_, err := ws.ReviseQuestion("nonexistent", strPtr("x"), nil, nil, nil)
 	if err == nil {
 		t.Error("expected error revising non-existent question")
+	}
+}
+
+func TestQuestionStimulus(t *testing.T) {
+	store := newTestStore(t)
+	dir := t.TempDir()
+	if _, err := store.AddWorkspace(Workspace{Name: "test", Path: dir}); err != nil {
+		t.Fatal(err)
+	}
+	ws, err := store.Workspace("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// No stimulus: filename/path stay empty, no file on disk.
+	plain, err := ws.AddQuestion(Question{Title: "Plain Q", Mode: "choice", Config: `{"options":["A","B"],"key":0}`}, "")
+	if err != nil {
+		t.Fatalf("AddQuestion plain: %v", err)
+	}
+	if plain.Filename != "" || plain.Path != "" {
+		t.Errorf("plain question has stimulus filename/path = %q/%q, want empty", plain.Filename, plain.Path)
+	}
+
+	// With stimulus: file written, filename/path recorded.
+	stim := "<html><body><div class=\"mermaid\">graph LR; A-->B</div></body></html>"
+	q, err := ws.AddQuestion(Question{Title: "Chart Q", Mode: "choice", Config: `{"options":["A","B"],"key":0}`}, stim)
+	if err != nil {
+		t.Fatalf("AddQuestion stimulus: %v", err)
+	}
+	wantFile := "chart-q.html"
+	if q.Filename != wantFile {
+		t.Errorf("filename = %q, want %q", q.Filename, wantFile)
+	}
+	if q.Path != "questions/"+wantFile {
+		t.Errorf("path = %q, want questions/%s", q.Path, wantFile)
+	}
+	// Scan round-trips the new columns.
+	got, err := ws.GetQuestionBySlug(q.Slug)
+	if err != nil {
+		t.Fatalf("GetQuestionBySlug: %v", err)
+	}
+	if got.Filename != q.Filename || got.Path != q.Path {
+		t.Errorf("scan round-trip: got filename/path = %q/%q, want %q/%q", got.Filename, got.Path, q.Filename, q.Path)
+	}
+	pathOnDisk := filepath.Join(dir, "questions", wantFile)
+	b, err := os.ReadFile(pathOnDisk)
+	if err != nil {
+		t.Fatalf("stimulus file not on disk: %v", err)
+	}
+	if string(b) != stim {
+		t.Errorf("stimulus file content = %q, want %q", string(b), stim)
+	}
+
+	// Revise stimulus: file overwritten in place, filename unchanged.
+	stim2 := "<html><body>replaced</body></html>"
+	if _, err := ws.ReviseQuestion(q.Slug, nil, nil, nil, strPtr(stim2)); err != nil {
+		t.Fatalf("ReviseQuestion stimulus replace: %v", err)
+	}
+	b2, err := os.ReadFile(pathOnDisk)
+	if err != nil {
+		t.Fatalf("stimulus file missing after replace: %v", err)
+	}
+	if string(b2) != stim2 {
+		t.Errorf("stimulus file after replace = %q, want %q", string(b2), stim2)
+	}
+
+	// Clear stimulus: filename/path blanked, file removed.
+	if _, err := ws.ReviseQuestion(q.Slug, nil, nil, nil, strPtr("")); err != nil {
+		t.Fatalf("ReviseQuestion stimulus clear: %v", err)
+	}
+	cleared, err := ws.GetQuestionBySlug(q.Slug)
+	if err != nil {
+		t.Fatalf("GetQuestionBySlug after clear: %v", err)
+	}
+	if cleared.Filename != "" || cleared.Path != "" {
+		t.Errorf("after clear: filename/path = %q/%q, want empty", cleared.Filename, cleared.Path)
+	}
+	if _, err := os.Stat(pathOnDisk); !os.IsNotExist(err) {
+		t.Errorf("stimulus file still exists after clear (err=%v)", err)
 	}
 }
 
@@ -1735,7 +1814,7 @@ func TestDeleteQuestion(t *testing.T) {
 		Title:  "Standalone Q",
 		Mode:   "recall",
 		Config: `{"reveal_text":"42"}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -1758,7 +1837,7 @@ func TestDeleteQuestionInUse(t *testing.T) {
 		Title:  "Referenced Q",
 		Mode:   "choice",
 		Config: `{"options":["A","B"],"key":0}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -1788,7 +1867,7 @@ func TestDeleteQuestionAfterQuizRemoval(t *testing.T) {
 		Title:  "Q to delete",
 		Mode:   "choice",
 		Config: `{"options":["A","B"],"key":0}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -1817,7 +1896,7 @@ func TestDeleteQuiz(t *testing.T) {
 		Title:  "Q",
 		Mode:   "choice",
 		Config: `{"options":["A","B"],"key":0}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -1850,7 +1929,7 @@ func TestDeleteQuizInProgress(t *testing.T) {
 		Title:  "Q",
 		Mode:   "choice",
 		Config: `{"options":["A","B"],"key":0}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
@@ -1886,7 +1965,7 @@ func TestDeleteQuizAfterAttemptCompleted(t *testing.T) {
 		Title:  "Q",
 		Mode:   "choice",
 		Config: `{"options":["A","B"],"key":0}`,
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}

@@ -299,6 +299,12 @@ templ quizReview(d QuizReviewData) {
 				</button>
 				if item.IsCorrect {
 					<div class="hidden border-t border-slate-100 bg-slate-100 p-4 space-y-2">
+						if item.RawURL != "" {
+							<div class="stimulus-frame relative max-w-2xl mx-auto mb-2">
+								<iframe src={ item.RawURL } loading="lazy" aria-busy="true" class="w-full rounded-lg border border-slate-200 bg-slate-100" style="height:40vh;max-height:300px;min-height:180px" title={ item.QuestionTitle }></iframe>
+								<button type="button" data-stimulus-src={ item.RawURL } data-stimulus-title={ item.QuestionTitle } class="stimulus-expand" title="Expand" aria-label="Expand stimulus to full size"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+							</div>
+						}
 						if item.Mode == "choice" {
 							@templ.Raw(choiceReviewDetail(item))
 						} else {
@@ -307,6 +313,12 @@ templ quizReview(d QuizReviewData) {
 					</div>
 				} else {
 					<div class="border-t border-slate-100 bg-slate-100 p-4 space-y-2">
+						if item.RawURL != "" {
+							<div class="stimulus-frame relative max-w-2xl mx-auto mb-2">
+								<iframe src={ item.RawURL } loading="lazy" aria-busy="true" class="w-full rounded-lg border border-slate-200 bg-slate-100" style="height:40vh;max-height:300px;min-height:180px" title={ item.QuestionTitle }></iframe>
+								<button type="button" data-stimulus-src={ item.RawURL } data-stimulus-title={ item.QuestionTitle } class="stimulus-expand" title="Expand" aria-label="Expand stimulus to full size"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+							</div>
+						}
 						if item.Mode == "choice" {
 							@templ.Raw(choiceReviewDetail(item))
 						} else {
@@ -317,6 +329,12 @@ templ quizReview(d QuizReviewData) {
 			</div>
 		}
 	</div>
+	<script>
+		document.querySelectorAll('#review-list iframe[aria-busy="true"]').forEach(function(f){
+			var c=function(){f.removeAttribute('aria-busy');f.classList.remove('bg-slate-100')};
+			try{if(f.contentDocument&&f.contentDocument.readyState==='complete')c();else f.addEventListener('load',c)}catch(e){f.addEventListener('load',c)}
+		});
+	</script>
 	<div class="flex justify-center mt-8">
 		<form method="POST" action={ urls.QuizStart(d.Workspace.Name, d.QuizSlug) }>
 			<button type="submit" class="bg-blue-700 text-white text-sm font-medium py-2 px-5 rounded-lg hover:bg-blue-700/90 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700">Retake quiz</button>
