@@ -10,7 +10,7 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	cfg := &Config{DataDir: "/custom/data/path"}
+	cfg := &Config{DataDir: "/custom/data/path", Port: 8080}
 	if err := Save(cfg); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
@@ -21,6 +21,9 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 	}
 	if got.DataDir != "/custom/data/path" {
 		t.Fatalf("expected /custom/data/path, got %s", got.DataDir)
+	}
+	if got.Port != 8080 {
+		t.Fatalf("expected port 8080, got %d", got.Port)
 	}
 }
 

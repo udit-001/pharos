@@ -24,43 +24,38 @@ type Config struct {
 	DevCSS bool // serve CSS from disk (no embed, no-cache) for `pharos dev`
 }
 
-// Start boots the dashboard server: builds the mux via NewMux, finds a free
-// port, optionally opens the browser, and serves until SIGINT/SIGTERM.
+// Start boots the dashboard server: builds the mux via NewMux, binds the
+// configured port, optionally opens the browser, and serves until
+// SIGINT/SIGTERM.
+//
+// The port is an identity decision, not a convenience: a pinned PWA shortcut
+// records this exact origin. If the port is held by another process, Start
+// fails rather than silently rebinding to a different port (which would break
+// the pin or, worse, render a foreign app inside the Pharos window).
 //
 // The mux is a separate seam (NewMux) so tests can drive routes through
 // httptest without booting a real listener.
 func Start(cfg Config) error {
 	mux := NewMux(cfg.DB, cfg.DevCSS)
 
-	// Try the configured port, then port+1, port+2, … up to 100 attempts.
-	var listener net.Listener
-	port := cfg.Port
-	for i := 0; i < 100; i++ {
-		addr := fmt.Sprintf("127.0.0.1:%d", port)
-		var err error
-		listener, err = net.Listen("tcp", addr)
-		if err == nil {
-			break
-		}
-		port++
+	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("port %d is already in use. Free it, or set a different port: `pharos config set port <N>`", cfg.Port)
 	}
-	if listener == nil {
-		return fmt.Errorf("no free port found starting from %d", cfg.Port)
-	}
-	cfg.Port = port // store the actual port for messages below
 
 	srv := newServer(mux)
 
 	if !cfg.NoOpen && !cfg.Silent {
-		url := fmt.Sprintf("http://127.0.0.1:%d", port)
+		url := fmt.Sprintf("http://127.0.0.1:%d", cfg.Port)
 		if err := openBrowser(url); err != nil {
 			log.Printf("  Open %s in your browser", url)
 		}
 	}
 	if cfg.Silent {
-		log.Printf("Pharos listening on http://127.0.0.1:%d", port)
+		log.Printf("Pharos listening on http://127.0.0.1:%d", cfg.Port)
 	} else {
-		fmt.Printf("  Pharos Dashboard: http://127.0.0.1:%d\n", port)
+		fmt.Printf("  Pharos Dashboard: http://127.0.0.1:%d\n", cfg.Port)
 		fmt.Println()
 	}
 

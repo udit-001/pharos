@@ -11,7 +11,10 @@ import (
 
 type Config struct {
 	DataDir string `toml:"data_dir"`
+	Port    int    `toml:"port"`
 }
+
+const DefaultPort = 9090
 
 func homeDir() string {
 	d, err := os.UserHomeDir()
@@ -39,6 +42,10 @@ func Path() string {
 
 func PidPath() string {
 	return filepath.Join(ConfigDir(), "server.pid")
+}
+
+func LogPath() string {
+	return filepath.Join(ConfigDir(), "server.log")
 }
 
 func Load() (*Config, error) {

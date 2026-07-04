@@ -564,3 +564,14 @@
   background: #434c5e;
   border-color: #81a1c1;
 }
+
+@keyframes pwa-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.pwa-bounce {
+  animation: pwa-bounce 1s ease-in-out infinite;
+}
+#pwa-install:hover .pwa-bounce {
+  animation: none;
+}

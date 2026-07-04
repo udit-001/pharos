@@ -33,7 +33,7 @@ func startDaemon(port int) (*exec.Cmd, error) {
 	return c, nil
 }
 
-const defaultPort = 9090
+const defaultPort = config.DefaultPort
 
 var startFlags struct {
 	port       int
@@ -62,6 +62,7 @@ Examples:
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
+		port := resolvePort(cmd)
 
 		// Check if server is already running
 		if info, err := readPidFile(); err == nil && isServerRunning(info.Port) {
@@ -79,7 +80,7 @@ Examples:
 
 		background := startFlags.background && !startFlags.foreground
 		if background && !startFlags.daemon {
-			c, err := startDaemon(startFlags.port)
+			c, err := startDaemon(port)
 			if err != nil {
 				return fmt.Errorf("failed to start background server: %w", err)
 			}
@@ -88,7 +89,6 @@ Examples:
 			time.Sleep(500 * time.Millisecond)
 
 			// Find the actual port from the PID file
-			port := startFlags.port
 			if info, err := readPidFile(); err == nil {
 				port = info.Port
 			}
@@ -117,10 +117,10 @@ Examples:
 
 		// The server will write the actual port to the PID file
 		// after it binds. For now, write a placeholder.
-		_ = os.WriteFile(pidPath, []byte(fmt.Sprintf(`{"port":%d,"pid":%d}`, startFlags.port, os.Getpid())), 0o644)
+		_ = os.WriteFile(pidPath, []byte(fmt.Sprintf(`{"port":%d,"pid":%d}`, port, os.Getpid())), 0o644)
 
 		return server.Start(server.Config{
-			Port:   startFlags.port,
+			Port:   port,
 			DB:     s,
 			NoOpen: startFlags.noOpen,
 			Silent: startFlags.daemon,
@@ -129,9 +129,23 @@ Examples:
 	},
 }
 
+// resolvePort picks the port: explicit --port flag wins, otherwise the
+// config file value, otherwise the default (9090). The port is an identity
+// decision (pinned shortcuts record this origin), so there is no auto-increment.
+func resolvePort(cmd *cobra.Command) int {
+	if cmd.Flags().Changed("port") {
+		return startFlags.port
+	}
+	cfg, err := config.Load()
+	if err == nil && cfg != nil && cfg.Port != 0 {
+		return cfg.Port
+	}
+	return defaultPort
+}
+
 func init() {
 	rootCmd.AddCommand(startCmd)
-	startCmd.Flags().IntVar(&startFlags.port, "port", defaultPort, "HTTP server port (auto-increments if busy)")
+	startCmd.Flags().IntVar(&startFlags.port, "port", defaultPort, "HTTP server port")
 	startCmd.Flags().BoolVar(&startFlags.noOpen, "no-open", false, "Don't auto-open browser")
 	startCmd.Flags().BoolVarP(&startFlags.foreground, "foreground", "f", false, "Run server in foreground")
 	startCmd.Flags().BoolVarP(&startFlags.background, "background", "b", true, "Run server in background")

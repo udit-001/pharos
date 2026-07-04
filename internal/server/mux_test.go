@@ -165,6 +165,51 @@ func TestSmokePageRoutes(t *testing.T) {
 
 // ── Deep tests: high-logic routes ──
 
+func TestPWAStaticRoutes(t *testing.T) {
+	env := newTestEnv(t)
+	cases := []struct {
+		name, path, wantContent string
+	}{
+		{"manifest", "/manifest.webmanifest", "application/manifest+json"},
+		{"service-worker", "/sw.js", "application/javascript"},
+		{"stopped-page", "/stopped.html", "text/html"},
+		{"icon-192", "/icon-192.png", "image/png"},
+		{"icon-512", "/icon-512.png", "image/png"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec := env.get(t, c.path)
+			if rec.Code != 200 {
+				t.Errorf("status = %d, want 200", rec.Code)
+			}
+			ct := rec.Header().Get("Content-Type")
+			if !strings.HasPrefix(ct, c.wantContent) {
+				t.Errorf("content-type = %q, want prefix %q", ct, c.wantContent)
+			}
+		})
+	}
+}
+
+func TestPWAHeadTags(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.get(t, "/")
+	body := rec.Body.String()
+
+	checks := []struct{ name, want string }{
+		{"manifest link", `rel="manifest" href="/manifest.webmanifest"`},
+		{"sentinel meta", `<meta name="pharos-app" content="1">`},
+		{"theme-color light", `name="theme-color" content="#eceff4"`},
+		{"theme-color dark", `name="theme-color" content="#2e3440"`},
+		{"apple-touch-icon", `rel="apple-touch-icon" href="/icon-192.png"`},
+		{"sw registration", "navigator.serviceWorker.register('/sw.js')"},
+	}
+	for _, c := range checks {
+		if !strings.Contains(body, c.want) {
+			t.Errorf("dashboard HTML missing %s", c.name)
+		}
+	}
+}
+
 func TestLessonPagePrevNext(t *testing.T) {
 	env := newTestEnv(t)
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/config"
@@ -42,10 +43,18 @@ var configReadCmd = &cobra.Command{
 		}
 		dbPath := filepath.Join(dataDir, "pharos.db")
 
+		port := config.DefaultPort
+		portLabel := "9090 (default)"
+		if cfg != nil && cfg.Port != 0 {
+			port = cfg.Port
+			portLabel = fmt.Sprintf("%d", port)
+		}
+
 		fmt.Println()
 		fmt.Printf("  Config file:   %s\n", config.Path())
 		fmt.Printf("  data_dir:      %s\n", dataDir)
 		fmt.Printf("  Database:      %s\n", dbPath)
+		fmt.Printf("  port:          %s\n", portLabel)
 
 		// Show DB-backed settings
 		s, err := db.Open(dbPath)
@@ -69,13 +78,15 @@ var configSetCmd = &cobra.Command{
 Supported keys:
   data_dir            Path to the pharos data directory
   auto_submit_choice  Auto-submit choice questions on selection (on|off)
+  port                HTTP server port for the web dashboard (1-65535)
 
 TOML keys are saved to the config file. DB-backed settings are
 persisted immediately. Run 'pharos config read' to verify.
 
 Examples:
   pharos config set data_dir ~/my-pharos
-  pharos config set auto_submit_choice on`,
+  pharos config set auto_submit_choice on
+  pharos config set port 8080`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		key := args[0]
@@ -119,6 +130,12 @@ Examples:
 		switch key {
 		case "data_dir":
 			cfg.DataDir = value
+		case "port":
+			p, err := strconv.Atoi(value)
+			if err != nil || p < 1 || p > 65535 {
+				return fmt.Errorf("invalid value %q for %s: use a port number 1-65535", value, key)
+			}
+			cfg.Port = p
 		default:
 			return fmt.Errorf("unknown config key: %s", key)
 		}
@@ -133,8 +150,11 @@ Examples:
 		}
 
 		fmt.Println()
-		fmt.Printf("  ✓ %s set to %s\n", key, cfg.DataDir)
+		fmt.Printf("  ✓ %s set to %s\n", key, value)
 		fmt.Printf("    Config: %s\n", config.Path())
+		if key == "port" {
+			fmt.Println("    Note: if you've pinned Pharos, re-create the shortcut so it points at the new port.")
+		}
 		fmt.Println()
 		return nil
 	},

@@ -10,14 +10,21 @@ templ document(f Frame, content string) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ f.Title } — Pharos</title>
-			<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
-		<link rel="icon" type="image/png" href="/favicon.png"/>
-		<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
-		<link rel="preconnect" href="https://fonts.googleapis.com"/>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+	<link rel="icon" type="image/png" href="/favicon.png"/>
+	<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+	<link rel="manifest" href="/manifest.webmanifest"/>
+	<meta name="pharos-app" content="1"/>
+	<meta name="theme-color" id="theme-color" content="#eceff4"/>
+	<link rel="apple-touch-icon" href="/icon-192.png"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<meta name="apple-mobile-web-app-title" content="Pharos"/>
+	<meta name="mobile-web-app-capable" content="yes"/>
+	<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-			<link rel="stylesheet" href="/css/app.css?v=9"/>
-			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
+			<link rel="stylesheet" href="/css/app.css?v=10"/>
+			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t;var m=document.getElementById('theme-color');if(m)m.content=t==='dark'?'#2e3440':'#eceff4'})()</script>
 		</head>
 		<body class="font-sans">
 			<div class="flex h-screen overflow-hidden bg-white text-slate-800">
@@ -37,6 +44,9 @@ templ document(f Frame, content string) {
 								</div>
 							</form>
 							<a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" title="About Pharos">@templ.Raw(iconHelp())</a>
+							<button id="pwa-install" style="display:none" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Install app">
+								<svg class="pwa-bounce" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+							</button>
 							<button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Toggle theme">
 								<svg data-theme-icon="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
 								<svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -89,9 +99,11 @@ templ document(f Frame, content string) {
 						} catch(e) {}
 						try { f.contentWindow.postMessage({type: 'theme', theme: actual}, '*'); } catch(e) {}
 					});
-					html.dataset.theme = actual;
-					localStorage.setItem('pharos_theme', mode);
-					document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', mode !== 'light');
+				html.dataset.theme = actual;
+				localStorage.setItem('pharos_theme', mode);
+				var m = document.getElementById('theme-color');
+				if (m) m.content = actual === 'dark' ? '#2e3440' : '#eceff4';
+				document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', mode !== 'light');
 					document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', mode !== 'dark');
 					document.querySelector('[data-theme-icon=contrast]').classList.toggle('hidden', mode !== 'system');
 				}
@@ -102,15 +114,13 @@ templ document(f Frame, content string) {
 					var next = modes[(idx + 1) % modes.length];
 					applyTheme(next);
 				}
-				(function() {
-					var t = localStorage.getItem('pharos_theme') || 'system';
-					applyTheme(t);
-					window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', function() {
-						if (localStorage.getItem('pharos_theme') === 'system') {
-							applyTheme('system');
-						}
-					});
-				})();
+			(function() {
+				var t = localStorage.getItem('pharos_theme') || 'system';
+				applyTheme(t);
+				window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', function() {
+					applyTheme(localStorage.getItem('pharos_theme') || 'system');
+				});
+			})();
 			document.addEventListener('mouseover', function(e) {
 				var el = e.target;
 				if (!el.classList) return;
@@ -234,7 +244,35 @@ templ document(f Frame, content string) {
 					if (btn) window.openStimulusLightbox(btn.getAttribute('data-stimulus-src'), btn.getAttribute('data-stimulus-title'));
 				});
 			})();
-			</script>
-		</body>
-	</html>
+		</script>
+		<script>
+			if ('serviceWorker' in navigator) {
+				navigator.serviceWorker.register('/sw.js').catch(function(){});
+			}
+			var _pwaInstallEvent;
+			if (window.matchMedia('(display-mode: standalone)').matches) {
+				var btn = document.getElementById('pwa-install');
+				if (btn) btn.style.display = 'none';
+			}
+			window.addEventListener('beforeinstallprompt', function(e) {
+				e.preventDefault();
+				_pwaInstallEvent = e;
+				var btn = document.getElementById('pwa-install');
+				if (btn) btn.style.display = '';
+			});
+			window.addEventListener('appinstalled', function() {
+				var btn = document.getElementById('pwa-install');
+				if (btn) btn.style.display = 'none';
+				_pwaInstallEvent = null;
+			});
+			document.addEventListener('click', function(e) {
+				var btn = e.target.closest && e.target.closest('#pwa-install');
+				if (btn && _pwaInstallEvent) {
+					_pwaInstallEvent.prompt();
+					_pwaInstallEvent.userChoice.then(function() { _pwaInstallEvent = null; });
+				}
+			});
+		</script>
+	</body>
+</html>
 }
