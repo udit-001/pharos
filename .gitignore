@@ -1,6 +1,5 @@
 # Build artifacts
-/pharos
-pharos.exe
+/bin/
 
 # Tailwind CSS standalone binary
 .bin/

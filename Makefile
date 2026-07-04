@@ -2,7 +2,8 @@
 
 # Build the pharos CLI binary (includes embedded CSS)
 build: css
-	go build -o pharos ./cmd/pharos
+	mkdir -p bin
+	go build -o bin/pharos ./cmd/pharos
 
 # Build Tailwind CSS from source (scans Go files for classes directly)
 css:
@@ -15,7 +16,7 @@ install: css
 
 # Clean build artifacts
 clean:
-	rm -f pharos
+	rm -f bin/pharos
 	go clean
 
 # Run directly

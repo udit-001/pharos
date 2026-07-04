@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const buildOutput = "pharos"
+const buildOutput = "bin/pharos"
 
 const templVersion = "v0.3.1020"
 
@@ -25,7 +25,7 @@ var buildCmd = &cobra.Command{
 Steps:
   1. Rebuild CSS from web/input.css using the Tailwind CLI (unless --no-css)
   2. Copy the generated CSS into the embed directory
-  3. Compile the Go binary to ./pharos
+  3. Compile the Go binary to ./bin/pharos
 
 Requires 'go' on PATH and the Tailwind CLI at .bin/tailwindcss.
 Run 'pharos tailwind download' first if needed.`,
@@ -81,6 +81,9 @@ func runBuild() error {
 	fmt.Println()
 	fmt.Println("  Compiling Go binary...")
 
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(root, buildOutput)), 0o755); err != nil {
+		return fmt.Errorf("create bin dir: %w", err)
+	}
 	cmd := exec.Command("go", "build", "-o", buildOutput, "./cmd/pharos")
 	cmd.Dir = root
 	cmd.Stdout = os.Stdout
