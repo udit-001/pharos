@@ -4,7 +4,7 @@
 // app occupies the port, the sentinel check falls back to the cached
 // stopped page instead of rendering the foreign response.
 
-var CACHE = 'pharos-v1';
+var CACHE = 'pharos-v3';
 
 var PRECACHE = [
   '/css/app.css',
@@ -45,7 +45,11 @@ self.addEventListener('fetch', function(e) {
   var req = e.request;
 
   // Navigations: network-first with identity guard.
-  if (req.mode === 'navigate') {
+  // Only applies to top-level document navigations — iframe loads
+  // (also mode: navigate) are passed through, since their content
+  // (lesson/reference HTML) doesn't carry the sentinel and shouldn't
+  // be replaced with the stopped page.
+  if (req.mode === 'navigate' && e.target instanceof WindowClient) {
     e.respondWith(
       fetch(req).then(function(resp) {
         var clone = resp.clone();
