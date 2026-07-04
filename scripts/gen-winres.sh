@@ -57,11 +57,9 @@ if [[ $# -ge 1 ]]; then
       }
     }
   },
-  "RT_ICON": {
+  "RT_GROUP_ICON": {
     "#1": {
-      "0000": {
-        "icon": "pharos.ico"
-      }
+      "0000": "pharos.ico"
     }
   },
   "RT_MANIFEST": {
