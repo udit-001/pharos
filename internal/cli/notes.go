@@ -48,12 +48,11 @@ var notesReadCmd = &cobra.Command{
 var notesEditCmd = &cobra.Command{
 	Use:   "edit",
 	Short: "Edit the workspace notes",
-	Long: `Update the NOTES.md file from a file, append to it, or open in $EDITOR.
+	Long: `Update the NOTES.md file from a file, or append with --append.
 
 Examples:
   pharos notes edit --body-file /tmp/notes.md
-  pharos notes edit --append --body-file /tmp/new-note.md
-  pharos notes edit`,
+  pharos notes edit --append --body-file /tmp/new-note.md`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -62,35 +61,39 @@ Examples:
 		if err != nil {
 			return err
 		}
+		ws := wsStore.Workspace()
 		notesPath := wsStore.Layout().NotesPath()
 
 		bodyFile, _ := cmd.Flags().GetString("body-file")
+		if bodyFile == "" {
+			return fmt.Errorf("--body-file is required\n  pharos notes edit --workspace %q --body-file <path>", ws.Name)
+		}
 		appendMode, _ := cmd.Flags().GetBool("append")
 
-		if bodyFile != "" {
-			data, err := readBodyFile(bodyFile)
-			if err != nil {
-				return err
-			}
-			if appendMode {
-				existing, _ := os.ReadFile(notesPath)
-				content := string(existing) + string(data)
-				if err := os.WriteFile(notesPath, []byte(content), 0o644); err != nil {
-					return fmt.Errorf("append to notes: %w", err)
-				}
-			} else {
-				if err := os.WriteFile(notesPath, data, 0o644); err != nil {
-					return fmt.Errorf("write notes: %w", err)
-				}
-			}
-			_ = wsStore.Touch()
-			fmt.Println()
-			fmt.Printf("  ✓ Notes updated\n")
-			fmt.Println()
-			return nil
+		data, err := readBodyFile(bodyFile)
+		if err != nil {
+			return err
 		}
+		if appendMode {
+			existing, _ := os.ReadFile(notesPath)
+			content := string(existing) + string(data)
+			if err := os.WriteFile(notesPath, []byte(content), 0o644); err != nil {
+				return fmt.Errorf("append to notes: %w", err)
+			}
+		} else {
+			if err := os.WriteFile(notesPath, data, 0o644); err != nil {
+				return fmt.Errorf("write notes: %w", err)
+			}
+		}
+		_ = wsStore.Touch()
 
-		return openInEditor(wsStore, notesPath, "NOTES.md")
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyPageChanged(ws.Name, "notes", 0, "")
+
+		fmt.Println()
+		fmt.Printf("  ✓ Notes updated\n")
+		fmt.Println()
+		return nil
 	},
 }
 
@@ -100,6 +103,6 @@ func init() {
 	notesCmd.AddCommand(notesEditCmd)
 	notesReadCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	notesEditCmd.Flags().StringP("workspace", "w", "", "Workspace name")
-	notesEditCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
+	notesEditCmd.Flags().String("body-file", "", "Read notes content from a file (required)")
 	notesEditCmd.Flags().Bool("append", false, "Append to notes instead of overwriting")
 }

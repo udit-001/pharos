@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -45,11 +46,10 @@ var missionReadCmd = &cobra.Command{
 var missionEditCmd = &cobra.Command{
 	Use:   "edit",
 	Short: "Edit the workspace mission",
-	Long: `Update the MISSION.md file from a file or open in $EDITOR.
+	Long: `Update the MISSION.md file from a file.
 
 Examples:
-  pharos mission edit --body-file /tmp/mission.md
-  pharos mission edit`,
+  pharos mission edit --body-file /tmp/mission.md`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -62,11 +62,16 @@ Examples:
 		missionPath := filepath.Join(ws.Path, "MISSION.md")
 
 		bodyFile, _ := cmd.Flags().GetString("body-file")
-		if bodyFile != "" {
-			return writeWorkspaceFile(wsStore, missionPath, bodyFile, "Mission")
+		if bodyFile == "" {
+			return fmt.Errorf("--body-file is required\n  pharos mission edit --workspace %q --body-file <path>", ws.Name)
+		}
+		if err := writeWorkspaceFile(wsStore, missionPath, bodyFile, "Mission"); err != nil {
+			return err
 		}
 
-		return openInEditor(wsStore, missionPath, "MISSION.md")
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyPageChanged(ws.Name, "mission", 0, "")
+		return nil
 	},
 }
 
@@ -76,5 +81,5 @@ func init() {
 	missionCmd.AddCommand(missionEditCmd)
 	missionReadCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	missionEditCmd.Flags().StringP("workspace", "w", "", "Workspace name")
-	missionEditCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
+	missionEditCmd.Flags().String("body-file", "", "Read mission content from a file (required)")
 }

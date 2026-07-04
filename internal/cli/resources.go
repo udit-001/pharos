@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -45,11 +46,10 @@ var resourcesReadCmd = &cobra.Command{
 var resourcesEditCmd = &cobra.Command{
 	Use:   "edit",
 	Short: "Edit the workspace resources",
-	Long: `Update the RESOURCES.md file from a file or open in $EDITOR.
+	Long: `Update the RESOURCES.md file from a file.
 
 Examples:
-  pharos resources edit --body-file /tmp/resources.md
-  pharos resources edit`,
+  pharos resources edit --body-file /tmp/resources.md`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -62,11 +62,16 @@ Examples:
 		resourcesPath := filepath.Join(ws.Path, "RESOURCES.md")
 
 		bodyFile, _ := cmd.Flags().GetString("body-file")
-		if bodyFile != "" {
-			return writeWorkspaceFile(wsStore, resourcesPath, bodyFile, "Resources")
+		if bodyFile == "" {
+			return fmt.Errorf("--body-file is required\n  pharos resources edit --workspace %q --body-file <path>", ws.Name)
+		}
+		if err := writeWorkspaceFile(wsStore, resourcesPath, bodyFile, "Resources"); err != nil {
+			return err
 		}
 
-		return openInEditor(wsStore, resourcesPath, "RESOURCES.md")
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyPageChanged(ws.Name, "resources", 0, "")
+		return nil
 	},
 }
 
@@ -76,5 +81,5 @@ func init() {
 	resourcesCmd.AddCommand(resourcesEditCmd)
 	resourcesReadCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	resourcesEditCmd.Flags().StringP("workspace", "w", "", "Workspace name")
-	resourcesEditCmd.Flags().String("body-file", "", "Write content from a file (non-interactive)")
+	resourcesEditCmd.Flags().String("body-file", "", "Read resources content from a file (required)")
 }

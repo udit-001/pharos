@@ -196,32 +196,6 @@ func readAndPrintJSON(ws db.Workspace, filePath, fileName string) error {
 	return nil
 }
 
-// openInEditor opens a file in the user's $EDITOR and touches last_studied.
-func openInEditor(wsStore *db.WorkspaceStore, filePath, label string) error {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = os.Getenv("VISUAL")
-	}
-	if editor == "" {
-		editor = "vim"
-	}
-	fmt.Println()
-	fmt.Printf("  Opening %s in %s ...\n", label, editor)
-	fmt.Println()
-	editorCmd := execCommand(editor, filePath)
-	editorCmd.Stdin = os.Stdin
-	editorCmd.Stdout = os.Stdout
-	editorCmd.Stderr = os.Stderr
-	if err := editorCmd.Run(); err != nil {
-		return fmt.Errorf("editor failed: %w", err)
-	}
-	_ = wsStore.Touch()
-	fmt.Println()
-	fmt.Printf("  ✓ %s updated\n", label)
-	fmt.Println()
-	return nil
-}
-
 func formatDateShort(ts string) string {
 	if len(ts) >= 10 {
 		return ts[:10]
