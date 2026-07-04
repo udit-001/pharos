@@ -16,8 +16,8 @@ templ document(f Frame, content string) {
 		<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-			<link rel="stylesheet" href="/css/app.css?v=6"/>
-			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
+			<link rel="stylesheet" href="/css/app.css?v=9"/>
+			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 		</head>
 		<body class="font-sans">
 			<div class="flex h-screen overflow-hidden bg-white text-slate-800">
@@ -40,6 +40,7 @@ templ document(f Frame, content string) {
 							<button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Toggle theme">
 								<svg data-theme-icon="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
 								<svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+								<svg data-theme-icon="contrast" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></svg>
 							</button>
 						</div>
 					</header>
@@ -72,29 +73,44 @@ templ document(f Frame, content string) {
 						localStorage.setItem(key, isCollapsed ? '1' : '0');
 					} catch(e) {}
 				}
-				function toggleTheme() {
+				function resolveTheme(mode) {
+					return mode === 'system'
+						? (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light')
+						: mode;
+				}
+				function applyTheme(mode) {
 					var html = document.documentElement;
-					var isDark = html.dataset.theme === 'dark';
-					var next = isDark ? 'light' : 'dark';
+					var actual = resolveTheme(mode);
 					document.querySelectorAll('iframe').forEach(function(f) {
 						try {
 							if (f.contentDocument && f.contentDocument.documentElement) {
-								f.contentDocument.documentElement.dataset.theme = next;
+								f.contentDocument.documentElement.dataset.theme = actual;
 							}
 						} catch(e) {}
-						try { f.contentWindow.postMessage({type: 'theme', theme: next}, '*'); } catch(e) {}
+						try { f.contentWindow.postMessage({type: 'theme', theme: actual}, '*'); } catch(e) {}
 					});
-					html.dataset.theme = next;
-					localStorage.setItem('pharos_theme', next);
-					document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', next !== 'dark');
-					document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', next === 'dark');
+					html.dataset.theme = actual;
+					localStorage.setItem('pharos_theme', mode);
+					document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', mode !== 'light');
+					document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', mode !== 'dark');
+					document.querySelector('[data-theme-icon=contrast]').classList.toggle('hidden', mode !== 'system');
 				}
-			(function() {
-				if (document.documentElement.dataset.theme === 'dark') {
-					document.querySelector('[data-theme-icon=sun]').classList.remove('hidden');
-					document.querySelector('[data-theme-icon=moon]').classList.add('hidden');
+				function toggleTheme() {
+					var current = localStorage.getItem('pharos_theme') || 'system';
+					var modes = ['light', 'dark', 'system'];
+					var idx = modes.indexOf(current);
+					var next = modes[(idx + 1) % modes.length];
+					applyTheme(next);
 				}
-			})();
+				(function() {
+					var t = localStorage.getItem('pharos_theme') || 'system';
+					applyTheme(t);
+					window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', function() {
+						if (localStorage.getItem('pharos_theme') === 'system') {
+							applyTheme('system');
+						}
+					});
+				})();
 			document.addEventListener('mouseover', function(e) {
 				var el = e.target;
 				if (!el.classList) return;
@@ -158,6 +174,57 @@ templ document(f Frame, content string) {
 					b.innerHTML=k;b.classList.add('copied');
 					setTimeout(function(){b.innerHTML=c;b.classList.remove('copied');s.removeAllRanges()},2000);
 				}
+			})();
+			(function(){
+				// Stimulus lightbox: opens a stimulus iframe in a mermaid-style
+				// panel (blurred backdrop, rounded panel, top-right close button).
+				// No zoom/pan — the payload is an HTML page, not an SVG. Triggered by
+				// any button carrying data-stimulus-src. No-op on pages without one.
+				// Styles live in app.css (.stimulus-expand, .stimulus-lightbox).
+				var stimCloseIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+				window.openStimulusLightbox = function(src, title) {
+					var existing = document.getElementById('stimulus-lightbox');
+					if (existing) existing.remove();
+					var overlay = document.createElement('div');
+					overlay.id = 'stimulus-lightbox';
+					overlay.className = 'stimulus-lightbox';
+					var panel = document.createElement('div');
+					panel.className = 'stimulus-lightbox-panel';
+					var close = document.createElement('button');
+					close.type = 'button';
+					close.className = 'stimulus-lightbox-close';
+					close.setAttribute('aria-label', 'Close');
+					close.innerHTML = stimCloseIcon;
+					var frame = document.createElement('iframe');
+					frame.src = src;
+					frame.title = title || 'Stimulus';
+					frame.className = 'stimulus-lightbox-frame';
+					panel.appendChild(close);
+					panel.appendChild(frame);
+					overlay.appendChild(panel);
+					document.body.appendChild(overlay);
+					document.body.style.overflow = 'hidden';
+					var onKey = function(e) { if (e.key === 'Escape') dismiss(); };
+					var dismiss = function() {
+						overlay.remove();
+						document.body.style.overflow = '';
+						document.removeEventListener('keydown', onKey);
+						try { if (frame.contentDocument) frame.contentDocument.removeEventListener('keydown', onKey); } catch(e) {}
+					};
+					close.addEventListener('click', dismiss);
+					overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+					document.addEventListener('keydown', onKey);
+					// The iframe captures keyboard focus; listen inside it too so Escape
+					// still dismisses when the chart has focus (same-origin doc).
+					frame.addEventListener('load', function() {
+						try { if (frame.contentDocument) frame.contentDocument.addEventListener('keydown', onKey); } catch(e) {}
+					});
+					setTimeout(function(){ frame.focus(); }, 0);
+				};
+				document.addEventListener('click', function(e) {
+					var btn = e.target.closest && e.target.closest('[data-stimulus-src]');
+					if (btn) window.openStimulusLightbox(btn.getAttribute('data-stimulus-src'), btn.getAttribute('data-stimulus-title'));
+				});
 			})();
 			</script>
 		</body>
