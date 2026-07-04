@@ -1,5 +1,7 @@
 package render
 
+import "fmt"
+
 // document renders the full HTML document: the frame (sidebar + topbar +
 // wrapper) wrapped around the given content HTML. It is the templ component
 // behind the exported Page wrapper.
@@ -26,7 +28,7 @@ templ document(f Frame, content string) {
 			<link rel="stylesheet" href="/css/app.css?v=10"/>
 			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t;var m=document.getElementById('theme-color');if(m)m.content=t==='dark'?'#2e3440':'#eceff4'})()</script>
 		</head>
-		<body class="font-sans">
+		<body class="font-sans" data-active-ws={ f.ActiveWS } data-active-type={ f.ActiveType } data-active-seq={ fmt.Sprintf("%d", f.ActiveSeq) } data-active-slug={ f.ActiveSlug }>
 			<div class="flex h-screen overflow-hidden bg-white text-slate-800">
 				@templ.Raw(sidebarOverlay())
 				@templ.Raw(sidebarBlock(f))
@@ -55,7 +57,7 @@ templ document(f Frame, content string) {
 						</div>
 					</header>
 					<div class={ "flex-1 overflow-y-auto " + contentPaddingClass(f.FrameContent()) }>
-						<div class={ frameMaxWidthClass(f.FrameContent()) + " mx-auto" + frameContentClass(f.FrameContent()) }>
+						<div id="page-content" class={ frameMaxWidthClass(f.FrameContent()) + " mx-auto" + frameContentClass(f.FrameContent()) }>
 							@templ.Raw(content)
 						</div>
 					</div>
@@ -272,6 +274,104 @@ templ document(f Frame, content string) {
 					_pwaInstallEvent.userChoice.then(function() { _pwaInstallEvent = null; });
 				}
 			});
+		</script>
+		<script>
+			// Live-sync: subscribe to mutation events from the dashboard
+			// server and refresh the displayed region in place.
+			//
+			// Design: a dispatch table maps each page type to a match
+			// predicate and a refresh mechanism. Adding a new pageable
+			// type adds one table row — no new branches in the handler.
+			// Two shared refresh helpers (iframe reload, DOM swap) are
+			// reused across all types, each preserving scroll position.
+			//
+			// Scope: workspace page → topic "workspace:<name>";
+			// home page → topic "home". A mutation in workspace B while
+			// viewing workspace A never reaches this window (different
+			// topic). See internal/server/events.go.
+			(function() {
+				var body = document.body;
+				var activeWS   = body.getAttribute('data-active-ws')   || '';
+				var activeType = body.getAttribute('data-active-type')  || '';
+				var activeSeq  = parseInt(body.getAttribute('data-active-seq') || '0', 10);
+				var activeSlug = body.getAttribute('data-active-slug')  || '';
+				var topic = activeWS ? ('workspace:' + activeWS) : 'home';
+
+				// ── Shared refresh helpers ──
+				// Both preserve scroll position of the region being refreshed.
+
+				function reloadIframe() {
+					var iframe = document.querySelector('#page-content iframe');
+					if (!iframe || !iframe.contentWindow) return;
+					try {
+						var savedY = iframe.contentWindow.scrollY;
+						iframe.addEventListener('load', function restore() {
+							iframe.removeEventListener('load', restore);
+							try { iframe.contentWindow.scrollTo(0, savedY); } catch(_) {}
+						});
+						iframe.contentWindow.location.reload();
+					} catch(_) {}
+				}
+
+				function swapRegion(selector) {
+					fetch(location.href, { credentials: 'same-origin' })
+						.then(function(r) { return r.text(); })
+						.then(function(html) {
+							var doc = new DOMParser().parseFromString(html, 'text/html');
+							var fresh = doc.querySelector(selector);
+							var current = document.querySelector(selector);
+							if (!fresh || !current) return;
+							// Preserve scroll of the nearest scrollable ancestor.
+							var scrollEl = current.closest('.overflow-y-auto, .overflow-auto') || current.parentElement;
+							var savedY = scrollEl ? scrollEl.scrollTop : 0;
+							current.replaceWith(fresh);
+							if (scrollEl) scrollEl.scrollTop = savedY;
+						})
+						.catch(function() {});
+				}
+
+				// ── Page-type dispatch table ──
+				// Each entry: { matches(ev, ctx) → bool, refresh() → void }
+				// Singleton pages (mission/notes/resources/glossary) match on
+				// pageType alone; entity pages (lesson/ref/record) also match
+				// on seq or slug to avoid refreshing the wrong item.
+				var pageHandlers = {
+					'lesson':  { matches: function(ev) { return ev.seq === activeSeq; }, refresh: reloadIframe },
+					'ref':     { matches: function(ev) { return ev.slug === activeSlug; }, refresh: reloadIframe },
+					'record':  { matches: function(ev) { return ev.seq === activeSeq; }, refresh: function() { swapRegion('#page-content'); } },
+					'mission': { matches: function() { return true; }, refresh: function() { swapRegion('#page-content'); } },
+					'notes':   { matches: function() { return true; }, refresh: function() { swapRegion('#page-content'); } },
+					'resources': { matches: function() { return true; }, refresh: function() { swapRegion('#page-content'); } },
+					'glossary': { matches: function() { return true; }, refresh: function() { swapRegion('#page-content'); } }
+				};
+
+				var es = new EventSource('/api/events?topic=' + encodeURIComponent(topic));
+
+				es.addEventListener('message', function(e) {
+					var ev;
+					try { ev = JSON.parse(e.data); } catch(_) { return; }
+					if (!ev || !ev.type) return;
+
+					// "changed" → sidebar (workspace page) or grid (home).
+					if (ev.type === 'changed') {
+						if (activeWS) {
+							swapRegion('#sidebar');
+						} else {
+							swapRegion('#workspace-grid');
+						}
+						return;
+					}
+
+					// "page-changed" → match pageType, then refresh.
+					if (ev.type === 'page-changed' && ev.pageType) {
+						var handler = pageHandlers[ev.pageType];
+						if (!handler) return;
+						if (!handler.matches(ev)) return;
+						handler.refresh();
+						return;
+					}
+				});
+			})();
 		</script>
 	</body>
 </html>

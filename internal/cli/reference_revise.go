@@ -46,6 +46,10 @@ Examples:
 			return formatError("failed to revise reference", err)
 		}
 
+		ws := wsStore.Workspace()
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyPageChanged(ws.Name, "ref", 0, slug)
+
 		if jsonOut {
 			printJSON(map[string]string{"status": "revised", "slug": slug})
 			return nil

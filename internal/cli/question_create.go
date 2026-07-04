@@ -94,6 +94,8 @@ The slug is derived from the title. Examples:
 			return formatError("failed to save question", err)
 		}
 
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+
 		if jsonOut {
 			printJSON(created)
 			return nil

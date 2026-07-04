@@ -37,6 +37,10 @@ Examples:
 			return formatError("failed to add glossary term", err)
 		}
 
+		ws := wsStore.Workspace()
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyPageChanged(ws.Name, "glossary", 0, "")
+
 		fmt.Println()
 		fmt.Printf("  ✓ Glossary created: %s\n", term)
 		fmt.Println()

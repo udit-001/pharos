@@ -31,7 +31,7 @@ templ dashboard(d DashboardData) {
 		</div>
 	}
 	if len(d.Workspaces) > 0 {
-		<div class="divide-y divide-slate-100">
+		<div class="divide-y divide-slate-100" id="workspace-grid">
 			for _, w := range d.Workspaces {
 				<a href={ urls.Workspace(w.Name) } class="group block py-3 px-3 -mx-3 no-underline rounded-md hover:bg-slate-100 transition-colors">
 					<div class="flex items-center justify-between">
@@ -115,7 +115,7 @@ templ about() {
 
 templ workspacePage(d WorkspaceData) {
 	{{ ws := d.Workspace }}
-	if len(d.Lessons) == 0 && len(d.Records) == 0 {
+	if len(d.Lessons) == 0 && len(d.Records) == 0 && len(d.Refs) == 0 {
 		<h1 class="text-xl font-semibold text-slate-800 tracking-tight">{ displayName(ws.Name, ws.Topic) }</h1>
 		<p class="text-sm text-slate-400 mt-0.5 mb-5">Workspace ready</p>
 		if d.Mission != "" {

@@ -52,6 +52,13 @@ Examples:
 			return formatError("failed to supersede record", err)
 		}
 
+		ws := wsStore.Workspace()
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		// Refresh the new record's page (if open) and the superseded
+		// record's page (status flips to "superseded").
+		notifyPageChanged(ws.Name, "record", created.SequenceNumber, "")
+		notifyPageChanged(ws.Name, "record", old.SequenceNumber, "")
+
 		if jsonOut {
 			printJSON(map[string]any{
 				"created":    created,

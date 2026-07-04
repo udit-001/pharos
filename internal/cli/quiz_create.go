@@ -73,6 +73,8 @@ Examples:
 			}
 		}
 
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+
 		if jsonOut {
 			printJSON(created)
 			return nil

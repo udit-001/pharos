@@ -129,6 +129,9 @@ Examples:
 			return formatError("failed to revise question", err)
 		}
 
+		ws := wsStore.Workspace()
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+
 		if jsonOut {
 			printJSON(updated)
 			return nil

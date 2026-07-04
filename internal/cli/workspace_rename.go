@@ -35,6 +35,9 @@ Examples:
 			return formatError("failed to rename workspace", err)
 		}
 
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyServer("home", "changed", 0)
+
 		if jsonOut {
 			printJSON(map[string]any{
 				"renamed":  true,

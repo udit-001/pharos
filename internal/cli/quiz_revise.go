@@ -99,6 +99,8 @@ Examples:
 			}
 		}
 
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+
 		if jsonOut {
 			out := map[string]any{"slug": slug}
 			if hasItems {

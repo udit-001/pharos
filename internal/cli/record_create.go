@@ -46,6 +46,9 @@ Examples:
 			return formatError("failed to create learning record", err)
 		}
 
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyPageChanged(ws.Name, "record", created.SequenceNumber, "")
+
 		if jsonOut {
 			printJSON(created)
 			return nil

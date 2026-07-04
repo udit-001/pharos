@@ -59,6 +59,9 @@ Examples:
 			return err
 		}
 
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyServer("home", "changed", 0)
+
 		if jsonOut {
 			printJSON(map[string]any{
 				"deleted": true,

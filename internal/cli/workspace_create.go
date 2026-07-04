@@ -58,6 +58,8 @@ Examples:
 		// Auto-set as current workspace
 		_ = s.SetCurrentWorkspace(slug)
 
+		notifyServer("home", "changed", 0)
+
 		fmt.Println()
 		fmt.Printf("  ✓ Created workspace: %s\n", created.DisplayName())
 		fmt.Printf("    Path: %s\n", wsPath)

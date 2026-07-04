@@ -140,7 +140,7 @@ func dashboard(d DashboardData) templ.Component {
 			}
 		}
 		if len(d.Workspaces) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"divide-y divide-slate-100\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"divide-y divide-slate-100\" id=\"workspace-grid\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -312,7 +312,7 @@ func workspacePage(d WorkspaceData) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		ws := d.Workspace
-		if len(d.Lessons) == 0 && len(d.Records) == 0 {
+		if len(d.Lessons) == 0 && len(d.Records) == 0 && len(d.Refs) == 0 {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<h1 class=\"text-xl font-semibold text-slate-800 tracking-tight\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

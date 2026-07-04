@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/docutil"
@@ -25,6 +26,7 @@ import (
 // devCSS serves CSS from disk (no embed, no-cache) for `pharos dev`.
 func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux := http.NewServeMux()
+	broker := NewBroker()
 
 	// Serve Tailwind CSS. In dev mode (DevCSS) read web/app.css from disk
 	// on each request so styling changes are live without a Go rebuild;
@@ -128,6 +130,11 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("POST /api/attempt", jsonHandler(handleSubmitAttempt(store)))
 	mux.HandleFunc("POST /api/quiz-attempt/{id}/complete", jsonHandler(handleCompleteQuizAttempt(store)))
 	mux.HandleFunc("POST /api/quiz-attempt/{id}/abandon", jsonHandler(handleAbandonQuizAttempt(store)))
+
+	// Live-sync: CLI mutations broadcast through the broker; the
+	// dashboard subscribes via SSE. See events.go.
+	mux.HandleFunc("GET /api/events", handleSSE(broker))
+	mux.HandleFunc("POST /api/notify", handleNotify(broker))
 
 	return mux
 }
@@ -1160,6 +1167,96 @@ func handleSearchPage(store *db.Store) http.HandlerFunc {
 		}
 
 		writePage(w, nil, "Search", "", "", 0, "", q, render.Search(data))
+	}
+}
+
+// ── Live-sync: SSE subscribe + CLI notify broadcast ──
+
+// handleSSE opens a Server-Sent Events stream that delivers broker
+// broadcasts to the dashboard client. The topic query param selects
+// which event stream to subscribe to ("workspace:<name>" or "home").
+// The handler blocks until the client disconnects (r.Context cancelled),
+// then unsubscribes to release the broker's channel.
+func handleSSE(b *Broker) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		topic := r.URL.Query().Get("topic")
+		if topic == "" {
+			jsonError(w, "missing topic", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		// Prevent the response from being buffered by intermediaries.
+		// Localhost has none, but the header is cheap insurance.
+		w.Header().Set("X-Accel-Buffering", "no")
+
+		// SSE connections are long-lived; the server's global WriteTimeout
+		// (30s) would otherwise kill them. Clear the deadline for this
+		// connection only — other routes keep the timeout backstop.
+		rc := http.NewResponseController(w)
+		_ = rc.SetWriteDeadline(time.Time{})
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		// Write a comment line so the client knows the stream is live
+		// before any broadcast arrives.
+		fmt.Fprintf(w, ":connected\n\n")
+		flusher.Flush()
+
+		ch, unsub := b.Subscribe(topic)
+		defer unsub()
+
+		ctx := r.Context()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev, ok := <-ch:
+				if !ok {
+					return
+				}
+				data, _ := json.Marshal(ev)
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				flusher.Flush()
+			}
+		}
+	}
+}
+
+// handleNotify accepts a JSON payload from the CLI and broadcasts it to
+// any dashboard clients subscribed to the named topic. Returns 204 —
+// success means "the broker accepted the broadcast", not "a client
+// received it" (there may be zero subscribers).
+func handleNotify(b *Broker) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Topic    string `json:"topic"`
+			Type     string `json:"type"`
+			PageType string `json:"pageType"`
+			Seq      int    `json:"seq"`
+			Slug     string `json:"slug"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		if body.Topic == "" || body.Type == "" {
+			jsonError(w, "topic and type are required", http.StatusBadRequest)
+			return
+		}
+		b.Broadcast(body.Topic, Event{
+			Type:     body.Type,
+			PageType: body.PageType,
+			Seq:      body.Seq,
+			Slug:     body.Slug,
+		})
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

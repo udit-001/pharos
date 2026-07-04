@@ -50,6 +50,12 @@ Examples:
 			return formatError("failed to revise lesson", err)
 		}
 
+		// Live-sync: refresh the sidebar (title may have changed) and
+		// reload the lesson iframe if it's the one currently open.
+		ws := wsStore.Workspace()
+		notifyServer("workspace:"+ws.Name, "changed", 0)
+		notifyPageChanged(ws.Name, "lesson", seq, "")
+
 		if jsonOut {
 			printJSON(map[string]string{"status": "revised", "sequence": fmt.Sprintf("%d", seq)})
 			return nil
