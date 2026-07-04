@@ -35,6 +35,7 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 ### Build workflow
 
 - **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs `templ generate` + CSS + Go (`--no-css` for Go-only). `pharos start` detects a running server via HTTP GET and skips starting.
+- **`pharos build` writes to `bin/pharos`** (gitignored), not the PATH. The `pharos` on PATH is `~/go/bin/pharos` — after a rebuild, `cp bin/pharos ~/go/bin/` so the running binary picks up the new code. Testing a build change via `pharos build` while the PATH binary is stale will silently exercise the old code path.
 
 ### Edit discipline
 
