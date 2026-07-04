@@ -4,59 +4,47 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/udit-001/pharos/internal/skills"
 )
 
 var skillsCheckCmd = &cobra.Command{
 	Use:   "check",
 	Short: "Check installed skills and their status",
-	Long: `Report which agents have pharos skills installed and whether
-they are current or outdated.
+	Long: `Report which skill locations exist and whether they are current,
+outdated, or orphaned (installed at a location pharos no longer manages).
+
+Scans every directory each provider reads — global, project, and
+ancestor — so stale copies that shadow fresh installs are surfaced.
 
 Examples:
   pharos skills check
   pharos skills check --json`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		type skillStatus struct {
-			Agent  string `json:"agent"`
-			Scope  string `json:"scope"`
-			Skill  string `json:"skill"`
-			Status string `json:"status"`
-		}
-
-		var results []skillStatus
-
-		for _, a := range agents {
-			for _, project := range []bool{false, true} {
-				baseDir := a.installDir(project)
-				if !isSkillInstalled(baseDir) {
-					continue
-				}
-				scope := "global"
-				if project {
-					scope = "project"
-				}
-				for _, skill := range skills.All {
-					embedded, err := skillFilesMap(skill)
-					if err != nil {
-						continue
-					}
-					status := "current"
-					if anySkillChanged(baseDir, skill, embedded) {
-						status = "outdated"
-					}
-					results = append(results, skillStatus{
-						Agent:  a.name,
-						Scope:  scope,
-						Skill:  skill,
-						Status: status,
-					})
-				}
-			}
-		}
+		locs := discover()
 
 		if jsonOut {
+			type skillStatus struct {
+				Dir       string   `json:"dir"`
+				Scope     string   `json:"scope"`
+				Family    string   `json:"family"`
+				Status    string   `json:"status"`
+				Readers   []string `json:"readers"`
+				Unmanaged bool     `json:"unmanaged"`
+			}
+			var results []skillStatus
+			for _, loc := range locs {
+				if !isSkillInstalled(loc.dir) {
+					continue
+				}
+				results = append(results, skillStatus{
+					Dir:       loc.dir,
+					Scope:     loc.scope,
+					Family:    loc.family,
+					Status:    loc.status,
+					Readers:   loc.readers,
+					Unmanaged: loc.unmanaged,
+				})
+			}
 			if results == nil {
 				results = []skillStatus{}
 			}
@@ -65,22 +53,40 @@ Examples:
 		}
 
 		fmt.Println()
-		if len(results) == 0 {
+		var installed bool
+		var orphanCount, outdatedCount int
+		for _, loc := range locs {
+			if !isSkillInstalled(loc.dir) {
+				continue
+			}
+			installed = true
+			icon := "✓"
+			switch loc.status {
+			case "outdated":
+				icon = "⚠"
+				outdatedCount++
+			case "orphan":
+				icon = "⚠"
+				orphanCount++
+			}
+			fmt.Printf("  %s %s\n", icon, formatLocationLine(loc))
+		}
+
+		if !installed {
 			fmt.Println("  No skills installed.")
 			fmt.Println("  Run 'pharos skills install' to install.")
 			fmt.Println()
 			return nil
 		}
 
-		for _, r := range results {
-			statusIcon := "✓"
-			if r.Status == "outdated" {
-				statusIcon = "⚠"
-			}
-			fmt.Printf("  %s %s (%s): %s — %s\n", statusIcon, r.Agent, r.Scope, r.Skill, r.Status)
+		fmt.Println()
+		if orphanCount > 0 {
+			fmt.Printf("  %d orphaned install(s) found. Run 'pharos skills uninstall --orphans' to remove them.\n", orphanCount)
+		}
+		if outdatedCount > 0 {
+			fmt.Printf("  %d outdated install(s) found. Run 'pharos skills install' to update.\n", outdatedCount)
 		}
 		fmt.Println()
-
 		return nil
 	},
 }

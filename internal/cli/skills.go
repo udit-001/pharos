@@ -12,31 +12,31 @@ var skillsCmd = &cobra.Command{
 	Long: `Install or uninstall the pharos skill into your AI coding agent so it
 knows how to use the CLI to manage learning workspaces.
 
-Installs globally by default (~/.<agent>/skills/). Use --project
-to install at the project level (./.<agent>/skills/) instead.
+Installs to the Agent Skills Open Standard locations:
+  ~/.agents/skills/  (global, read by opencode, codex, pi.dev)
+  ~/.claude/skills/  (global, read by claude-code)
 
-Supported: opencode, claude-code, codex, pi.dev`,
+Use --project to install at the project level instead.
+
+Run 'pharos skills check' to see all installed copies and their status.`,
 }
 
 var skillsInstallCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Install the pharos skill into an AI agent",
-	Long: `Interactively install the pharos skill for your AI coding agent.
-The skill teaches the agent how to use the pharos CLI commands.
+	Short: "Install the pharos skill",
+	Long: `Install the pharos skill for your AI coding agent.
 
-Supported agents:
-  opencode     Installs to ~/.opencode/skills/ (global) or ./.opencode/skills/ (--project)
-  claude-code  Installs to ~/.claude/skills/ (global) or ./.claude/skills/ (--project)
-  codex        Installs to ~/.codex/skills/ (global) or ./.codex/skills/ (--project)
-  pi.dev       Installs to ~/.pi/skills/ (global) or ./.pi/skills/ (--project)
+Installs to the Agent Skills Open Standard location (~/.agents/skills/)
+which is read by opencode, codex, and pi.dev. Also installs to
+~/.claude/skills/ for claude-code if detected.
 
-Default is global install (home directory). Interactive mode prompts
-for the install location. Use --project with --agent for
-non-interactive project-level install.
+Flags:
+  --all          Install all detected families (default in non-interactive mode)
+  --agents-only  Install only to ~/.agents/skills (opencode, codex, pi.dev)
+  --claude-only  Install only to ~/.claude/skills (claude-code)
+  --project      Install at project level (./.agents/skills) instead of global
 
-Use --all to install for all detected agents at once.
-
-Run without flags for interactive mode, or pass --agent to skip prompts.`,
+Run without flags for interactive mode.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runSkillsInstall(cmd, args)
@@ -47,10 +47,10 @@ func init() {
 	rootCmd.AddCommand(skillsCmd)
 	skillsCmd.AddCommand(skillsInstallCmd)
 	skillsCmd.AddCommand(skillsUninstallCmd)
-	skillsInstallCmd.Flags().String("agent", "", "Agent to install for (opencode, claude-code, codex, pi.dev)")
+	skillsInstallCmd.Flags().Bool("agents-only", false, "Install only to .agents/skills (opencode, codex, pi.dev)")
+	skillsInstallCmd.Flags().Bool("claude-only", false, "Install only to .claude/skills (claude-code)")
+	skillsInstallCmd.Flags().Bool("all", false, "Install all detected families")
 	skillsInstallCmd.Flags().Bool("project", false, "Install at project level instead of globally")
-	skillsInstallCmd.Flags().Bool("all", false, "Install for all detected agents")
-	skillsUninstallCmd.Flags().String("agent", "", "Agent to uninstall from (opencode, claude-code, codex, pi.dev)")
-	skillsUninstallCmd.Flags().Bool("project", false, "Uninstall from project level instead of globally")
-	skillsUninstallCmd.Flags().Bool("all", false, "Uninstall for all detected agents")
+	skillsUninstallCmd.Flags().Bool("orphans", false, "Remove only orphaned installs at old locations")
+	skillsUninstallCmd.Flags().Bool("all", false, "Remove all discovered installs")
 }
