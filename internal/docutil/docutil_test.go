@@ -19,6 +19,11 @@ func TestIsTemplate(t *testing.T) {
 		{name: "default notes prose but kind mission", content: "# Notes\n\nPreferences and working notes for this workspace.", kind: "mission", want: false},
 		{name: "braces in notes are real content", content: "# Notes\n\n{todo} and map[string]int{} are code, not a placeholder", kind: "notes", want: false},
 		{name: "brace in real content", content: "Use {curly braces} in code", kind: "notes", want: false},
+		{name: "real content with leftover placeholder line", content: "# SQL Resources\n\n## Knowledge\n\n- [MDN](https://example.com)\n  Real prose.\n\n## Gaps\n- {Areas where no good resource exists yet}", kind: "resources", want: false},
+		{name: "mission all placeholders", content: "# Mission: SQL\n\n## Why\n{fill in}\n\n## Goals\n- {goal}", kind: "mission", want: true},
+		{name: "fenced code block with braces", content: "# Mission\n\n## Config\n\n```json\n{\"key\": \"value\"}\n```\n", kind: "mission", want: false},
+		{name: "unfenced json all braces", content: "# Config\n\n{\"key\": \"value\"}", kind: "resources", want: true},
+		{name: "fenced code block only content", content: "# Notes\n\n```\n{ \"a\": 1 }\n{ \"b\": 2 }\n```", kind: "mission", want: false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
