@@ -155,6 +155,10 @@ func semverCompare(a, b string) int {
 }
 
 func parseSemver(v string) []int {
+	// Strip pre-release (everything after "-") and build metadata (after "+").
+	if idx := strings.IndexAny(v, "-+"); idx >= 0 {
+		v = v[:idx]
+	}
 	parts := strings.Split(v, ".")
 	nums := make([]int, 0, len(parts))
 	for _, p := range parts {
