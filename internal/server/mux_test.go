@@ -198,8 +198,7 @@ func TestPWAHeadTags(t *testing.T) {
 	checks := []struct{ name, want string }{
 		{"manifest link", `rel="manifest" href="/manifest.webmanifest"`},
 		{"sentinel meta", `<meta name="pharos-app" content="1">`},
-		{"theme-color light", `name="theme-color" content="#eceff4"`},
-		{"theme-color dark", `name="theme-color" content="#2e3440"`},
+		{"theme-color", `<meta name="theme-color" id="theme-color" content="#eceff4">`},
 		{"apple-touch-icon", `rel="apple-touch-icon" href="/icon-192.png"`},
 		{"sw registration", "navigator.serviceWorker.register('/sw.js')"},
 	}

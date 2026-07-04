@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/config"
@@ -48,7 +47,7 @@ Examples:
 			return nil
 		}
 
-		if err := proc.Signal(syscall.SIGINT); err != nil {
+		if err := stopProcess(proc); err != nil {
 			// Process already dead; clean up stale PID file
 			cleanupPidFile()
 			if jsonOut {
