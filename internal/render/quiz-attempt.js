@@ -19,6 +19,7 @@
   }
   if (currentIdx >= questions.length) currentIdx = questions.length - 1;
 
+  var autoSubmitChoice = data.autoSubmitChoice || false;
   var renderStartTime = 0;
   var submitted = false;
   var correctCount = 0;
@@ -158,9 +159,13 @@
         btn.addEventListener('click', function() {
           btns.forEach(function(b) { b.classList.remove('border-blue-700', 'border-2'); });
           btn.classList.add('border-blue-700', 'border-2');
-          var sb = document.getElementById('submit-btn');
-          sb.disabled = false;
-          sb.className = 'bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-blue-700/90 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700';
+          if (autoSubmitChoice) {
+            submitChoice(q, parseInt(btn.dataset.idx));
+          } else {
+            var sb = document.getElementById('submit-btn');
+            sb.disabled = false;
+            sb.className = 'bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-blue-700/90 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-700';
+          }
         });
       });
       showChoiceActions(q);
@@ -186,6 +191,7 @@
   }
 
   function showChoiceActions(q) {
+    if (autoSubmitChoice) return;
     var actions = document.getElementById('attempt-actions');
     if (!actions) return;
     var btn = document.createElement('button');

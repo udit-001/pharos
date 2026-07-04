@@ -290,12 +290,13 @@ type WeakQuestionResult struct {
 
 // Settings holds user preferences.
 type Settings struct {
-	ID                  int64  `db:"id" json:"id"`
-	DefaultView         string `db:"default_view" json:"defaultView"`
-	ItemsPerPage        int    `db:"items_per_page" json:"itemsPerPage"`
-	LessonsDir          string `db:"lessons_dir" json:"lessonsDir"`
-	RecordsDir          string `db:"records_dir" json:"recordsDir"`
-	ReferenceDir        string `db:"reference_dir" json:"referenceDir"`
-	AssetsDir           string `db:"assets_dir" json:"assetsDir"`
+	ID                int64  `db:"id" json:"id"`
+	DefaultView       string `db:"default_view" json:"defaultView"`
+	ItemsPerPage      int    `db:"items_per_page" json:"itemsPerPage"`
+	LessonsDir        string `db:"lessons_dir" json:"lessonsDir"`
+	RecordsDir        string `db:"records_dir" json:"recordsDir"`
+	ReferenceDir      string `db:"reference_dir" json:"referenceDir"`
+	AssetsDir         string `db:"assets_dir" json:"assetsDir"`
 	LastActiveWorkspace string `db:"last_active_workspace" json:"lastActiveWorkspace"`
+	AutoSubmitChoice  bool   `db:"auto_submit_choice" json:"autoSubmitChoice"`
 }

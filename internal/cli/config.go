@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/config"
+	"github.com/udit-001/pharos/internal/db"
 )
 
 var configCmd = &cobra.Command{
@@ -35,13 +36,25 @@ var configReadCmd = &cobra.Command{
 			return fmt.Errorf("config error: %w", err)
 		}
 
+		dataDir := config.DefaultDataDir()
+		if cfg != nil && cfg.DataDir != "" {
+			dataDir = cfg.DataDir
+		}
+		dbPath := filepath.Join(dataDir, "pharos.db")
+
 		fmt.Println()
-		fmt.Printf("  Config file: %s\n", config.Path())
-		if cfg != nil {
-			fmt.Printf("  data_dir:    %s\n", cfg.DataDir)
-			fmt.Printf("  Database:    %s\n", filepath.Join(cfg.DataDir, "pharos.db"))
-		} else {
-			fmt.Printf("  data_dir:    %s (default — run 'pharos init' to set up)\n", config.DefaultDataDir())
+		fmt.Printf("  Config file:   %s\n", config.Path())
+		fmt.Printf("  data_dir:      %s\n", dataDir)
+		fmt.Printf("  Database:      %s\n", dbPath)
+
+		// Show DB-backed settings
+		s, err := db.Open(dbPath)
+		if err == nil {
+			settings, err := s.GetSettings()
+			if err == nil {
+				fmt.Printf("  auto_submit:   %v\n", settings.AutoSubmitChoice)
+			}
+			s.Close()
 		}
 		fmt.Println()
 		return nil
@@ -51,20 +64,49 @@ var configReadCmd = &cobra.Command{
 var configSetCmd = &cobra.Command{
 	Use:   "set <key> <value>",
 	Short: "Set a configuration value",
-	Long: `Update a configuration key.
+	Long: `Update a configuration key or DB-backed setting.
 
 Supported keys:
-  data_dir    Path to the pharos data directory
+  data_dir            Path to the pharos data directory
+  auto_submit_choice  Auto-submit choice questions on selection (on|off)
 
-The value is saved to the config file. Run 'pharos config read'
-to verify the change.
+TOML keys are saved to the config file. DB-backed settings are
+persisted immediately. Run 'pharos config read' to verify.
 
 Examples:
-  pharos config set data_dir ~/my-pharos`,
+  pharos config set data_dir ~/my-pharos
+  pharos config set auto_submit_choice on`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		key := args[0]
 		value := args[1]
+
+		switch key {
+		case "auto_submit_choice":
+			var v bool
+			switch value {
+			case "on", "true", "1":
+				v = true
+			case "off", "false", "0":
+				v = false
+			default:
+				return fmt.Errorf("invalid value %q for %s: use on or off", value, key)
+			}
+			dataDir := resolveDataDir()
+			dbPath := filepath.Join(dataDir, "pharos.db")
+			s, err := db.Open(dbPath)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer s.Close()
+			if err := s.SetAutoSubmitChoice(v); err != nil {
+				return fmt.Errorf("set %s: %w", key, err)
+			}
+			fmt.Println()
+			fmt.Printf("  ✓ %s set to %v\n", key, v)
+			fmt.Println()
+			return nil
+		}
 
 		cfg, err := config.Load()
 		if err != nil {

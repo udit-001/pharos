@@ -209,6 +209,9 @@ type AttemptData struct {
 	AnsweredIDs map[int64]bool
 	// AnsweredResults maps answered question ID → correct/incorrect.
 	AnsweredResults map[int64]bool
+	// AutoSubmitChoice controls whether choice questions submit on option
+	// selection instead of requiring a "Check" button click.
+	AutoSubmitChoice bool
 }
 
 // ReviewItem is one question in the review page.

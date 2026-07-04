@@ -924,14 +924,16 @@ func handleQuizAttemptPage(store *db.Store) http.HandlerFunc {
 		}
 
 		sd, _ := wsStore.GetSidebarData()
+		settings, _ := store.GetSettings()
 		data := render.AttemptData{
-			Workspace:       toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
-			QuizSlug:        slug,
-			QuizTitle:       quiz.Title,
-			AttemptID:       attemptID,
-			Questions:       questions,
-			AnsweredIDs:     answeredIDs,
-			AnsweredResults: answeredResults,
+			Workspace:        toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
+			QuizSlug:         slug,
+			QuizTitle:        quiz.Title,
+			AttemptID:        attemptID,
+			Questions:        questions,
+			AnsweredIDs:      answeredIDs,
+			AnsweredResults:  answeredResults,
+			AutoSubmitChoice: settings.AutoSubmitChoice,
 		}
 		writePage(w, &sd, quiz.Title, name, "quiz", 0, slug, "", render.QuizAttempt(data))
 	}

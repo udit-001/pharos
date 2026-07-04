@@ -22,3 +22,16 @@ func (s *Store) CurrentWorkspace() (string, error) {
 	}
 	return name, nil
 }
+
+// AutoSubmitChoice returns whether choice questions auto-submit on selection.
+func (s *Store) AutoSubmitChoice() (bool, error) {
+	var v bool
+	err := s.db.Get(&v, "SELECT auto_submit_choice FROM settings WHERE id = 1")
+	return v, err
+}
+
+// SetAutoSubmitChoice toggles whether choice questions auto-submit on selection.
+func (s *Store) SetAutoSubmitChoice(v bool) error {
+	_, err := s.db.Exec("UPDATE settings SET auto_submit_choice = ? WHERE id = 1", v)
+	return err
+}

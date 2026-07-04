@@ -46,13 +46,14 @@ func QuizAttempt(d AttemptData) string {
 		answeredResults[strconv.FormatInt(id, 10)] = correct
 	}
 	dataJSON, _ := json.Marshal(map[string]any{
-		"attemptId":       d.AttemptID,
-		"quizSlug":        d.QuizSlug,
-		"quizTitle":       d.QuizTitle,
-		"workspace":       d.Workspace.Name,
-		"questions":       json.RawMessage(questionsJSON),
-		"answeredIds":     answeredIDs,
-		"answeredResults": answeredResults,
+		"attemptId":         d.AttemptID,
+		"quizSlug":          d.QuizSlug,
+		"quizTitle":         d.QuizTitle,
+		"workspace":         d.Workspace.Name,
+		"questions":         json.RawMessage(questionsJSON),
+		"answeredIds":       answeredIDs,
+		"answeredResults":   answeredResults,
+		"autoSubmitChoice":  d.AutoSubmitChoice,
 	})
 	out += `<script type="application/json" id="attempt-data">` + string(dataJSON) + `</script>`
 	out += `<script>` + quizAttemptJS + `</script>`
