@@ -77,8 +77,8 @@ type Question struct {
 	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
 	Title       string `db:"title" json:"title"`
 	Slug        string `db:"slug" json:"slug"`
-	Mode        string `db:"mode" json:"mode"`     // "choice" | "recall"
-	Config      string `db:"config" json:"config"` // raw JSON; use ParseConfig for typed access
+	Mode        string `db:"mode" json:"mode"`         // "choice" | "recall"
+	Config      string `db:"config" json:"config"`     // raw JSON; use ParseConfig for typed access
 	Filename    string `db:"filename" json:"filename"` // stimulus HTML file, e.g. <slug>.html; empty = no stimulus
 	Path        string `db:"path" json:"path"`         // relative to workspace
 	CreatedAt   string `db:"created_at" json:"createdAt"`
@@ -290,13 +290,13 @@ type WeakQuestionResult struct {
 
 // Settings holds user preferences.
 type Settings struct {
-	ID                int64  `db:"id" json:"id"`
-	DefaultView       string `db:"default_view" json:"defaultView"`
-	ItemsPerPage      int    `db:"items_per_page" json:"itemsPerPage"`
-	LessonsDir        string `db:"lessons_dir" json:"lessonsDir"`
-	RecordsDir        string `db:"records_dir" json:"recordsDir"`
-	ReferenceDir      string `db:"reference_dir" json:"referenceDir"`
-	AssetsDir         string `db:"assets_dir" json:"assetsDir"`
+	ID                  int64  `db:"id" json:"id"`
+	DefaultView         string `db:"default_view" json:"defaultView"`
+	ItemsPerPage        int    `db:"items_per_page" json:"itemsPerPage"`
+	LessonsDir          string `db:"lessons_dir" json:"lessonsDir"`
+	RecordsDir          string `db:"records_dir" json:"recordsDir"`
+	ReferenceDir        string `db:"reference_dir" json:"referenceDir"`
+	AssetsDir           string `db:"assets_dir" json:"assetsDir"`
 	LastActiveWorkspace string `db:"last_active_workspace" json:"lastActiveWorkspace"`
-	AutoSubmitChoice  bool   `db:"auto_submit_choice" json:"autoSubmitChoice"`
+	AutoSubmitChoice    bool   `db:"auto_submit_choice" json:"autoSubmitChoice"`
 }

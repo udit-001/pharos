@@ -221,7 +221,7 @@ type ReviewItem struct {
 	Mode          string
 	Options       []string
 	UserResponse  string
-	CorrectIndex  int    // for choice mode
+	CorrectIndex  int // for choice mode
 	IsCorrect     bool
 	RevealText    string // for recall mode
 	RawURL        string // stimulus iframe URL; empty when no stimulus
