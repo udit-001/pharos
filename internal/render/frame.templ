@@ -61,9 +61,20 @@ templ document(f Frame, content string) {
 							@templ.Raw(content)
 						</div>
 					</div>
-				</main>
+			</main>
+		</div>
+		@templ.Raw(f.PaletteDataScript())
+		<div id="pharos-palette" class="palette-overlay" hidden>
+			<div class="palette-panel" role="dialog" aria-label="Command palette">
+				<div class="palette-input-wrap">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+					<input id="palette-input" type="text" class="palette-input" placeholder="Search lessons, records, refs, quizzes…" autocomplete="off" spellcheck="false"/>
+					<kbd class="palette-esc">esc</kbd>
+				</div>
+				<div id="palette-results" class="palette-results" role="listbox"></div>
 			</div>
-			<script src="/js/pharos-theme.js"></script>
+		</div>
+		<script src="/js/pharos-theme.js"></script>
 			<script>
 				function toggleSidebar() {
 					var sb = document.getElementById('sidebar');
@@ -391,18 +402,57 @@ templ document(f Frame, content string) {
 				// ── Shared refresh helpers ──
 				// Both preserve scroll position of the region being refreshed.
 
-				function reloadIframe() {
-					var iframe = document.querySelector('#page-content iframe');
-					if (!iframe || !iframe.contentWindow) return;
+			// Cross-session scroll persistence (lessons only). localStorage
+			// mirrors the last known scroll so a return visit restores it;
+			// the in-memory save below stays the source of truth for
+			// live-sync reloads (which don't fire beforeunload).
+			function lessonScrollKey() {
+				return 'pharos_scroll_' + activeWS + '_' + activeSeq;
+			}
+			function persistLessonScroll(y) {
+				if (activeType !== 'lesson') return;
+				try { localStorage.setItem(lessonScrollKey(), String(y)); } catch(_) {}
+			}
+			function reloadIframe() {
+				var iframe = document.querySelector('#page-content iframe');
+				if (!iframe || !iframe.contentWindow) return;
+				try {
+					var savedY = iframe.contentWindow.scrollY;
+					persistLessonScroll(savedY);
+					iframe.addEventListener('load', function restore() {
+						iframe.removeEventListener('load', restore);
+						try { iframe.contentWindow.scrollTo(0, savedY); } catch(_) {}
+					});
+					iframe.contentWindow.location.reload();
+				} catch(_) {}
+			}
+			// Restore scroll on a fresh lesson page load (cross-session).
+			// One-shot: detaches after the first load so it never fights the
+			// in-memory restore reloadIframe uses for live-sync reloads.
+			if (activeType === 'lesson') {
+				var lessonFrame = document.querySelector('#page-content iframe');
+				if (lessonFrame) {
+					var restoreLessonScroll = function() {
+						try {
+							var v = localStorage.getItem(lessonScrollKey());
+							if (v != null) lessonFrame.contentWindow.scrollTo(0, parseInt(v, 10) || 0);
+						} catch(_) {}
+					};
 					try {
-						var savedY = iframe.contentWindow.scrollY;
-						iframe.addEventListener('load', function restore() {
-							iframe.removeEventListener('load', restore);
-							try { iframe.contentWindow.scrollTo(0, savedY); } catch(_) {}
-						});
-						iframe.contentWindow.location.reload();
-					} catch(_) {}
+						var rs = lessonFrame.contentDocument && lessonFrame.contentDocument.readyState;
+						if (rs === 'complete') restoreLessonScroll();
+						else lessonFrame.addEventListener('load', restoreLessonScroll, { once: true });
+					} catch(_) {
+						lessonFrame.addEventListener('load', restoreLessonScroll, { once: true });
+					}
 				}
+				window.addEventListener('beforeunload', function() {
+					try {
+						var iframe = document.querySelector('#page-content iframe');
+						if (iframe && iframe.contentWindow) persistLessonScroll(iframe.contentWindow.scrollY);
+					} catch(_) {}
+				});
+			}
 
 				function swapRegion(selector) {
 					fetch(location.href, { credentials: 'same-origin' })
@@ -461,6 +511,325 @@ templ document(f Frame, content string) {
 						handler.refresh();
 						return;
 					}
+				});
+			})();
+		</script>
+		<script>
+			// Command palette (LEARN-153). Two-tier results: instant inline
+			// JSON (Tier 1) + appended /api/search (Tier 2). Recents from all
+			// navigation live in localStorage and affect only the no-query
+			// state. Suppressed on in-progress quiz attempt pages.
+			(function() {
+				var overlay = document.getElementById('pharos-palette');
+				if (!overlay) return;
+				var input = document.getElementById('palette-input');
+				var resultsEl = document.getElementById('palette-results');
+				var dataEl = document.getElementById('pharos-palette-data');
+
+				var inlineItems = [];
+				try { inlineItems = JSON.parse(dataEl.textContent || '[]') || []; } catch(_) {}
+				var workspacesCache = null;
+
+				var RECENTS_KEY = 'pharos_recents';
+				function loadRecents() {
+					try { return JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]'); } catch(_) { return []; }
+				}
+				function recordRecent(entry) {
+					if (!entry || !entry.url) return;
+					var list = loadRecents().filter(function(r) { return r.url !== entry.url; });
+					list.unshift(entry);
+					if (list.length > 8) list = list.slice(0, 8);
+					try { localStorage.setItem(RECENTS_KEY, JSON.stringify(list)); } catch(_) {}
+				}
+				// Record the current page on every load (recents span all
+				// workspaces). Skip the quiz attempt page — its URL is ephemeral
+				// and navigating back mid-quiz is disruptive. The dashboard and
+				// other workspace-less pages are never recorded.
+				(function recordCurrentPage() {
+					if (location.pathname.indexOf('/attempt/') !== -1) return;
+					var body = document.body;
+					var ws = body.getAttribute('data-active-ws') || '';
+					if (!ws) return;
+					var type = body.getAttribute('data-active-type') || '';
+					recordRecent({
+						type: type || 'workspace',
+						title: document.title.replace(/ — Pharos$/, ''),
+						url: location.pathname + location.search,
+						workspace: ws
+					});
+				})();
+
+				// Fuzzy subsequence matcher. Returns {rank} (lower = better) or
+				// null when q is not a subsequence of s. Exact < prefix <
+				// substring < subsequence (tighter groupings score better).
+				function fuzzyScore(q, s) {
+					q = q.toLowerCase(); s = s.toLowerCase();
+					if (!q) return { rank: 0 };
+					if (s === q) return { rank: 1 };
+					var si = s.indexOf(q);
+					if (si === 0) return { rank: 2 };
+					if (si !== -1) return { rank: 3 };
+					var qi = 0, prev = -2, gaps = 0, tight = 0;
+					for (var i = 0; i < s.length && qi < q.length; i++) {
+						if (s[i] === q[qi]) {
+							if (prev === i - 1) tight++;
+							else if (prev !== -2) gaps++;
+							prev = i;
+							qi++;
+						}
+					}
+					if (qi !== q.length) return null;
+					return { rank: 4 + gaps - tight };
+				}
+
+				var ICONS = {
+					lesson: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg>',
+					record: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5Z"/><path d="M15 3v6h6"/></svg>',
+					ref: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>',
+					quiz: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>',
+					workspace: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/></svg>',
+					doc: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+					action: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+					home: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
+				};
+				function iconFor(type) { return ICONS[type] || ICONS.doc; }
+
+				// Type display order (matches sidebar) + plural labels for group headers.
+				var TYPE_ORDER = ['lesson', 'record', 'ref', 'quiz', 'doc', 'workspace', 'action', 'home'];
+				var TYPE_LABELS = {
+					lesson: 'Lessons', record: 'Records', ref: 'References', quiz: 'Quizzes',
+					doc: 'Workspace', workspace: 'Workspaces', action: 'Actions', home: 'Pages'
+				};
+				// groupByType preserves fuzzy-rank order within each type and emits
+				// groups in TYPE_ORDER, then any remaining types in encounter order.
+				function groupByType(items) {
+					var groups = {}, order = [];
+					for (var i = 0; i < items.length; i++) {
+						var t = items[i].type;
+						if (!groups[t]) { groups[t] = []; order.push(t); }
+						groups[t].push(items[i]);
+					}
+					var out = [], seen = {};
+					for (var i = 0; i < TYPE_ORDER.length; i++) {
+						var t = TYPE_ORDER[i];
+						if (groups[t]) { seen[t] = true; out.push({ label: TYPE_LABELS[t] || t, items: groups[t] }); }
+					}
+					for (var i = 0; i < order.length; i++) {
+						var t = order[i];
+						if (!seen[t]) out.push({ label: TYPE_LABELS[t] || t, items: groups[t] });
+					}
+					return out;
+				}
+
+				function quickActions() {
+					return [
+						{ type: 'action', title: 'Toggle sidebar', action: function() { if (typeof toggleSidebarCollapse === 'function') toggleSidebarCollapse(); } },
+						{ type: 'action', title: 'Toggle theme', action: function() { if (typeof toggleTheme === 'function') toggleTheme(); } }
+					];
+				}
+
+				var selected = -1;
+				var currentRows = [];
+				var pendingTier2 = [];
+				var tier2Timer = null;
+				var tier2Abort = null;
+
+				function open() {
+					if (location.pathname.indexOf('/attempt/') !== -1) return;
+					overlay.hidden = false;
+					document.body.style.overflow = 'hidden';
+					input.value = '';
+					pendingTier2 = [];
+					render();
+					setTimeout(function() { input.focus(); }, 0);
+					fetchWorkspaces();
+				}
+				function close() {
+					overlay.hidden = true;
+					document.body.style.overflow = '';
+					cancelTier2();
+				}
+				function isOpen() { return !overlay.hidden; }
+
+				function fetchWorkspaces() {
+					if (workspacesCache) return;
+					fetch('/api/workspaces').then(function(r) { return r.json(); }).then(function(list) {
+						workspacesCache = Array.isArray(list) ? list : [];
+						if (isOpen() && input.value.trim()) render();
+					}).catch(function() { workspacesCache = []; });
+				}
+
+				function tier1Items(q) {
+					var pool = inlineItems.slice();
+					if (workspacesCache) {
+						for (var i = 0; i < workspacesCache.length; i++) {
+							var w = workspacesCache[i];
+							pool.push({ type: 'workspace', title: w.topic || w.name, url: '/workspace/' + encodeURIComponent(w.name), workspace: w.name });
+						}
+					}
+					if (!q) return pool;
+					var scored = [];
+					for (var i = 0; i < pool.length; i++) {
+						var s = fuzzyScore(q, pool[i].title);
+						if (s) scored.push({ item: pool[i], rank: s.rank });
+					}
+					scored.sort(function(a, b) {
+						if (a.rank !== b.rank) return a.rank - b.rank;
+						return a.item.title.localeCompare(b.item.title);
+					});
+					return scored.map(function(x) { return x.item; });
+				}
+
+				function cancelTier2() {
+					if (tier2Timer) { clearTimeout(tier2Timer); tier2Timer = null; }
+					if (tier2Abort) { try { tier2Abort.abort(); } catch(_) {} tier2Abort = null; }
+				}
+				function scheduleTier2(q) {
+					cancelTier2();
+					if (!q) { pendingTier2 = []; return; }
+					tier2Timer = setTimeout(function() {
+						tier2Abort = new AbortController();
+						fetch('/api/search?q=' + encodeURIComponent(q), { signal: tier2Abort.signal })
+							.then(function(r) { return r.json(); })
+							.then(function(list) {
+								pendingTier2 = Array.isArray(list) ? list : [];
+								if (isOpen() && input.value.trim() === q) render();
+							})
+							.catch(function() {});
+					}, 150);
+				}
+
+				function appendDivider(label, isTier) {
+					currentRows.push({ kind: 'divider', label: label });
+					var d = document.createElement('div');
+					d.className = 'palette-divider' + (isTier ? ' palette-tier-divider' : '');
+					d.textContent = label;
+					resultsEl.appendChild(d);
+				}
+				function appendItemRow(item) {
+					var idx = currentRows.length;
+					currentRows.push({ kind: 'item', item: item });
+					var el = document.createElement('div');
+					el.className = 'palette-row';
+					el.setAttribute('role', 'option');
+					el.innerHTML = '<span class="palette-row-icon">' + iconFor(item.type) + '</span>' +
+						'<span class="palette-row-title"></span>' +
+						(item.workspace ? '<span class="palette-row-ws"></span>' : '');
+					el.querySelector('.palette-row-title').textContent = item.title;
+					if (item.workspace) {
+						var wsEl = el.querySelector('.palette-row-ws');
+						if (wsEl) wsEl.textContent = item.workspace;
+					}
+					(function(idx, el) {
+						el.addEventListener('mouseenter', function() { setSelected(idx); });
+						el.addEventListener('click', function(e) { e.preventDefault(); activate(idx); });
+					})(idx, el);
+					resultsEl.appendChild(el);
+					currentRows[idx]._el = el;
+				}
+				function appendGroup(label, items) {
+					appendDivider(label);
+					for (var i = 0; i < items.length; i++) appendItemRow(items[i]);
+				}
+
+				function render() {
+					var q = input.value.trim();
+					currentRows = [];
+					resultsEl.innerHTML = '';
+					var hasContent = false;
+					if (!q) {
+						var qa = quickActions();
+						if (qa.length) { appendGroup('Actions', qa); hasContent = true; }
+						var recents = loadRecents().filter(function(r) { return r.url !== location.pathname + location.search; });
+						if (recents.length) appendGroup('Recents', recents);
+					} else {
+						var t1Groups = groupByType(tier1Items(q));
+						for (var i = 0; i < t1Groups.length; i++) {
+							appendGroup(t1Groups[i].label, t1Groups[i].items);
+							hasContent = true;
+						}
+						if (pendingTier2.length) {
+							appendDivider('More across workspaces', true);
+							var t2Items = pendingTier2.map(function(r) {
+								return { type: r.type, title: r.title, url: r.url, workspace: r.workspace || '' };
+							});
+							var t2Groups = groupByType(t2Items);
+							for (var i = 0; i < t2Groups.length; i++) {
+								appendGroup(t2Groups[i].label, t2Groups[i].items);
+							}
+						}
+					}
+					if (!hasContent) {
+						var empty = document.createElement('div');
+						empty.className = 'palette-empty';
+						empty.textContent = q ? 'No results. Press Enter to search the full archive.' : 'No items yet.';
+						resultsEl.appendChild(empty);
+						selected = -1;
+						return;
+					}
+					setSelected(firstSelectable());
+				}
+
+				function firstSelectable() {
+					for (var i = 0; i < currentRows.length; i++) {
+						if (currentRows[i].kind === 'item') return i;
+					}
+					return -1;
+				}
+				function setSelected(idx) {
+					for (var i = 0; i < currentRows.length; i++) {
+						if (currentRows[i]._el) currentRows[i]._el.classList.remove('palette-selected');
+					}
+					selected = idx;
+					if (idx >= 0 && currentRows[idx] && currentRows[idx]._el) {
+						currentRows[idx]._el.classList.add('palette-selected');
+						currentRows[idx]._el.scrollIntoView({ block: 'nearest' });
+					}
+				}
+				function moveSelected(delta) {
+					var idx = selected;
+					for (var step = 0; step < currentRows.length; step++) {
+						idx += delta;
+						if (idx < 0) idx = currentRows.length - 1;
+						if (idx >= currentRows.length) idx = 0;
+						if (currentRows[idx] && currentRows[idx].kind === 'item') { setSelected(idx); return; }
+					}
+				}
+				function activate(idx) {
+					if (idx < 0 || idx >= currentRows.length) return;
+					var row = currentRows[idx];
+					if (!row || row.kind !== 'item') return;
+					var item = row.item;
+					if (typeof item.action === 'function') { item.action(); close(); return; }
+					if (item.url) { close(); location.href = item.url; }
+				}
+
+				document.addEventListener('keydown', function(e) {
+					var isCmd = e.metaKey || e.ctrlKey;
+					if (isCmd && (e.key === 'k' || e.key === 'K')) {
+						e.preventDefault();
+						if (isOpen()) close(); else open();
+						return;
+					}
+					if (!isOpen()) return;
+					if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+					if (e.key === 'ArrowDown') { e.preventDefault(); moveSelected(1); return; }
+					if (e.key === 'ArrowUp') { e.preventDefault(); moveSelected(-1); return; }
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						if (selected >= 0) activate(selected);
+						else if (input.value.trim()) { close(); location.href = '/search?q=' + encodeURIComponent(input.value.trim()); }
+						return;
+					}
+					if (e.key === 'Tab') { e.preventDefault(); return; }
+				});
+				input.addEventListener('input', function() {
+					pendingTier2 = [];
+					render();
+					scheduleTier2(input.value.trim());
+				});
+				overlay.addEventListener('click', function(e) {
+					if (e.target === overlay) close();
 				});
 			})();
 		</script>

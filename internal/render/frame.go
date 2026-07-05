@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -288,4 +289,56 @@ func frameMaxWidthClass(isFrame bool) string {
 		return ""
 	}
 	return "max-w-4xl"
+}
+
+// paletteItem is the JSON shape the command-palette JS consumes for one
+// Tier-1 result row. Workspace is the owning workspace name (omitted when
+// empty, which only happens for synthetic rows the JS adds client-side).
+type paletteItem struct {
+	Type      string `json:"type"`
+	Title     string `json:"title"`
+	URL       string `json:"url"`
+	Workspace string `json:"workspace,omitempty"`
+}
+
+// PaletteDataScript returns a <script type="application/json"> tag carrying
+// the command palette's inline Tier-1 items: the active workspace's lessons,
+// records, refs, quizzes, and workspace docs (mission/resources/glossary/
+// notes). The payload is "[]" on the dashboard, where there is no active
+// workspace.
+//
+// The JSON is encoded with HTML escaping on (json.Encoder's default), so
+// <, >, and & become \u003X sequences — safe inside a <script> tag because
+// no "</script>" sequence can appear in the payload. The tag is injected
+// via @templ.Raw in frame.templ; templ treats <script> content as raw
+// literal text, so the JSON must be pre-built server-side rather than
+// interpolated with a templ expression.
+func (f Frame) PaletteDataScript() string {
+	items := []paletteItem{}
+	if f.Sidebar.Workspace != nil {
+		ws := f.Sidebar.Workspace.Name
+		for _, l := range f.Sidebar.Lessons {
+			items = append(items, paletteItem{"lesson", l.Title, urls.Lesson(ws, l.Seq), ws})
+		}
+		for _, r := range f.Sidebar.Records {
+			items = append(items, paletteItem{"record", r.Title, urls.Record(ws, r.Seq), ws})
+		}
+		for _, ref := range f.Sidebar.Refs {
+			items = append(items, paletteItem{"ref", ref.Title, urls.Ref(ws, ref.Slug), ws})
+		}
+		for _, q := range f.Sidebar.Quizzes {
+			items = append(items, paletteItem{"quiz", q.Title, urls.Quiz(ws, q.Slug), ws})
+		}
+		for _, doc := range []struct{ kind, label string }{
+			{"mission", "Mission"},
+			{"resources", "Resources"},
+			{"glossary", "Glossary"},
+			{"notes", "Notes"},
+		} {
+			items = append(items, paletteItem{"doc", doc.label, urls.Doc(ws, doc.kind), ws})
+		}
+	}
+	var buf bytes.Buffer
+	_ = json.NewEncoder(&buf).Encode(items)
+	return `<script type="application/json" id="pharos-palette-data">` + strings.TrimSpace(buf.String()) + `</script>`
 }

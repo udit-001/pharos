@@ -1297,7 +1297,7 @@ func handleLessonHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, "pharos-theme.js", "pharos-toc.js", "pharos-frame.js")
+		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js")
 	}
 }
 
@@ -1311,7 +1311,7 @@ func handleRefHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveIframeHTML(w, filepath.Join(ws.Path, "reference", file), "reference", file, "pharos-theme.js", "pharos-toc.js", "pharos-frame.js")
+		serveIframeHTML(w, filepath.Join(ws.Path, "reference", file), "reference", file, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js")
 	}
 }
 
@@ -1325,7 +1325,7 @@ func handleQuestionHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveIframeHTML(w, filepath.Join(ws.Path, "questions", file), "question", file, "pharos-theme.js", "pharos-frame.js")
+		serveIframeHTML(w, filepath.Join(ws.Path, "questions", file), "question", file, "pharos-theme.js", "pharos-iframe-bridge.js")
 	}
 }
 
@@ -1375,9 +1375,9 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 // cache-busting. Bump it whenever a bundle's content changes.
 var jsVer = "13"
 var jsBundles = map[string][]byte{
-	"pharos-theme.js": web.PharosThemeJS,
-	"pharos-toc.js":   web.PharosTocJS,
-	"pharos-frame.js": web.PharosFrameJS,
+	"pharos-theme.js":         web.PharosThemeJS,
+	"pharos-toc.js":           web.PharosTocJS,
+	"pharos-iframe-bridge.js": web.PharosIframeBridgeJS,
 }
 
 func handleJSBundle(w http.ResponseWriter, r *http.Request) {
