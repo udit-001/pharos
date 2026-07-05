@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/docutil"
 	"github.com/udit-001/pharos/internal/markdown"
@@ -92,6 +93,9 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Write(web.StoppedPage)
 	})
+
+	// JS bundles for iframe injection — served from embedded bytes.
+	mux.HandleFunc("GET /js/{file}", handleJSBundle)
 
 	// JSON API
 	mux.HandleFunc("GET /api/workspaces", jsonHandler(handleListWorkspaces(store)))
@@ -1272,7 +1276,7 @@ func handleLessonHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveFileOr404(w, r, filepath.Join(ws.Path, "lessons", file), "lesson", file)
+		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, "pharos-theme.js")
 	}
 }
 
@@ -1286,7 +1290,7 @@ func handleRefHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveFileOr404(w, r, filepath.Join(ws.Path, "reference", file), "reference", file)
+		serveIframeHTML(w, filepath.Join(ws.Path, "reference", file), "reference", file, "pharos-theme.js")
 	}
 }
 
@@ -1300,7 +1304,7 @@ func handleQuestionHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveFileOr404(w, r, filepath.Join(ws.Path, "questions", file), "question", file)
+		serveIframeHTML(w, filepath.Join(ws.Path, "questions", file), "question", file, "pharos-theme.js")
 	}
 }
 
@@ -1338,4 +1342,63 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 		}
 		http.ServeFile(w, r, path)
 	}
+}
+
+// ── Shared JS bundle serving ──
+
+// jsBundles maps a filename (without path) to its embedded bytes.
+// Add new bundles here as they are created; the /js/{file} route
+// serves them at GET /js/{name}.
+var jsBundles = map[string][]byte{
+	"pharos-theme.js": web.PharosThemeJS,
+}
+
+func handleJSBundle(w http.ResponseWriter, r *http.Request) {
+	file := r.PathValue("file")
+	data, ok := jsBundles[file]
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Write(data)
+}
+
+// ── Iframe script injection ──
+
+// injectFrameScripts injects <script src="/js/{name}"> tags before
+// </head> in an HTML document. Unknown script names are silently
+// dropped — only bundles registered in jsBundles are injected.
+func injectFrameScripts(html []byte, scripts ...string) []byte {
+	var buf bytes.Buffer
+	for _, name := range scripts {
+		if _, ok := jsBundles[name]; !ok {
+			continue
+		}
+		buf.WriteString(`<script src="/js/`)
+		buf.WriteString(name)
+		buf.WriteString(`"></script>`)
+	}
+	if buf.Len() == 0 {
+		return html
+	}
+	tag := bytes.TrimRight(buf.Bytes(), "\n")
+	return bytes.Replace(html, []byte("</head>"), append(tag, []byte("</head>")...), 1)
+}
+
+// ── Iframe HTML serving with script injection ──
+
+// serveIframeHTML reads an HTML file from disk, injects the given
+// script tags before </head>, and writes the result to the response.
+func serveIframeHTML(w http.ResponseWriter, path, kind, file string, scripts ...string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		iframeNotFound(w, kind, file)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// Don't cache HTML files that may change via injection configuration.
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Write(injectFrameScripts(data, scripts...))
 }

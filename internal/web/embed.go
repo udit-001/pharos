@@ -28,3 +28,8 @@ var ServiceWorker []byte
 
 //go:embed stopped.html
 var StoppedPage []byte
+
+// JS bundles served via /js/{file} for iframe injection.
+//
+//go:embed pharos-theme.js
+var PharosThemeJS []byte
