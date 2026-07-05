@@ -211,7 +211,7 @@ func breadcrumbs(f Frame) string {
 		}
 	}
 
-	panelIcon := `<button onclick="toggleSidebarCollapse()" class="sidebar-collapse-btn-top p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700 cursor-pointer shrink-0 inline-flex items-center justify-center" aria-label="Toggle sidebar" title="Toggle sidebar">` + iconPanelLeft() + `</button>`
+	panelIcon := `<button onclick="toggleSidebarCollapse()" class="sidebar-collapse-btn-top p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-700 cursor-pointer shrink-0 inline-flex items-center justify-center" aria-label="Toggle sidebar" data-tooltip="Toggle sidebar">` + iconPanelLeft() + `</button>`
 	sepBar := `<span class="w-px h-4 bg-slate-300 shrink-0 mx-1 md:mx-1.5"></span>`
 	return fmt.Sprintf(`<nav class="flex items-center gap-1 text-sm min-w-0">%s%s%s%s</nav>`,
 		panelIcon, sepBar, wsLink, pageCrumb)
