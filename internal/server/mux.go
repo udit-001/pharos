@@ -1297,7 +1297,7 @@ func handleLessonHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, "pharos-theme.js")
+		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, "pharos-theme.js", "pharos-toc.js")
 	}
 }
 
@@ -1311,7 +1311,7 @@ func handleRefHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveIframeHTML(w, filepath.Join(ws.Path, "reference", file), "reference", file, "pharos-theme.js")
+		serveIframeHTML(w, filepath.Join(ws.Path, "reference", file), "reference", file, "pharos-theme.js", "pharos-toc.js")
 	}
 }
 
@@ -1370,8 +1370,13 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 // jsBundles maps a filename (without path) to its embedded bytes.
 // Add new bundles here as they are created; the /js/{file} route
 // serves them at GET /js/{name}.
+//
+// jsVer is appended as a query parameter to script src tags for
+// cache-busting. Bump it whenever a bundle's content changes.
+var jsVer = "6"
 var jsBundles = map[string][]byte{
 	"pharos-theme.js": web.PharosThemeJS,
+	"pharos-toc.js":   web.PharosTocJS,
 }
 
 func handleJSBundle(w http.ResponseWriter, r *http.Request) {
@@ -1399,6 +1404,8 @@ func injectFrameScripts(html []byte, scripts ...string) []byte {
 		}
 		buf.WriteString(`<script src="/js/`)
 		buf.WriteString(name)
+		buf.WriteString(`?v=`)
+		buf.WriteString(jsVer)
 		buf.WriteString(`"></script>`)
 	}
 	if buf.Len() == 0 {

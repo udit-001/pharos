@@ -33,3 +33,6 @@ var StoppedPage []byte
 //
 //go:embed pharos-theme.js
 var PharosThemeJS []byte
+
+//go:embed pharos-toc.js
+var PharosTocJS []byte
