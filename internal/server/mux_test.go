@@ -238,14 +238,13 @@ func TestLessonPageSetsLastViewed(t *testing.T) {
 
 	env.get(t, "/workspace/alpha/lesson/2")
 
-	// Verify SetLastViewed was called — workspace should redirect to lesson 2
+	// Workspace page should show a "Continue" card linking to the last-viewed lesson
 	rec := env.get(t, "/workspace/alpha")
-	if rec.Code != 302 {
-		t.Errorf("workspace page should redirect after viewing a lesson; got %d", rec.Code)
+	if rec.Code != 200 {
+		t.Fatalf("workspace page should render landing page; got %d", rec.Code)
 	}
-	loc := rec.Header().Get("Location")
-	if !strings.Contains(loc, "/lesson/2") {
-		t.Errorf("redirect location = %q, want lesson/2", loc)
+	if !strings.Contains(rec.Body.String(), "Continue: Lesson Two") {
+		t.Error("workspace page should show continue card for last-viewed lesson")
 	}
 }
 

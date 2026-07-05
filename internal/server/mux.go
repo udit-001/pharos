@@ -491,11 +491,6 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		}
 		ws := wsStore.Workspace()
 
-		if ws.LastLessonSeq != nil {
-			http.Redirect(w, r, urls.Lesson(name, *ws.LastLessonSeq), http.StatusFound)
-			return
-		}
-
 		sd, err := wsStore.GetSidebarData()
 		if err != nil {
 			writeNotFound(w, nil, "Workspace not found", "This workspace could not be loaded.")
@@ -520,9 +515,35 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 			missionHTML = markdown.Render(mission)
 		}
 
+		var continueItem *render.ContinueItem
+		if ws.LastLessonSeq != nil && *ws.LastLessonSeq > 0 {
+			for _, l := range sd.Lessons {
+				if l.Seq == *ws.LastLessonSeq {
+					continueItem = &render.ContinueItem{
+						URL:   urls.Lesson(name, l.Seq),
+						Label: "Continue: " + l.Title,
+					}
+					break
+				}
+			}
+		} else if ws.LastRefSeq != nil && *ws.LastRefSeq > 0 {
+			if refs, err := wsStore.GetRefs(); err == nil {
+				for _, ref := range refs {
+					if ref.ID == int64(*ws.LastRefSeq) {
+						continueItem = &render.ContinueItem{
+							URL:   urls.Ref(name, ref.Slug),
+							Label: "Continue: " + ref.Title,
+						}
+						break
+					}
+				}
+			}
+		}
+
 		data := render.WorkspaceData{
 			Workspace: toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
 			Mission:   missionHTML,
+			Continue:  continueItem,
 			Lessons:   toRenderLessons(sd.Lessons),
 			Records:   toRenderRecords(sd.Records),
 			Refs:      toRenderRefs(sd.Refs),
