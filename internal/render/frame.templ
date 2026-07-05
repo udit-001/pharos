@@ -25,7 +25,7 @@ templ document(f Frame, content string) {
 	<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-			<link rel="stylesheet" href="/css/app.css?v=10"/>
+			<link rel="stylesheet" href="/css/app.css?v=18"/>
 			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t;var m=document.getElementById('theme-color');if(m)m.content=t==='dark'?'#2e3440':'#eceff4'})()</script>
 		</head>
 		<body class="font-sans" data-active-ws={ f.ActiveWS } data-active-type={ f.ActiveType } data-active-seq={ fmt.Sprintf("%d", f.ActiveSeq) } data-active-slug={ f.ActiveSlug }>
@@ -71,7 +71,56 @@ templ document(f Frame, content string) {
 					sb.classList.toggle('sidebar-hidden');
 					ov.classList.toggle('hidden');
 				}
-				function toggleSection(label) {
+				function toggleSidebarCollapse() {
+				var sb = document.getElementById('sidebar');
+				if (!sb) return;
+				sb.classList.add('sidebar-ready');
+				var isCollapsed = sb.classList.toggle('sidebar-collapsed');
+				try { localStorage.setItem('pharos_sidebar_collapsed', isCollapsed ? '1' : '0'); } catch(e) {}
+				if (!isCollapsed) closeSectionFlyout();
+			}
+			function openSectionFlyout(label) {
+				var existing = document.querySelector('.sidebar-flyout');
+				if (existing) { closeSectionFlyout(); return; }
+				var items = label.nextElementSibling;
+				if (!items) return;
+				var flyout = document.createElement('div');
+				flyout.className = 'sidebar-flyout';
+				flyout.innerHTML = items.innerHTML;
+				var sidebar = document.getElementById('sidebar');
+				var sidebarRect = sidebar.getBoundingClientRect();
+				var labelRect = label.getBoundingClientRect();
+				flyout.style.left = (sidebarRect.width) + 'px';
+				flyout.style.top = Math.max(8, labelRect.top) + 'px';
+				var tt = document.querySelector('.sidebar-tooltip');
+				if (tt) tt.remove();
+				var ta = document.querySelector('.sidebar-tooltip-arrow');
+				if (ta) ta.remove();
+				document.body.appendChild(flyout);
+				function close(e) {
+					if (e && flyout.contains(e.target)) return;
+					closeSectionFlyout();
+				}
+				function onKey(e) { if (e.key === 'Escape') closeSectionFlyout(); }
+				function onMessage(e) {
+					if (e.data && e.data.type === 'pharos-frame-click') closeSectionFlyout();
+				}
+				flyout._close = close;
+				flyout._onKey = onKey;
+				flyout._onMessage = onMessage;
+				setTimeout(function() { document.addEventListener('click', close); }, 0);
+				document.addEventListener('keydown', onKey);
+				window.addEventListener('message', onMessage);
+			}
+			function closeSectionFlyout() {
+				var flyout = document.querySelector('.sidebar-flyout');
+				if (!flyout) return;
+				if (flyout._close) document.removeEventListener('click', flyout._close);
+				if (flyout._onKey) document.removeEventListener('keydown', flyout._onKey);
+				if (flyout._onMessage) window.removeEventListener('message', flyout._onMessage);
+				flyout.remove();
+			}
+			function toggleSection(label) {
 					var items = label.nextElementSibling;
 					var chevron = label.querySelector('.sidebar-chevron');
 					if (!items) return;
@@ -103,6 +152,14 @@ templ document(f Frame, content string) {
 				}
 			});
 			(function(){
+				// Restore sidebar collapsed state from localStorage
+				var sb = document.getElementById('sidebar');
+				var isCollapsed = false;
+				try { isCollapsed = localStorage.getItem('pharos_sidebar_collapsed') === '1'; } catch(e) {}
+				if (isCollapsed && sb) {
+					sb.classList.add('sidebar-collapsed');
+				}
+				if (sb) setTimeout(function() { sb.classList.add('sidebar-ready'); }, 0);
 				var nav = document.querySelector('[data-workspace]');
 				var ws = nav ? nav.dataset.workspace : '';
 				document.querySelectorAll('.sidebar-section-label').forEach(function(label) {
@@ -128,6 +185,40 @@ templ document(f Frame, content string) {
 				if (activeLink) {
 					activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 				}
+				// Flyout on section label click when sidebar is collapsed
+				document.querySelectorAll('.sidebar-section-label').forEach(function(label) {
+					label.addEventListener('click', function(e) {
+						if (sb && sb.classList.contains('sidebar-collapsed')) {
+							e.preventDefault();
+							openSectionFlyout(label);
+						}
+					});
+				});
+				// JS-managed tooltip for collapsed sidebar icons
+				var tooltipEl = null, tooltipArrow = null;
+				document.querySelectorAll('.sidebar-section-label[data-tooltip]').forEach(function(el) {
+					el.addEventListener('mouseenter', function() {
+						if (!sb || !sb.classList.contains('sidebar-collapsed') || sb.dataset.flyoutOpen) return;
+						if (tooltipEl) { tooltipEl.remove(); tooltipArrow.remove(); }
+						var r = this.getBoundingClientRect();
+						var midY = r.top + r.height / 2;
+						tooltipEl = document.createElement('div');
+						tooltipEl.className = 'sidebar-tooltip';
+						tooltipEl.textContent = this.dataset.tooltip;
+						tooltipEl.style.left = '70px';
+						tooltipEl.style.top = midY + 'px';
+						tooltipArrow = document.createElement('div');
+						tooltipArrow.className = 'sidebar-tooltip-arrow';
+						tooltipArrow.style.left = '64px';
+						tooltipArrow.style.top = midY + 'px';
+						document.body.appendChild(tooltipArrow);
+						document.body.appendChild(tooltipEl);
+					});
+					el.addEventListener('mouseleave', function() {
+						if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
+						if (tooltipArrow) { tooltipArrow.remove(); tooltipArrow = null; }
+					});
+				});
 				var c = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 				var k = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 				document.querySelectorAll('.prose pre:not([data-no-copy])').forEach(function(pre){
