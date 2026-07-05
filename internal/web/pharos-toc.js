@@ -269,15 +269,15 @@
 	transition: background 0.1s, color 0.1s, border-color 0.1s;\
 }\
 .pharos-toc-item a:hover {\
-	background: var(--slate-100, #eceff4);\
-	color: var(--slate-900, #2e3440);\
+	background: rgba(226, 232, 240, 0.5);\
+	color: #334155;\
 }\
 [data-theme="dark"] .pharos-toc-item a {\
 	color: var(--slate-500, #94adcb);\
 }\
 [data-theme="dark"] .pharos-toc-item a:hover {\
-	background: var(--slate-100, #353b4a);\
-	color: var(--slate-900, #eceff4);\
+	background: rgba(255, 255, 255, 0.05);\
+	color: var(--slate-800, #d8dee9);\
 }\
 .pharos-toc-level-1 a {\
 	padding-left: 0.75rem;\
