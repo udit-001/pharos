@@ -18,9 +18,12 @@ function applyTheme(mode) {
 	localStorage.setItem('pharos_theme', mode);
 	var m = document.getElementById('theme-color');
 	if (m) m.content = actual === 'dark' ? '#2e3440' : '#eceff4';
-	document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', mode !== 'light');
-	document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', mode !== 'dark');
-	document.querySelector('[data-theme-icon=contrast]').classList.toggle('hidden', mode !== 'system');
+	var sunIcon = document.querySelector('[data-theme-icon=sun]');
+	var moonIcon = document.querySelector('[data-theme-icon=moon]');
+	var contrastIcon = document.querySelector('[data-theme-icon=contrast]');
+	if (sunIcon) sunIcon.classList.toggle('hidden', mode !== 'light');
+	if (moonIcon) moonIcon.classList.toggle('hidden', mode !== 'dark');
+	if (contrastIcon) contrastIcon.classList.toggle('hidden', mode !== 'system');
 }
 function toggleTheme() {
 	var current = localStorage.getItem('pharos_theme') || 'system';
