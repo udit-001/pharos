@@ -1373,7 +1373,7 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 //
 // jsVer is appended as a query parameter to script src tags for
 // cache-busting. Bump it whenever a bundle's content changes.
-var jsVer = "9"
+var jsVer = "13"
 var jsBundles = map[string][]byte{
 	"pharos-theme.js": web.PharosThemeJS,
 	"pharos-toc.js":   web.PharosTocJS,

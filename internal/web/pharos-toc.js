@@ -1,5 +1,5 @@
 (function () {
-	var headings, tocItems, usedIds, tocNav, tocBtn, tocPanel, isOpen, isMobile, resizeTimer;
+	var headings, tocItems, usedIds, tocNav, tocBtn, tocPanel, isOpen, isMobile, resizeTimer, tocTooltipEl;
 
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', init);
@@ -51,9 +51,37 @@
 		tocBtn = document.createElement('button');
 		tocBtn.id = 'pharos-toc-btn';
 		tocBtn.setAttribute('aria-label', 'Table of contents');
-		tocBtn.setAttribute('title', 'Table of contents');
+		tocBtn.setAttribute('data-tooltip', 'Table of contents');
 		tocBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
 		tocBtn.addEventListener('click', toggleTOC);
+
+		tocBtn.addEventListener('mouseenter', function () {
+			if (tocTooltipEl) return;
+			var r = this.getBoundingClientRect();
+			tocTooltipEl = document.createElement('div');
+			tocTooltipEl.textContent = 'Table of contents';
+			tocTooltipEl.style.position = 'fixed';
+			tocTooltipEl.style.color = '#f8fafc';
+			tocTooltipEl.style.whiteSpace = 'nowrap';
+			tocTooltipEl.style.pointerEvents = 'none';
+			tocTooltipEl.style.zIndex = '60';
+			tocTooltipEl.style.background = '#1e293b';
+			tocTooltipEl.style.borderRadius = '4px';
+			tocTooltipEl.style.padding = '4px 10px';
+			tocTooltipEl.style.fontSize = '.75rem';
+			tocTooltipEl.style.fontWeight = '500';
+			tocTooltipEl.style.lineHeight = '1.4';
+			tocTooltipEl.style.right = (window.innerWidth - r.left + 10) + 'px';
+			tocTooltipEl.style.top = (r.top + r.height / 2) + 'px';
+			tocTooltipEl.style.transform = 'translateY(-50%)';
+			var tt = document.querySelector('.sidebar-tooltip[tooltip-for="toc"]');
+			if (tt) tt.remove();
+			tocTooltipEl.setAttribute('tooltip-for', 'toc');
+			document.body.appendChild(tocTooltipEl);
+		});
+		tocBtn.addEventListener('mouseleave', function () {
+			if (tocTooltipEl) { tocTooltipEl.remove(); tocTooltipEl = null; }
+		});
 
 		tocPanel = document.createElement('nav');
 		tocPanel.id = 'pharos-toc-panel';
@@ -127,6 +155,7 @@
 		isOpen = true;
 		tocPanel.classList.add('pharos-toc-open');
 		tocBtn.classList.add('pharos-toc-btn-open');
+		if (tocTooltipEl) { tocTooltipEl.remove(); tocTooltipEl = null; }
 	}
 
 	function closeTOC() {
