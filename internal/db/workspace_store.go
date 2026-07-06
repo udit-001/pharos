@@ -60,6 +60,21 @@ func (w *WorkspaceStore) GetLessonBySeq(seq int) (*Lesson, error) {
 	return &lesson, nil
 }
 
+// GetLessonByFilename returns a single lesson by its filename, or an error
+// if not found. Used by the iframe HTML handler to resolve a lesson's ID
+// from the filename in the URL.
+func (w *WorkspaceStore) GetLessonByFilename(filename string) (*Lesson, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM lessons WHERE workspace_id = ? AND filename = ?", lessonColumns),
+		w.ws.ID, filename,
+	)
+	lesson, err := scanLesson(row)
+	if err != nil {
+		return nil, fmt.Errorf("lesson %q not found: %w", filename, err)
+	}
+	return &lesson, nil
+}
+
 // SearchLessons performs full-text search within this workspace.
 func (w *WorkspaceStore) SearchLessons(query string) ([]Lesson, error) {
 	q := buildFTSQuery(query)
@@ -875,6 +890,20 @@ func (w *WorkspaceStore) GetRefBySlug(slug string) (*Reference, error) {
 	return &ref, nil
 }
 
+// GetRefByFilename returns a single reference by its filename, or an error
+// if not found. Used by the iframe HTML handler to resolve a ref's ID.
+func (w *WorkspaceStore) GetRefByFilename(filename string) (*Reference, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM references_t WHERE workspace_id = ? AND filename = ?", refColumns),
+		w.ws.ID, filename,
+	)
+	ref, err := scanRef(row)
+	if err != nil {
+		return nil, fmt.Errorf("reference %q not found: %w", filename, err)
+	}
+	return &ref, nil
+}
+
 // SearchRefs performs full-text search within this workspace.
 func (w *WorkspaceStore) SearchRefs(query string) ([]Reference, error) {
 	q := buildFTSQuery(query)
@@ -933,6 +962,94 @@ func (w *WorkspaceStore) AddRef(r Reference) (Reference, error) {
 	r.CreatedAt = now
 	r.UpdatedAt = now
 	return r, nil
+}
+
+// ── Highlights ──
+
+// GetHighlights returns all highlights for a document in this workspace,
+// ordered by creation (oldest first). docType is 'lesson' or 'ref'; docID
+// is the lesson or reference primary key.
+func (w *WorkspaceStore) GetHighlights(docType string, docID int64) ([]Highlight, error) {
+	rows, err := w.db().Query(
+		fmt.Sprintf("SELECT %s FROM highlights WHERE workspace_id = ? AND doc_type = ? AND doc_id = ? ORDER BY created_at ASC", highlightColumns),
+		w.ws.ID, docType, docID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanHighlights(rows)
+}
+
+// CreateHighlight creates a new highlight in this workspace. WorkspaceID is
+// set automatically from the scoped workspace. Color defaults to the Nord
+// yellow (#EBCB8B) when empty; anchor_data defaults to '{}' when empty.
+func (w *WorkspaceStore) CreateHighlight(h Highlight) (Highlight, error) {
+	h.WorkspaceID = w.ws.ID
+	if h.Color == "" {
+		h.Color = "#EBCB8B"
+	}
+	if h.AnchorData == "" {
+		h.AnchorData = "{}"
+	}
+	now := nowTimestamp()
+	result, err := w.db().Exec(
+		`INSERT INTO highlights (workspace_id, doc_type, doc_id, color, note_text, anchor_data, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		h.WorkspaceID, h.DocType, h.DocID, h.Color, h.NoteText, h.AnchorData, now, now,
+	)
+	if err != nil {
+		return Highlight{}, fmt.Errorf("create highlight: %w", err)
+	}
+	id, _ := result.LastInsertId()
+	h.ID = id
+	h.CreatedAt = now
+	h.UpdatedAt = now
+	return h, nil
+}
+
+// UpdateHighlight updates a highlight's color and note text. The anchor
+// data is immutable after creation. Color defaults to Nord yellow when empty
+// (same safety net as CreateHighlight). Returns ErrHighlightNotFound if the
+// highlight doesn't exist in this workspace.
+func (w *WorkspaceStore) UpdateHighlight(id int64, color, noteText string) error {
+	if color == "" {
+		color = "#EBCB8B"
+	}
+	now := nowTimestamp()
+	res, err := w.db().Exec(
+		"UPDATE highlights SET color = ?, note_text = ?, updated_at = ? WHERE id = ? AND workspace_id = ?",
+		color, noteText, now, id, w.ws.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update highlight %d: %w", id, err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return ErrHighlightNotFound
+	}
+	return nil
+}
+
+// ErrHighlightNotFound signals that a highlight doesn't exist in this workspace.
+var ErrHighlightNotFound = errors.New("highlight not found")
+
+// DeleteHighlight hard-deletes a highlight by ID. Workspace-scoped so a stale
+// ID from another workspace can't be deleted. Returns ErrHighlightNotFound
+// if the highlight doesn't exist in this workspace.
+func (w *WorkspaceStore) DeleteHighlight(id int64) error {
+	res, err := w.db().Exec(
+		"DELETE FROM highlights WHERE id = ? AND workspace_id = ?",
+		id, w.ws.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("delete highlight %d: %w", id, err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return ErrHighlightNotFound
+	}
+	return nil
 }
 
 // ── Workspace-scoped mutations ──

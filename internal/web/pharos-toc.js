@@ -43,6 +43,16 @@
 		return unique;
 	}
 
+	function getFrameButtonsContainer() {
+		var c = document.getElementById('pharos-frame-buttons');
+		if (!c) {
+			c = document.createElement('div');
+			c.id = 'pharos-frame-buttons';
+			document.body.appendChild(c);
+		}
+		return c;
+	}
+
 	function buildTOC() {
 		var style = document.createElement('style');
 		style.textContent = getTOCStyles();
@@ -111,7 +121,7 @@
 		});
 		tocPanel.appendChild(list);
 
-		document.body.appendChild(tocBtn);
+		getFrameButtonsContainer().appendChild(tocBtn);
 		document.body.appendChild(tocPanel);
 
 		document.addEventListener('click', function (e) {
@@ -172,11 +182,25 @@
 
 	function getTOCStyles() {
 		return '\
-#pharos-toc-btn {\
+#pharos-frame-buttons {\
 	position: fixed;\
 	top: 50%;\
 	right: 0;\
 	z-index: 998;\
+	transform: translateY(-50%);\
+	display: flex;\
+	flex-direction: column;\
+	gap: 2px;\
+}\
+@media (max-width: 767px) {\
+	#pharos-frame-buttons {\
+		top: auto;\
+		bottom: 1rem;\
+		right: 1rem;\
+		transform: none;\
+	}\
+}\
+#pharos-toc-btn {\
 	width: 34px;\
 	height: 44px;\
 	padding: 0;\
@@ -189,7 +213,6 @@
 	display: flex;\
 	align-items: center;\
 	justify-content: center;\
-	transform: translateY(-50%);\
 	transition: background 0.1s, color 0.1s;\
 }\
 #pharos-toc-btn:hover {\
@@ -345,18 +368,10 @@
 		transform: translateY(0);\
 	}\
 	#pharos-toc-btn {\
-		top: auto;\
-		bottom: 1rem;\
-		right: 1rem;\
 		width: 36px;\
 		height: 36px;\
 		border: 1px solid var(--slate-200, #e5e9f0);\
 		border-radius: 6px;\
-		transform: none;\
-		background: var(--slate-100, #eceff4);\
-	}\
-	[data-theme="dark"] #pharos-toc-btn {\
-		background: var(--slate-100, #353b4a);\
 	}\
 }\
 ';

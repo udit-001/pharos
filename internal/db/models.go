@@ -288,6 +288,22 @@ type WeakQuestionResult struct {
 	LastAttempted string `json:"lastAttempted,omitempty"`
 }
 
+// Highlight is a colored mark anchored to a text span in a document, with an
+// optional note. Target is polymorphic: (doc_type 'lesson'|'ref', doc_id).
+// AnchorData is raw JSON ({text, prefix, suffix}) the client uses to
+// re-locate the span; the server stores and returns it without parsing.
+type Highlight struct {
+	ID          int64  `db:"id" json:"id"`
+	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
+	DocType     string `db:"doc_type" json:"docType"`
+	DocID       int64  `db:"doc_id" json:"docId"`
+	Color       string `db:"color" json:"color"`
+	NoteText    string `db:"note_text" json:"noteText"`
+	AnchorData  string `db:"anchor_data" json:"anchorData"`
+	CreatedAt   string `db:"created_at" json:"createdAt"`
+	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
+}
+
 // Settings holds user preferences.
 type Settings struct {
 	ID                  int64  `db:"id" json:"id"`

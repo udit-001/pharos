@@ -1997,3 +1997,173 @@ func TestDeleteQuizAfterAttemptCompleted(t *testing.T) {
 
 // strPtr returns a pointer to s — helper for optional pointer args.
 func strPtr(s string) *string { return &s }
+
+// ── Highlights ──
+
+// TestHighlightCRUD proves the full highlight lifecycle: create, get,
+// update, delete — all workspace-scoped.
+func TestHighlightCRUD(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+	beta := seedWorkspace(t, store, "beta")
+
+	// Seed a lesson to attach highlights to.
+	lesson, err := alpha.AddLesson(Lesson{Title: "Intro", Filename: "0001-intro.html"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create — WorkspaceID is auto-set, color defaults to Nord yellow.
+	h, err := alpha.CreateHighlight(Highlight{
+		DocType:    "lesson",
+		DocID:      lesson.ID,
+		NoteText:   "key insight",
+		AnchorData: `{"text":"key insight","prefix":"the ","suffix":" here"}`,
+	})
+	if err != nil {
+		t.Fatalf("CreateHighlight: %v", err)
+	}
+	if h.WorkspaceID != alpha.Workspace().ID {
+		t.Errorf("WorkspaceID = %d, want %d (should be auto-set)", h.WorkspaceID, alpha.Workspace().ID)
+	}
+	if h.Color != "#EBCB8B" {
+		t.Errorf("default Color = %q, want #EBCB8B", h.Color)
+	}
+	if h.ID == 0 {
+		t.Error("ID not set")
+	}
+
+	// Create with explicit color + empty anchor defaults.
+	h2, err := alpha.CreateHighlight(Highlight{
+		DocType: "lesson",
+		DocID:   lesson.ID,
+		Color:   "#BF616A",
+	})
+	if err != nil {
+		t.Fatalf("CreateHighlight with color: %v", err)
+	}
+	if h2.Color != "#BF616A" {
+		t.Errorf("Color = %q, want #BF616A", h2.Color)
+	}
+	if h2.AnchorData != "{}" {
+		t.Errorf("default AnchorData = %q, want {}", h2.AnchorData)
+	}
+
+	// Get — returns both highlights, oldest first.
+	got, err := alpha.GetHighlights("lesson", lesson.ID)
+	if err != nil {
+		t.Fatalf("GetHighlights: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d highlights, want 2", len(got))
+	}
+	if got[0].ID != h.ID {
+		t.Errorf("first highlight ID = %d, want %d (oldest first)", got[0].ID, h.ID)
+	}
+	if got[1].NoteText != "" {
+		t.Errorf("second note = %q, want empty", got[1].NoteText)
+	}
+
+	// Update — changes color + note, anchor unchanged.
+	if err := alpha.UpdateHighlight(h2.ID, "#81A1C1", "updated note"); err != nil {
+		t.Fatalf("UpdateHighlight: %v", err)
+	}
+	updated, _ := alpha.GetHighlights("lesson", lesson.ID)
+	if updated[1].Color != "#81A1C1" {
+		t.Errorf("updated color = %q, want #81A1C1", updated[1].Color)
+	}
+	if updated[1].NoteText != "updated note" {
+		t.Errorf("updated note = %q, want 'updated note'", updated[1].NoteText)
+	}
+
+	// Delete — hard delete, mark gone.
+	if err := alpha.DeleteHighlight(h.ID); err != nil {
+		t.Fatalf("DeleteHighlight: %v", err)
+	}
+	remaining, _ := alpha.GetHighlights("lesson", lesson.ID)
+	if len(remaining) != 1 {
+		t.Fatalf("after delete: %d highlights, want 1", len(remaining))
+	}
+
+	// Delete again — ErrHighlightNotFound.
+	if err := alpha.DeleteHighlight(h.ID); err != ErrHighlightNotFound {
+		t.Errorf("delete missing = %v, want ErrHighlightNotFound", err)
+	}
+
+	// Scoping: beta can't see alpha's highlights.
+	betaHighlights, _ := beta.GetHighlights("lesson", lesson.ID)
+	if len(betaHighlights) != 0 {
+		t.Errorf("beta sees %d highlights, want 0 (scoping leak?)", len(betaHighlights))
+	}
+
+	// Scoping: beta can't delete alpha's highlight.
+	if err := beta.DeleteHighlight(h2.ID); err != ErrHighlightNotFound {
+		t.Errorf("beta delete alpha highlight = %v, want ErrHighlightNotFound", err)
+	}
+}
+
+// TestGetHighlightsByDocType proves doc_type scoping: lessons and refs are
+// independent even when they share a doc_id.
+func TestGetHighlightsByDocType(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+
+	lesson, _ := alpha.AddLesson(Lesson{Title: "L1", Filename: "l1.html"})
+	ref, _ := alpha.AddRef(Reference{Title: "R1", Slug: "r1", Filename: "r1.html"})
+
+	// Both use doc_id = lesson.ID, but different doc_types.
+	alpha.CreateHighlight(Highlight{DocType: "lesson", DocID: lesson.ID, Color: "#8FBCBB"})
+	alpha.CreateHighlight(Highlight{DocType: "ref", DocID: ref.ID, Color: "#BF616A"})
+
+	lessons, _ := alpha.GetHighlights("lesson", lesson.ID)
+	if len(lessons) != 1 {
+		t.Fatalf("lesson highlights = %d, want 1", len(lessons))
+	}
+	if lessons[0].Color != "#8FBCBB" {
+		t.Errorf("lesson highlight color = %q, want #8FBCBB", lessons[0].Color)
+	}
+
+	// Ref highlight uses a different doc_id, so it shouldn't appear here.
+	if refs, _ := alpha.GetHighlights("ref", ref.ID); len(refs) != 1 {
+		t.Errorf("ref highlights = %d, want 1", len(refs))
+	}
+}
+
+// TestGetLessonByFilename proves the filename→ID lookup used by the iframe
+// handler to inject highlight config.
+func TestGetLessonByFilename(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+	alpha.AddLesson(Lesson{Title: "Joins", Filename: "0001-joins.html"})
+
+	got, err := alpha.GetLessonByFilename("0001-joins.html")
+	if err != nil {
+		t.Fatalf("GetLessonByFilename: %v", err)
+	}
+	if got.Title != "Joins" {
+		t.Errorf("Title = %q, want Joins", got.Title)
+	}
+
+	if _, err := alpha.GetLessonByFilename("nonexistent.html"); err == nil {
+		t.Error("expected error for nonexistent filename, got nil")
+	}
+}
+
+// TestGetRefByFilename proves the filename→ID lookup for ref highlights.
+func TestGetRefByFilename(t *testing.T) {
+	store := newTestStore(t)
+	alpha := seedWorkspace(t, store, "alpha")
+	alpha.AddRef(Reference{Title: "Joins", Slug: "joins", Filename: "joins.html"})
+
+	got, err := alpha.GetRefByFilename("joins.html")
+	if err != nil {
+		t.Fatalf("GetRefByFilename: %v", err)
+	}
+	if got.Title != "Joins" {
+		t.Errorf("Title = %q, want Joins", got.Title)
+	}
+
+	if _, err := alpha.GetRefByFilename("nonexistent.html"); err == nil {
+		t.Error("expected error for nonexistent filename, got nil")
+	}
+}
