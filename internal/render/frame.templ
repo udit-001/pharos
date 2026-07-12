@@ -486,6 +486,12 @@ templ document(f Frame, content string) {
 						handler.refresh();
 						return;
 					}
+
+					// "navigate" → agent-driven URL navigation (pharos nav).
+					if (ev.type === 'navigate' && ev.url) {
+						location.href = ev.url;
+						return;
+					}
 				});
 			})();
 		</script>

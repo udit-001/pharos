@@ -7,15 +7,18 @@ import (
 
 // Event is the payload broadcast to dashboard subscribers. Type is a
 // free-form tag: "changed" (sidebar/grid swap), "page-changed" (content
-// area refresh). For "page-changed", PageType identifies which page type
-// was mutated ("lesson", "ref", "glossary", "mission", "notes",
-// "resources", "record"); Seq and Slug identify the specific entity
-// when applicable (lesson by seq, ref by slug).
+// area refresh), "navigate" (agent-driven URL navigation). For
+// "page-changed", PageType identifies which page type was mutated
+// ("lesson", "ref", "glossary", "mission", "notes", "resources",
+// "record"); Seq and Slug identify the specific entity when applicable
+// (lesson by seq, ref by slug). For "navigate", URL carries the
+// dashboard path the browser should navigate to.
 type Event struct {
 	Type     string `json:"type"`
 	PageType string `json:"pageType,omitempty"`
 	Seq      int    `json:"seq,omitempty"`
 	Slug     string `json:"slug,omitempty"`
+	URL      string `json:"url,omitempty"`
 }
 
 // brokerBufferSize caps the per-subscriber buffer. A slow client that
@@ -110,4 +113,25 @@ func (b *Broker) subscriberCount(topic string) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return len(b.subs[topic])
+}
+
+// BroadcastAll sends ev to every subscriber across all topics. Used by
+// "navigate" events that must reach any open tab regardless of which
+// workspace it's viewing. Returns the total number of subscribers that
+// received the event.
+func (b *Broker) BroadcastAll(ev Event) int {
+	b.mu.Lock()
+	topics := make([]string, 0, len(b.subs))
+	for topic, set := range b.subs {
+		if len(set) > 0 {
+			topics = append(topics, topic)
+		}
+	}
+	b.mu.Unlock()
+
+	delivered := 0
+	for _, topic := range topics {
+		delivered += b.Broadcast(topic, ev)
+	}
+	return delivered
 }

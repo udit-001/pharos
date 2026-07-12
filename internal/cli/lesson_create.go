@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/udit-001/pharos/internal/db"
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 var lessonCreateCmd = &cobra.Command{
@@ -48,7 +49,10 @@ Examples:
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 
 		if jsonOut {
-			printJSON(created)
+			printJSON(struct {
+				db.Lesson
+				URL string `json:"url"`
+			}{created, urls.Lesson(ws.Name, created.SequenceNumber)})
 			return nil
 		}
 
@@ -56,6 +60,7 @@ Examples:
 		fmt.Printf("  ✓ Lesson created: %s\n", title)
 		fmt.Printf("    File: %s/%s\n", ws.Path, created.Path)
 		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
+		fmt.Printf("    URL: %s\n", urls.Lesson(ws.Name, created.SequenceNumber))
 		fmt.Println()
 
 		return nil

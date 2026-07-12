@@ -1380,9 +1380,10 @@ func handleSSE(b *Broker) http.HandlerFunc {
 }
 
 // handleNotify accepts a JSON payload from the CLI and broadcasts it to
-// any dashboard clients subscribed to the named topic. Returns 204 —
-// success means "the broker accepted the broadcast", not "a client
-// received it" (there may be zero subscribers).
+// dashboard clients. For topic-scoped events ("changed", "page-changed"),
+// it broadcasts to the named topic's subscribers. For "navigate" events
+// (agent-driven URL navigation), it broadcasts to all subscribers
+// regardless of topic. Returns JSON with the delivered subscriber count.
 func handleNotify(b *Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
@@ -1391,22 +1392,34 @@ func handleNotify(b *Broker) http.HandlerFunc {
 			PageType string `json:"pageType"`
 			Seq      int    `json:"seq"`
 			Slug     string `json:"slug"`
+			URL      string `json:"url"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			jsonError(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
-		if body.Topic == "" || body.Type == "" {
-			jsonError(w, "topic and type are required", http.StatusBadRequest)
+		if body.Type == "" {
+			jsonError(w, "type is required", http.StatusBadRequest)
 			return
 		}
-		b.Broadcast(body.Topic, Event{
+		ev := Event{
 			Type:     body.Type,
 			PageType: body.PageType,
 			Seq:      body.Seq,
 			Slug:     body.Slug,
-		})
-		w.WriteHeader(http.StatusNoContent)
+			URL:      body.URL,
+		}
+		var delivered int
+		if body.Type == "navigate" {
+			delivered = b.BroadcastAll(ev)
+		} else {
+			if body.Topic == "" {
+				jsonError(w, "topic is required for non-navigate events", http.StatusBadRequest)
+				return
+			}
+			delivered = b.Broadcast(body.Topic, ev)
+		}
+		jsonResponse(w, map[string]int{"delivered": delivered})
 	}
 }
 

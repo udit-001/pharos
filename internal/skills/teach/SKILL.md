@@ -34,6 +34,8 @@ The create/revise commands take content via `--body-file`, never inline — mult
 1. Use the `write` tool to write content to a temp file (e.g. `/tmp/pharos-content.html`)
 2. `pharos lesson create "My Lesson" --body-file /tmp/pharos-content.html && rm /tmp/pharos-content.html`
 
+After creating or revising a lesson, open it in the user's dashboard with `pharos nav <url>` — the URL is in the command output. Nav is best-effort — the content is already created.
+
 ## Philosophy
 
 To learn at a deep level, the user needs three things:

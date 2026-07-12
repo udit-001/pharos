@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/urls"
 )
 
 var lessonReviseCmd = &cobra.Command{
@@ -56,13 +57,16 @@ Examples:
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 		notifyPageChanged(ws.Name, "lesson", seq, "")
 
+		lessonURL := urls.Lesson(ws.Name, seq)
+
 		if jsonOut {
-			printJSON(map[string]string{"status": "revised", "sequence": fmt.Sprintf("%d", seq)})
+			printJSON(map[string]string{"status": "revised", "sequence": fmt.Sprintf("%d", seq), "url": lessonURL})
 			return nil
 		}
 
 		fmt.Println()
 		fmt.Printf("  ✓ Lesson #%d revised\n", seq)
+		fmt.Printf("    URL: %s\n", lessonURL)
 		fmt.Println()
 		return nil
 	},

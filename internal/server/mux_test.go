@@ -338,7 +338,7 @@ func TestLessonHTMLNotFound(t *testing.T) {
 		t.Errorf("missing lesson HTML should 404; got %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "isn") {
+	if !strings.Contains(body, "can") {
 		t.Error("404 should render styled not-found page")
 	}
 }
