@@ -1426,7 +1426,7 @@ func handleLessonHTML(store *db.Store) http.HandlerFunc {
 		if lesson, err := wsStore.GetLessonByFilename(file); err == nil {
 			cfg = iframeConfig{workspace: name, docType: "lesson", docID: lesson.ID}
 		}
-		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js")
+		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
 	}
 }
 
@@ -1506,12 +1506,13 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 //
 // jsVer is appended as a query parameter to script src tags for
 // cache-busting. Bump it whenever a bundle's content changes.
-var jsVer = "28"
+var jsVer = "29"
 var jsBundles = map[string][]byte{
 	"pharos-theme.js":         web.PharosThemeJS,
 	"pharos-toc.js":           web.PharosTocJS,
 	"pharos-iframe-bridge.js": web.PharosIframeBridgeJS,
 	"pharos-highlights.js":    web.PharosHighlightsJS,
+	"pharos-scroll.js":        web.PharosScrollJS,
 }
 
 func handleJSBundle(w http.ResponseWriter, r *http.Request) {

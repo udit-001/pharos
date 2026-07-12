@@ -412,23 +412,16 @@ templ document(f Frame, content string) {
 				// ── Shared refresh helpers ──
 				// Both preserve scroll position of the region being refreshed.
 
-			// Cross-session scroll persistence (lessons only). localStorage
-			// mirrors the last known scroll so a return visit restores it;
-			// the in-memory save below stays the source of truth for
-			// live-sync reloads (which don't fire beforeunload).
-			function lessonScrollKey() {
-				return 'pharos_scroll_' + activeWS + '_' + activeSeq;
-			}
-			function persistLessonScroll(y) {
-				if (activeType !== 'lesson') return;
-				try { localStorage.setItem(lessonScrollKey(), String(y)); } catch(_) {}
-			}
+			// Reload the iframe for live-sync refresh. The iframe's own
+			// pharos-scroll.js bundle handles cross-session scroll persistence
+			// (save on scroll/visibilitychange, restore on load). This
+			// in-memory save/restore preserves scroll across the reload
+			// itself (immediate, same-tab).
 			function reloadIframe() {
 				var iframe = document.querySelector('#page-content iframe');
 				if (!iframe || !iframe.contentWindow) return;
 				try {
 					var savedY = iframe.contentWindow.scrollY;
-					persistLessonScroll(savedY);
 					iframe.addEventListener('load', function restore() {
 						iframe.removeEventListener('load', restore);
 						try { iframe.contentWindow.scrollTo(0, savedY); } catch(_) {}
@@ -436,35 +429,8 @@ templ document(f Frame, content string) {
 					iframe.contentWindow.location.reload();
 				} catch(_) {}
 			}
-			// Restore scroll on a fresh lesson page load (cross-session).
-			// One-shot: detaches after the first load so it never fights the
-			// in-memory restore reloadIframe uses for live-sync reloads.
-			if (activeType === 'lesson') {
-				var lessonFrame = document.querySelector('#page-content iframe');
-				if (lessonFrame) {
-					var restoreLessonScroll = function() {
-						try {
-							var v = localStorage.getItem(lessonScrollKey());
-							if (v != null) lessonFrame.contentWindow.scrollTo(0, parseInt(v, 10) || 0);
-						} catch(_) {}
-					};
-					try {
-						var rs = lessonFrame.contentDocument && lessonFrame.contentDocument.readyState;
-						if (rs === 'complete') restoreLessonScroll();
-						else lessonFrame.addEventListener('load', restoreLessonScroll, { once: true });
-					} catch(_) {
-						lessonFrame.addEventListener('load', restoreLessonScroll, { once: true });
-					}
-				}
-				window.addEventListener('beforeunload', function() {
-					try {
-						var iframe = document.querySelector('#page-content iframe');
-						if (iframe && iframe.contentWindow) persistLessonScroll(iframe.contentWindow.scrollY);
-					} catch(_) {}
-				});
-			}
 
-				function swapRegion(selector) {
+			function swapRegion(selector) {
 					fetch(location.href, { credentials: 'same-origin' })
 						.then(function(r) { return r.text(); })
 						.then(function(html) {

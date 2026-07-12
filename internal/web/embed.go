@@ -42,3 +42,6 @@ var PharosIframeBridgeJS []byte
 
 //go:embed pharos-highlights.js
 var PharosHighlightsJS []byte
+
+//go:embed pharos-scroll.js
+var PharosScrollJS []byte
