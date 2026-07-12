@@ -18,16 +18,11 @@ var skillsUninstallCmd = &cobra.Command{
 	Short: "Uninstall the pharos skill",
 	Long: `Remove pharos skill files that were previously installed.
 
-Scans every directory each provider reads — global, project, and
-ancestor — so orphaned copies at old locations can be cleaned up.
-
-Use --orphans to remove only installs at locations pharos no longer
-manages (old ~/.opencode/skills, ~/.codex/skills, ~/.pi/skills, ancestor
-copies). Run without flags for interactive selection.
+Scans the standard install locations (global + project) for installed
+copies and offers interactive removal.
 
 Examples:
   pharos skills uninstall
-  pharos skills uninstall --orphans
   pharos skills uninstall --all`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -36,7 +31,6 @@ Examples:
 }
 
 func runSkillsUninstall(cmd *cobra.Command, args []string) error {
-	orphansOnly, _ := cmd.Flags().GetBool("orphans")
 	all, _ := cmd.Flags().GetBool("all")
 
 	locs := discover()
@@ -55,57 +49,11 @@ func runSkillsUninstall(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if orphansOnly {
-		return uninstallOrphans(installed)
-	}
-
 	if all {
 		return uninstallAll(installed)
 	}
 
 	return uninstallInteractive(installed)
-}
-
-func uninstallOrphans(installed []skillLocation) error {
-	var orphans []skillLocation
-	for _, loc := range installed {
-		if loc.status == "orphan" {
-			orphans = append(orphans, loc)
-		}
-	}
-	if len(orphans) == 0 {
-		fmt.Println()
-		fmt.Println("  No orphaned installs found.")
-		fmt.Println()
-		return nil
-	}
-	fmt.Println()
-	fmt.Printf("  Found %d orphaned install(s):\n\n", len(orphans))
-	for _, loc := range orphans {
-		fmt.Printf("    %s\n", formatLocationLine(loc))
-	}
-	fmt.Printf("\n  Remove all %d? [Y/n] ", len(orphans))
-	if !promptDefaultYes() {
-		fmt.Println("  Cancelled.")
-		return nil
-	}
-	fmt.Println()
-	var errors []string
-	for _, loc := range orphans {
-		if err := uninstallSkills(loc.dir); err != nil {
-			errors = append(errors, fmt.Sprintf("%s: %v", loc.dir, err))
-			continue
-		}
-		fmt.Printf("  ✓ Removed %s\n", loc.dir)
-	}
-	if len(errors) > 0 {
-		fmt.Println("  Errors:")
-		for _, e := range errors {
-			fmt.Printf("    • %s\n", e)
-		}
-	}
-	fmt.Println()
-	return nil
 }
 
 func uninstallAll(installed []skillLocation) error {
@@ -145,7 +93,7 @@ func uninstallInteractive(installed []skillLocation) error {
 		fmt.Printf("    %d. %s\n", i+1, formatLocationLine(loc))
 	}
 	fmt.Println()
-	fmt.Print("  Remove which? (comma-separated numbers, 'orphans', 'all', or 0 to cancel)\n  > ")
+	fmt.Print("  Remove which? (comma-separated numbers, 'all', or 0 to cancel)\n  > ")
 
 	reader := bufio.NewReader(os.Stdin)
 	input, _ := reader.ReadString('\n')
@@ -153,35 +101,6 @@ func uninstallInteractive(installed []skillLocation) error {
 
 	if input == "" || input == "0" {
 		fmt.Println("  Cancelled.")
-		return nil
-	}
-	if input == "orphans" {
-		var orphans []skillLocation
-		for _, loc := range installed {
-			if loc.status == "orphan" {
-				orphans = append(orphans, loc)
-			}
-		}
-		if len(orphans) == 0 {
-			fmt.Println("  No orphaned installs found.")
-			return nil
-		}
-		fmt.Println()
-		var errors []string
-		for _, loc := range orphans {
-			if err := uninstallSkills(loc.dir); err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", loc.dir, err))
-				continue
-			}
-			fmt.Printf("  ✓ Removed %s\n", loc.dir)
-		}
-		if len(errors) > 0 {
-			fmt.Println("  Errors:")
-			for _, e := range errors {
-				fmt.Printf("    • %s\n", e)
-			}
-		}
-		fmt.Println()
 		return nil
 	}
 	if input == "all" {
