@@ -213,7 +213,7 @@ func emptyStateAction(kind string) string {
 	case "glossary":
 		return `"Define the key terms"`
 	case "notes":
-		return "Your agent records learning preferences here"
+		return `"Record my learning preferences"`
 	}
 	return ""
 }
@@ -225,7 +225,7 @@ func docHint(kind string) string {
 	case "resources":
 		return "Curated knowledge sources and communities"
 	case "glossary":
-		return "Canonical terminology for this workspace"
+		return "Key terms for this workspace"
 	case "notes":
 		return "Scratchpad for preferences and working notes"
 	}

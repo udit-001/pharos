@@ -412,13 +412,28 @@
 		overlay.addEventListener('click', function (e) {
 			if (e.target === overlay) closeDialog();
 		});
+		overlay._onKeyDown = function (e) {
+			if (e.key === 'Escape') { e.preventDefault(); closeDialog(); }
+		};
+		document.addEventListener('keydown', overlay._onKeyDown);
 		document.body.appendChild(overlay);
+		requestAnimationFrame(function() {
+			overlay.classList.add('pharos-hl-overlay--open');
+		});
 		noteInput.focus();
 	}
 
 	function closeDialog() {
 		var overlay = document.querySelector('.pharos-hl-overlay');
-		if (overlay) overlay.remove();
+		if (!overlay) return;
+		if (overlay._closing) return;
+		overlay._closing = true;
+		overlay.classList.remove('pharos-hl-overlay--open');
+		document.removeEventListener('keydown', overlay._onKeyDown);
+		overlay.addEventListener('transitionend', function cb() {
+			overlay.removeEventListener('transitionend', cb);
+			overlay.remove();
+		});
 	}
 
 	// ── 4. Per-mark tooltip ──
@@ -831,6 +846,11 @@
 	display: flex;\
 	align-items: center;\
 	justify-content: center;\
+	opacity: 0;\
+	transition: opacity 0.15s ease-out;\
+}\
+.pharos-hl-overlay--open {\
+	opacity: 1;\
 }\
 .pharos-hl-dialog {\
 	background: var(--color-white, #fff);\
@@ -839,6 +859,20 @@
 	width: 340px;\
 	max-width: 90vw;\
 	box-shadow: 0 10px 30px rgba(0,0,0,0.2);\
+	transform-origin: center;\
+	transform: scale(0.95);\
+	opacity: 0;\
+	transition: opacity 0.15s ease-out, transform 0.15s ease-out;\
+}\
+.pharos-hl-overlay--open .pharos-hl-dialog {\
+	transform: scale(1);\
+	opacity: 1;\
+}\
+@media (prefers-reduced-motion: reduce) {\
+	.pharos-hl-overlay,\
+	.pharos-hl-dialog {\
+		transition: none !important;\
+	}\
 }\
 [data-theme="dark"] .pharos-hl-dialog {\
 	background: var(--color-slate-50, #353b4a);\

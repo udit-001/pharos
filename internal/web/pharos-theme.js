@@ -21,9 +21,9 @@ function applyTheme(mode) {
 	var sunIcon = document.querySelector('[data-theme-icon=sun]');
 	var moonIcon = document.querySelector('[data-theme-icon=moon]');
 	var contrastIcon = document.querySelector('[data-theme-icon=contrast]');
-	if (sunIcon) sunIcon.classList.toggle('hidden', mode !== 'light');
-	if (moonIcon) moonIcon.classList.toggle('hidden', mode !== 'dark');
-	if (contrastIcon) contrastIcon.classList.toggle('hidden', mode !== 'system');
+	if (sunIcon) sunIcon.classList.toggle('theme-hidden', mode !== 'light');
+	if (moonIcon) moonIcon.classList.toggle('theme-hidden', mode !== 'dark');
+	if (contrastIcon) contrastIcon.classList.toggle('theme-hidden', mode !== 'system');
 }
 function toggleTheme() {
 	var current = localStorage.getItem('pharos_theme') || 'system';

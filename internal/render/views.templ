@@ -41,7 +41,7 @@ templ dashboard(d DashboardData) {
 					<div class="flex items-center gap-2 text-xs text-slate-400 mt-1">
 						<span>{ workspaceMeta(w) }</span>
 						<span class="text-slate-200">·</span>
-						<span>last { shortDate(w.LastStudied) }</span>
+						<span>studied { shortDate(w.LastStudied) }</span>
 					</div>
 				</a>
 			}
@@ -75,7 +75,7 @@ templ dashboard(d DashboardData) {
 					<div>"Teach me about <span class="text-slate-400">topic</span>"</div>
 					<div>"I want to learn <span class="text-slate-400">topic</span>"</div>
 				</div>
-				<p class="text-xs text-slate-400 mt-3">The agent will create a workspace, scaffold lessons, and guide you through the material.</p>
+				<p class="text-xs text-slate-400 mt-3">The agent will create a workspace, build lessons, and guide you through the material.</p>
 			</div>
 		</div>
 	}

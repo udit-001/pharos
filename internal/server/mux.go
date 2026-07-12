@@ -512,12 +512,14 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 			Summary   string `json:"summary"`
 			Snippet   string `json:"snippet,omitempty"`
 			Workspace string `json:"workspace"`
+			Seq       int    `json:"seq,omitempty"` // lesson/record sequence number
 		}
 		results := make([]apiResult, 0, len(dbResults))
 		for _, r := range dbResults {
 			results = append(results, apiResult{
 				Type: r.Type, Title: r.Title,
 				URL: searchResultURL(r), Summary: r.Summary, Snippet: r.Snippet, Workspace: r.WorkspaceName,
+				Seq: r.SequenceNumber,
 			})
 		}
 		jsonResponse(w, results)
@@ -881,7 +883,7 @@ func handleQuizLibraryPage(store *db.Store) http.HandlerFunc {
 
 		quizzes, err := wsStore.GetQuizzes()
 		if err != nil {
-			writeNotFound(w, nil, "Quizzes not found", "This workspace's quizzes could not be loaded.")
+			writeNotFound(w, nil, "Couldn't load quizzes", "We couldn't load the quizzes for this workspace. Try again.")
 			return
 		}
 
@@ -1030,7 +1032,7 @@ func handleQuizStart(store *db.Store) http.HandlerFunc {
 		// Otherwise create a new attempt.
 		qa, err := wsStore.CreateQuizAttempt(quiz.ID)
 		if err != nil {
-			writeNotFound(w, nil, "Could not start", "Failed to create a quiz attempt.")
+			writeNotFound(w, nil, "Couldn't start quiz", "We couldn't start this quiz. Try again.")
 			return
 		}
 		http.Redirect(w, r, urls.QuizAttemptPage(name, slug, qa.ID), http.StatusSeeOther)
@@ -1504,7 +1506,7 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 //
 // jsVer is appended as a query parameter to script src tags for
 // cache-busting. Bump it whenever a bundle's content changes.
-var jsVer = "27"
+var jsVer = "28"
 var jsBundles = map[string][]byte{
 	"pharos-theme.js":         web.PharosThemeJS,
 	"pharos-toc.js":           web.PharosTocJS,

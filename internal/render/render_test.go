@@ -138,6 +138,7 @@ func TestPaletteDataScriptFromSidebar(t *testing.T) {
 	got := f.PaletteDataScript()
 	for _, want := range []string{
 		`"type":"lesson"`, `"title":"JOINs"`, `"url":"/workspace/sql-basics/lesson/1"`,
+		`"seq":1`, // lesson sequence mirrors sidebar numbering
 		`"type":"record"`, `"url":"/workspace/sql-basics/record/2"`,
 		`"type":"ref"`, `"url":"/workspace/sql-basics/ref/ddl-cheatsheet"`,
 		`"type":"quiz"`, `"url":"/workspace/sql-basics/quiz/q1"`,
@@ -148,6 +149,10 @@ func TestPaletteDataScriptFromSidebar(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("expected %q in palette data, got:\n%s", want, got)
 		}
+	}
+	// Only the lesson carries seq; records/refs/quizzes/docs omit it (omitempty).
+	if c := strings.Count(got, `"seq"`); c != 1 {
+		t.Errorf("expected exactly one seq field (the lesson), got %d in:\n%s", c, got)
 	}
 }
 

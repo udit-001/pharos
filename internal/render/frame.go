@@ -252,7 +252,7 @@ func sidebarBlock(f Frame) string {
 	if f.Sidebar.Workspace != nil {
 		ws = f.Sidebar.Workspace.Name
 	}
-	return `<aside id="sidebar" class="fixed md:relative z-40 md:z-auto flex flex-col border-r border-slate-200 shadow-sm bg-slate-100 overflow-hidden transition-[left,width] duration-200 left-0 sidebar-hidden h-full">` +
+	return `<aside id="sidebar" class="fixed md:relative z-40 md:z-auto flex flex-col border-r border-slate-200 shadow-sm bg-slate-100 overflow-hidden sidebar-hidden h-full">` +
 		sidebarHeader(f) +
 		`<nav class="flex flex-col flex-1" data-workspace="` + esc(ws) + `">` +
 		`<div class="flex-1 overflow-y-auto pb-6">` +
@@ -299,6 +299,7 @@ type paletteItem struct {
 	Title     string `json:"title"`
 	URL       string `json:"url"`
 	Workspace string `json:"workspace,omitempty"`
+	Seq       int    `json:"seq,omitempty"` // lesson sequence number (mirrors sidebar numbering)
 }
 
 // PaletteDataScript returns a <script type="application/json"> tag carrying
@@ -318,16 +319,16 @@ func (f Frame) PaletteDataScript() string {
 	if f.Sidebar.Workspace != nil {
 		ws := f.Sidebar.Workspace.Name
 		for _, l := range f.Sidebar.Lessons {
-			items = append(items, paletteItem{"lesson", l.Title, urls.Lesson(ws, l.Seq), ws})
+			items = append(items, paletteItem{"lesson", l.Title, urls.Lesson(ws, l.Seq), ws, l.Seq})
 		}
 		for _, r := range f.Sidebar.Records {
-			items = append(items, paletteItem{"record", r.Title, urls.Record(ws, r.Seq), ws})
+			items = append(items, paletteItem{"record", r.Title, urls.Record(ws, r.Seq), ws, 0})
 		}
 		for _, ref := range f.Sidebar.Refs {
-			items = append(items, paletteItem{"ref", ref.Title, urls.Ref(ws, ref.Slug), ws})
+			items = append(items, paletteItem{"ref", ref.Title, urls.Ref(ws, ref.Slug), ws, 0})
 		}
 		for _, q := range f.Sidebar.Quizzes {
-			items = append(items, paletteItem{"quiz", q.Title, urls.Quiz(ws, q.Slug), ws})
+			items = append(items, paletteItem{"quiz", q.Title, urls.Quiz(ws, q.Slug), ws, 0})
 		}
 		for _, doc := range []struct{ kind, label string }{
 			{"mission", "Mission"},
@@ -335,7 +336,7 @@ func (f Frame) PaletteDataScript() string {
 			{"glossary", "Glossary"},
 			{"notes", "Notes"},
 		} {
-			items = append(items, paletteItem{"doc", doc.label, urls.Doc(ws, doc.kind), ws})
+			items = append(items, paletteItem{"doc", doc.label, urls.Doc(ws, doc.kind), ws, 0})
 		}
 	}
 	var buf bytes.Buffer

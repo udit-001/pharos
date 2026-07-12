@@ -184,14 +184,14 @@ func dashboard(d DashboardData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span> <span class=\"text-slate-200\">·</span> <span>last ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span> <span class=\"text-slate-200\">·</span> <span>studied ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(shortDate(w.LastStudied))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/render/views.templ`, Line: 44, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/render/views.templ`, Line: 44, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -239,7 +239,7 @@ func dashboard(d DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span> <span>References</span></div></div><div class=\"max-w-xs mx-auto\"><p class=\"text-xs text-slate-400 mb-3\">Ask your AI agent</p><div class=\"bg-slate-100 rounded-lg px-3 py-3 text-left text-sm text-slate-700 space-y-1\"><div>\"Teach me about <span class=\"text-slate-400\">topic</span>\"</div><div>\"I want to learn <span class=\"text-slate-400\">topic</span>\"</div></div><p class=\"text-xs text-slate-400 mt-3\">The agent will create a workspace, scaffold lessons, and guide you through the material.</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span> <span>References</span></div></div><div class=\"max-w-xs mx-auto\"><p class=\"text-xs text-slate-400 mb-3\">Ask your AI agent</p><div class=\"bg-slate-100 rounded-lg px-3 py-3 text-left text-sm text-slate-700 space-y-1\"><div>\"Teach me about <span class=\"text-slate-400\">topic</span>\"</div><div>\"I want to learn <span class=\"text-slate-400\">topic</span>\"</div></div><p class=\"text-xs text-slate-400 mt-3\">The agent will create a workspace, build lessons, and guide you through the material.</p></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -25,7 +25,7 @@ templ document(f Frame, content string) {
 	<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-			<link rel="stylesheet" href="/css/app.css?v=18"/>
+			<link rel="stylesheet" href="/css/app.css?v=20"/>
 			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t;var m=document.getElementById('theme-color');if(m)m.content=t==='dark'?'#2e3440':'#eceff4'})()</script>
 		</head>
 		<body class="font-sans" data-active-ws={ f.ActiveWS } data-active-type={ f.ActiveType } data-active-seq={ fmt.Sprintf("%d", f.ActiveSeq) } data-active-slug={ f.ActiveSlug }>
@@ -40,19 +40,19 @@ templ document(f Frame, content string) {
 						</div>
 						@templ.Raw(topbarCenterBranding(f))
 						<div class="flex items-center gap-2">
-							<form action="/search" method="GET" class="flex items-center">
-								<div class="flex items-center border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus-within:border-slate-400 transition-colors">
-									<input type="text" name="q" placeholder="Search..." aria-label="Search" value={ f.SearchQuery } class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-[width]"/>
-								</div>
-							</form>
+							<button id="palette-trigger" type="button" class="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white hover:border-slate-400 transition-colors text-sm text-slate-400 cursor-pointer leading-none" aria-label="Open command palette">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+								<span class="text-left">Search…</span>
+								<kbd id="palette-trigger-kbd" class="text-[0.7rem] px-1.5 py-px rounded border border-slate-200 bg-slate-50 text-slate-400 font-sans leading-none">⌘K</kbd>
+							</button>
 							<a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" title="About Pharos">@templ.Raw(iconHelp())</a>
 							<button id="pwa-install" style="display:none" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Install app">
 								<svg class="pwa-bounce" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 							</button>
 							<button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" data-tooltip="Toggle theme">
 								<svg data-theme-icon="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-								<svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-								<svg data-theme-icon="contrast" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></svg>
+								<svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+								<svg data-theme-icon="contrast" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-hidden"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></svg>
 							</button>
 						</div>
 					</header>
@@ -64,7 +64,7 @@ templ document(f Frame, content string) {
 			</main>
 		</div>
 		@templ.Raw(f.PaletteDataScript())
-		<div id="pharos-palette" class="palette-overlay" hidden>
+		<div id="pharos-palette" class="palette-overlay">
 			<div class="palette-panel" role="dialog" aria-label="Command palette">
 				<div class="palette-input-wrap">
 					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -74,7 +74,7 @@ templ document(f Frame, content string) {
 				<div id="palette-results" class="palette-results" role="listbox"></div>
 			</div>
 		</div>
-		<script src="/js/pharos-theme.js"></script>
+		<script src="/js/pharos-theme.js?v=28"></script>
 			<script>
 				function toggleSidebar() {
 					var sb = document.getElementById('sidebar');
@@ -136,6 +136,7 @@ templ document(f Frame, content string) {
 					var chevron = label.querySelector('.sidebar-chevron');
 					if (!items) return;
 					var isCollapsed = items.classList.toggle('collapsed');
+					items.style.maxHeight = isCollapsed ? '0px' : items.scrollHeight + 'px';
 					if (chevron) {
 						chevron.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
 					}
@@ -179,22 +180,31 @@ templ document(f Frame, content string) {
 					if (!items) return;
 					// Don't override server state for the section containing the
 					// active page — it always stays expanded.
-					if (items.querySelector('.sidebar-link-active')) return;
+					if (items.querySelector('.sidebar-link-active')) {
+						items.style.maxHeight = items.scrollHeight + 'px';
+						return;
+					}
 					var key = 'sidebar_' + ws + '_' + label.dataset.section;
 					var val = localStorage.getItem(key);
-					if (val === null) return;
+					if (val === null) {
+						items.style.maxHeight = items.scrollHeight + 'px';
+						return;
+					}
 					if (val === '1') {
 						items.classList.add('collapsed');
+						items.style.maxHeight = '0px';
 						if (chevron) chevron.style.transform = 'rotate(90deg)';
 					} else {
 						items.classList.remove('collapsed');
+						items.style.maxHeight = items.scrollHeight + 'px';
 						if (chevron) chevron.style.transform = 'rotate(0deg)';
 					}
 				});
 				// Scroll to the active sidebar link so it's visible on page load
 				var activeLink = document.querySelector('.sidebar-link-active');
 				if (activeLink) {
-					activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+					var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+					activeLink.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
 				}
 				// Flyout on section label click when sidebar is collapsed
 				document.querySelectorAll('.sidebar-section-label').forEach(function(label) {
@@ -532,7 +542,19 @@ templ document(f Frame, content string) {
 
 				var RECENTS_KEY = 'pharos_recents';
 				function loadRecents() {
-					try { return JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]'); } catch(_) { return []; }
+					try {
+						var list = JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]');
+						var seen = {}, out = [];
+						for (var i = 0; i < list.length; i++) {
+							var r = list[i];
+							if (!r || !r.url) continue;
+							r.url = r.url.split('?')[0];  // normalize: drop cache-bust query params
+							if (seen[r.url]) continue;     // dedupe by pathname (legacy dupes)
+							seen[r.url] = true;
+							out.push(r);
+						}
+						return out;
+					} catch(_) { return []; }
 				}
 				function recordRecent(entry) {
 					if (!entry || !entry.url) return;
@@ -551,12 +573,17 @@ templ document(f Frame, content string) {
 					var ws = body.getAttribute('data-active-ws') || '';
 					if (!ws) return;
 					var type = body.getAttribute('data-active-type') || '';
-					recordRecent({
+					var entry = {
 						type: type || 'workspace',
 						title: document.title.replace(/ — Pharos$/, ''),
-						url: location.pathname + location.search,
+						url: location.pathname,
 						workspace: ws
-					});
+					};
+					if (type === 'lesson') {
+						var seq = parseInt(body.getAttribute('data-active-seq'), 10);
+						if (seq > 0) entry.seq = seq;
+					}
+					recordRecent(entry);
 				})();
 
 				// Fuzzy subsequence matcher. Returns {rank} (lower = better) or
@@ -594,38 +621,14 @@ templ document(f Frame, content string) {
 				};
 				function iconFor(type) { return ICONS[type] || ICONS.doc; }
 
-				// Type display order (matches sidebar) + plural labels for group headers.
-				var TYPE_ORDER = ['lesson', 'record', 'ref', 'quiz', 'doc', 'workspace', 'action', 'home'];
-				var TYPE_LABELS = {
-					lesson: 'Lessons', record: 'Records', ref: 'References', quiz: 'Quizzes',
-					doc: 'Workspace', workspace: 'Workspaces', action: 'Actions', home: 'Pages'
-				};
-				// groupByType preserves fuzzy-rank order within each type and emits
-				// groups in TYPE_ORDER, then any remaining types in encounter order.
-				function groupByType(items) {
-					var groups = {}, order = [];
-					for (var i = 0; i < items.length; i++) {
-						var t = items[i].type;
-						if (!groups[t]) { groups[t] = []; order.push(t); }
-						groups[t].push(items[i]);
-					}
-					var out = [], seen = {};
-					for (var i = 0; i < TYPE_ORDER.length; i++) {
-						var t = TYPE_ORDER[i];
-						if (groups[t]) { seen[t] = true; out.push({ label: TYPE_LABELS[t] || t, items: groups[t] }); }
-					}
-					for (var i = 0; i < order.length; i++) {
-						var t = order[i];
-						if (!seen[t]) out.push({ label: TYPE_LABELS[t] || t, items: groups[t] });
-					}
-					return out;
-				}
-
 				function quickActions() {
-					return [
-						{ type: 'action', title: 'Toggle sidebar', action: function() { if (typeof toggleSidebarCollapse === 'function') toggleSidebarCollapse(); } },
-						{ type: 'action', title: 'Toggle theme', action: function() { if (typeof toggleTheme === 'function') toggleTheme(); } }
-					];
+					var activeWs = document.body.getAttribute('data-active-ws') || '';
+					var actions = [];
+					if (activeWs) {
+						actions.push({ type: 'action', title: 'Toggle sidebar', action: function() { if (typeof toggleSidebarCollapse === 'function') toggleSidebarCollapse(); } });
+					}
+					actions.push({ type: 'action', title: 'Toggle theme', action: function() { if (typeof toggleTheme === 'function') toggleTheme(); } });
+					return actions;
 				}
 
 				var selected = -1;
@@ -633,29 +636,54 @@ templ document(f Frame, content string) {
 				var pendingTier2 = [];
 				var tier2Timer = null;
 				var tier2Abort = null;
+				var tier2Pending = false;  // a tier-2 fetch is scheduled/in flight
+				var tier2Failed = false;   // the last tier-2 fetch failed
+				var tier2Token = 0;         // invalidates stale fetch callbacks
+				var lastFocused = null;
 
-				function open() {
-					if (location.pathname.indexOf('/attempt/') !== -1) return;
-					overlay.hidden = false;
-					document.body.style.overflow = 'hidden';
-					input.value = '';
-					pendingTier2 = [];
-					render();
-					setTimeout(function() { input.focus(); }, 0);
-					fetchWorkspaces();
+			function open() {
+				if (location.pathname.indexOf('/attempt/') !== -1) return;
+				lastFocused = document.activeElement;
+				overlay.classList.add('palette-overlay--open');
+				document.body.style.overflow = 'hidden';
+				input.value = '';
+				pendingTier2 = [];
+				render();
+				setTimeout(function() { input.focus(); }, 0);
+				fetchWorkspaces();
+			}
+			function close() {
+				overlay.classList.remove('palette-overlay--open');
+				document.body.style.overflow = '';
+				cancelTier2();
+				if (lastFocused && lastFocused !== document.body && typeof lastFocused.focus === 'function') {
+					try { lastFocused.focus(); } catch(_) {}
+				} else if (trigger) {
+					try { trigger.focus(); } catch(_) {}
 				}
-				function close() {
-					overlay.hidden = true;
-					document.body.style.overflow = '';
-					cancelTier2();
+				lastFocused = null;
+			}
+				function isOpen() { return overlay.classList.contains('palette-overlay--open'); }
+
+			var trigger = document.getElementById('palette-trigger');
+			var attemptPage = location.pathname.indexOf('/attempt/') !== -1;
+			if (trigger) {
+				if (attemptPage) {
+					// Palette is suppressed mid-quiz (open() no-ops on /attempt/) — hide the
+					// trigger rather than render a button that does nothing.
+					trigger.style.display = 'none';
+				} else {
+					trigger.addEventListener('click', function(e) { e.preventDefault(); open(); });
 				}
-				function isOpen() { return !overlay.hidden; }
+			}
+			var kbd = document.getElementById('palette-trigger-kbd');
+			if (kbd && !attemptPage && !/(Mac|iPhone|iPod|iPad)/i.test(navigator.platform || '')) kbd.textContent = 'Ctrl K';
 
 				function fetchWorkspaces() {
 					if (workspacesCache) return;
 					fetch('/api/workspaces').then(function(r) { return r.json(); }).then(function(list) {
 						workspacesCache = Array.isArray(list) ? list : [];
-						if (isOpen() && input.value.trim()) render();
+						if (isOpen()) render();
 					}).catch(function() { workspacesCache = []; });
 				}
 
@@ -681,21 +709,35 @@ templ document(f Frame, content string) {
 				}
 
 				function cancelTier2() {
+					tier2Token++;  // invalidate any in-flight callback
 					if (tier2Timer) { clearTimeout(tier2Timer); tier2Timer = null; }
 					if (tier2Abort) { try { tier2Abort.abort(); } catch(_) {} tier2Abort = null; }
+					tier2Pending = false;
+					tier2Failed = false;
 				}
 				function scheduleTier2(q) {
 					cancelTier2();
 					if (!q) { pendingTier2 = []; return; }
+					tier2Pending = true;
+					var myToken = tier2Token;
 					tier2Timer = setTimeout(function() {
 						tier2Abort = new AbortController();
 						fetch('/api/search?q=' + encodeURIComponent(q), { signal: tier2Abort.signal })
 							.then(function(r) { return r.json(); })
 							.then(function(list) {
+								if (myToken !== tier2Token) return;  // stale
 								pendingTier2 = Array.isArray(list) ? list : [];
+								tier2Pending = false;
+								tier2Failed = false;
 								if (isOpen() && input.value.trim() === q) render();
 							})
-							.catch(function() {});
+							.catch(function(err) {
+								if (err && err.name === 'AbortError') return;  // aborted by a new query, not a failure
+								if (myToken !== tier2Token) return;  // stale
+								tier2Pending = false;
+								tier2Failed = true;
+								if (isOpen() && input.value.trim() === q) render();
+							});
 					}, 150);
 				}
 
@@ -712,11 +754,18 @@ templ document(f Frame, content string) {
 					var el = document.createElement('div');
 					el.className = 'palette-row';
 					el.setAttribute('role', 'option');
-					el.innerHTML = '<span class="palette-row-icon">' + iconFor(item.type) + '</span>' +
+					var activeWs = document.body.getAttribute('data-active-ws') || '';
+					var showBadge = item.workspace && item.type !== 'workspace' && item.workspace !== activeWs;
+					el.innerHTML = '<span class="palette-row-icon" aria-hidden="true">' + iconFor(item.type) + '</span>' +
 						'<span class="palette-row-title"></span>' +
-						(item.workspace ? '<span class="palette-row-ws"></span>' : '');
-					el.querySelector('.palette-row-title').textContent = item.title;
-					if (item.workspace) {
+						(showBadge ? '<span class="palette-row-ws"></span>' : '');
+					var titleEl = el.querySelector('.palette-row-title');
+					if (item.type === 'lesson' && item.seq) {
+						titleEl.textContent = ('0' + item.seq).slice(-2) + ' · ' + item.title;
+					} else {
+						titleEl.textContent = item.title;
+					}
+					if (showBadge) {
 						var wsEl = el.querySelector('.palette-row-ws');
 						if (wsEl) wsEl.textContent = item.workspace;
 					}
@@ -731,38 +780,70 @@ templ document(f Frame, content string) {
 					appendDivider(label);
 					for (var i = 0; i < items.length; i++) appendItemRow(items[i]);
 				}
+				// appendHint adds a non-selectable muted message row (loading / error).
+				function appendHint(text, isAlert) {
+					var el = document.createElement('div');
+					el.className = 'palette-hint' + (isAlert ? ' palette-hint--alert' : '');
+					el.textContent = text;
+					resultsEl.appendChild(el);
+				}
 
 				function render() {
 					var q = input.value.trim();
 					currentRows = [];
 					resultsEl.innerHTML = '';
 					var hasContent = false;
-					if (!q) {
+					var activeWs = document.body.getAttribute('data-active-ws') || '';
+				if (!q) {
+					// Browse: Recents → Workspaces → quick actions (footer).
+					var recents = loadRecents().filter(function(r) { return r.url !== location.pathname; });
+					if (recents.length) { appendGroup('Recents', recents); hasContent = true; }
+					// Workspaces already shown in Recents are skipped so each workspace appears
+					// exactly once (recent ones surface via Recents at the top).
+					var recentUrls = {};
+					for (var i = 0; i < recents.length; i++) recentUrls[recents[i].url] = true;
+					var wsItems = [];
+					if (workspacesCache) {
+						for (var i = 0; i < workspacesCache.length; i++) {
+							var w = workspacesCache[i];
+							// In-workspace: list other workspaces for switching.
+							// Dashboard (activeWs ''): all workspaces appear.
+							if (w.name === activeWs) continue;
+							var wUrl = '/workspace/' + encodeURIComponent(w.name);
+							if (recentUrls[wUrl]) continue;
+							wsItems.push({ type: 'workspace', title: w.topic || w.name, url: wUrl, workspace: w.name });
+						}
+					}
+					if (wsItems.length) { appendGroup('Workspaces', wsItems); hasContent = true; }
 						var qa = quickActions();
 						if (qa.length) { appendGroup('Actions', qa); hasContent = true; }
-						var recents = loadRecents().filter(function(r) { return r.url !== location.pathname + location.search; });
-						if (recents.length) appendGroup('Recents', recents);
 					} else {
-						var t1Groups = groupByType(tier1Items(q));
-						for (var i = 0; i < t1Groups.length; i++) {
-							appendGroup(t1Groups[i].label, t1Groups[i].items);
-							hasContent = true;
-						}
+						// Search: flat relevance-ranked (best match first); type shown as
+						// icon, workspace badge only when cross-workspace.
+						var t1 = tier1Items(q);
+						for (var i = 0; i < t1.length; i++) { appendItemRow(t1[i]); hasContent = true; }
 						if (pendingTier2.length) {
-							appendDivider('More across workspaces', true);
-							var t2Items = pendingTier2.map(function(r) {
-								return { type: r.type, title: r.title, url: r.url, workspace: r.workspace || '' };
-							});
-							var t2Groups = groupByType(t2Items);
-							for (var i = 0; i < t2Groups.length; i++) {
-								appendGroup(t2Groups[i].label, t2Groups[i].items);
+							var t1Urls = {};
+							for (var i = 0; i < t1.length; i++) t1Urls[t1[i].url] = true;
+							var t2Items = pendingTier2
+								.map(function(r) { return { type: r.type, title: r.title, url: r.url, workspace: r.workspace || '' }; })
+								.filter(function(r) { return r.workspace !== activeWs && !t1Urls[r.url]; });
+							if (t2Items.length) {
+								if (t1.length) appendDivider('More across workspaces', true);
+								for (var i = 0; i < t2Items.length; i++) { appendItemRow(t2Items[i]); hasContent = true; }
 							}
+						} else if (tier2Failed) {
+							appendHint("Couldn't reach cross-workspace search — showing local results only.", true);
+							hasContent = true;
+						} else if (tier2Pending) {
+							appendHint('Searching across workspaces…', false);
+							hasContent = true;
 						}
 					}
 					if (!hasContent) {
 						var empty = document.createElement('div');
 						empty.className = 'palette-empty';
-						empty.textContent = q ? 'No results. Press Enter to search the full archive.' : 'No items yet.';
+						empty.textContent = q ? 'No matches in any workspace.' : 'No workspaces yet.';
 						resultsEl.appendChild(empty);
 						selected = -1;
 						return;
@@ -806,7 +887,7 @@ templ document(f Frame, content string) {
 
 				document.addEventListener('keydown', function(e) {
 					var isCmd = e.metaKey || e.ctrlKey;
-					if (isCmd && (e.key === 'k' || e.key === 'K')) {
+					if (isCmd && (e.key === 'k' || e.key === 'K' || e.key === '/')) {
 						e.preventDefault();
 						if (isOpen()) close(); else open();
 						return;
@@ -825,8 +906,8 @@ templ document(f Frame, content string) {
 				});
 				input.addEventListener('input', function() {
 					pendingTier2 = [];
-					render();
 					scheduleTier2(input.value.trim());
+					render();
 				});
 				overlay.addEventListener('click', function(e) {
 					if (e.target === overlay) close();
