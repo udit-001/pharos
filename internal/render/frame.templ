@@ -25,7 +25,7 @@ templ document(f Frame, content string) {
 	<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-			<link rel="stylesheet" href="/css/app.css?v=10"/>
+			<link rel="stylesheet" href="/css/app.css?v=20"/>
 			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t;var m=document.getElementById('theme-color');if(m)m.content=t==='dark'?'#2e3440':'#eceff4'})()</script>
 		</head>
 		<body class="font-sans" data-active-ws={ f.ActiveWS } data-active-type={ f.ActiveType } data-active-seq={ fmt.Sprintf("%d", f.ActiveSeq) } data-active-slug={ f.ActiveSlug }>
@@ -40,19 +40,19 @@ templ document(f Frame, content string) {
 						</div>
 						@templ.Raw(topbarCenterBranding(f))
 						<div class="flex items-center gap-2">
-							<form action="/search" method="GET" class="flex items-center">
-								<div class="flex items-center border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus-within:border-slate-400 transition-colors">
-									<input type="text" name="q" placeholder="Search..." aria-label="Search" value={ f.SearchQuery } class="bg-transparent border-none outline-none w-40 text-sm text-slate-700 placeholder-slate-400 focus:w-52 transition-[width]"/>
-								</div>
-							</form>
-							<a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" title="About Pharos">@templ.Raw(iconHelp())</a>
-							<button id="pwa-install" style="display:none" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Install app">
+							<button id="palette-trigger" type="button" class="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white hover:border-slate-400 transition-colors text-sm text-slate-400 cursor-pointer leading-none" aria-label="Open command palette">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+								<span class="text-left">Search…</span>
+								<kbd id="palette-trigger-kbd" class="text-[0.7rem] px-1.5 py-px rounded border border-slate-200 bg-slate-50 text-slate-400 font-sans leading-none">⌘K</kbd>
+							</button>
+							<a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" data-tooltip="About">@templ.Raw(iconHelp())</a>
+							<button id="pwa-install" style="display:none" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" data-tooltip="Install app">
 								<svg class="pwa-bounce" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 							</button>
-							<button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Toggle theme">
+							<button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" data-tooltip="Toggle theme">
 								<svg data-theme-icon="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-								<svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-								<svg data-theme-icon="contrast" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></svg>
+								<svg data-theme-icon="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-hidden"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+								<svg data-theme-icon="contrast" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-hidden"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></svg>
 							</button>
 						</div>
 					</header>
@@ -61,8 +61,20 @@ templ document(f Frame, content string) {
 							@templ.Raw(content)
 						</div>
 					</div>
-				</main>
+			</main>
+		</div>
+		@templ.Raw(f.PaletteDataScript())
+		<div id="pharos-palette" class="palette-overlay">
+			<div class="palette-panel" role="dialog" aria-label="Command palette">
+				<div class="palette-input-wrap">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+					<input id="palette-input" type="text" class="palette-input" placeholder="Search lessons, records, refs, quizzes…" autocomplete="off" spellcheck="false"/>
+					<kbd class="palette-esc">esc</kbd>
+				</div>
+				<div id="palette-results" class="palette-results" role="listbox"></div>
 			</div>
+		</div>
+		<script src="/js/pharos-theme.js?v=28"></script>
 			<script>
 				function toggleSidebar() {
 					var sb = document.getElementById('sidebar');
@@ -70,11 +82,61 @@ templ document(f Frame, content string) {
 					sb.classList.toggle('sidebar-hidden');
 					ov.classList.toggle('hidden');
 				}
-				function toggleSection(label) {
+				function toggleSidebarCollapse() {
+				var sb = document.getElementById('sidebar');
+				if (!sb) return;
+				sb.classList.add('sidebar-ready');
+				var isCollapsed = sb.classList.toggle('sidebar-collapsed');
+				try { localStorage.setItem('pharos_sidebar_collapsed', isCollapsed ? '1' : '0'); } catch(e) {}
+				if (!isCollapsed) closeSectionFlyout();
+			}
+			function openSectionFlyout(label) {
+				var existing = document.querySelector('.sidebar-flyout');
+				if (existing) { closeSectionFlyout(); return; }
+				var items = label.nextElementSibling;
+				if (!items) return;
+				var flyout = document.createElement('div');
+				flyout.className = 'sidebar-flyout';
+				flyout.innerHTML = items.innerHTML;
+				var sidebar = document.getElementById('sidebar');
+				var sidebarRect = sidebar.getBoundingClientRect();
+				var labelRect = label.getBoundingClientRect();
+				flyout.style.left = (sidebarRect.width) + 'px';
+				flyout.style.top = Math.max(8, labelRect.top) + 'px';
+				var tt = document.querySelector('.sidebar-tooltip');
+				if (tt) tt.remove();
+				var ta = document.querySelector('.sidebar-tooltip-arrow');
+				if (ta) ta.remove();
+				document.body.appendChild(flyout);
+				function close(e) {
+					if (e && flyout.contains(e.target)) return;
+					closeSectionFlyout();
+				}
+				function onKey(e) { if (e.key === 'Escape') closeSectionFlyout(); }
+				function onMessage(e) {
+					if (e.data && e.data.type === 'pharos-frame-click') closeSectionFlyout();
+				}
+				flyout._close = close;
+				flyout._onKey = onKey;
+				flyout._onMessage = onMessage;
+				setTimeout(function() { document.addEventListener('click', close); }, 0);
+				document.addEventListener('keydown', onKey);
+				window.addEventListener('message', onMessage);
+			}
+			function closeSectionFlyout() {
+				var flyout = document.querySelector('.sidebar-flyout');
+				if (!flyout) return;
+				if (flyout._close) document.removeEventListener('click', flyout._close);
+				if (flyout._onKey) document.removeEventListener('keydown', flyout._onKey);
+				if (flyout._onMessage) window.removeEventListener('message', flyout._onMessage);
+				flyout.remove();
+			}
+			function toggleSection(label) {
 					var items = label.nextElementSibling;
 					var chevron = label.querySelector('.sidebar-chevron');
 					if (!items) return;
 					var isCollapsed = items.classList.toggle('collapsed');
+					items.style.maxHeight = isCollapsed ? '0px' : items.scrollHeight + 'px';
 					if (chevron) {
 						chevron.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
 					}
@@ -85,44 +147,6 @@ templ document(f Frame, content string) {
 						localStorage.setItem(key, isCollapsed ? '1' : '0');
 					} catch(e) {}
 				}
-				function resolveTheme(mode) {
-					return mode === 'system'
-						? (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light')
-						: mode;
-				}
-				function applyTheme(mode) {
-					var html = document.documentElement;
-					var actual = resolveTheme(mode);
-					document.querySelectorAll('iframe').forEach(function(f) {
-						try {
-							if (f.contentDocument && f.contentDocument.documentElement) {
-								f.contentDocument.documentElement.dataset.theme = actual;
-							}
-						} catch(e) {}
-						try { f.contentWindow.postMessage({type: 'theme', theme: actual}, '*'); } catch(e) {}
-					});
-				html.dataset.theme = actual;
-				localStorage.setItem('pharos_theme', mode);
-				var m = document.getElementById('theme-color');
-				if (m) m.content = actual === 'dark' ? '#2e3440' : '#eceff4';
-				document.querySelector('[data-theme-icon=sun]').classList.toggle('hidden', mode !== 'light');
-					document.querySelector('[data-theme-icon=moon]').classList.toggle('hidden', mode !== 'dark');
-					document.querySelector('[data-theme-icon=contrast]').classList.toggle('hidden', mode !== 'system');
-				}
-				function toggleTheme() {
-					var current = localStorage.getItem('pharos_theme') || 'system';
-					var modes = ['light', 'dark', 'system'];
-					var idx = modes.indexOf(current);
-					var next = modes[(idx + 1) % modes.length];
-					applyTheme(next);
-				}
-			(function() {
-				var t = localStorage.getItem('pharos_theme') || 'system';
-				applyTheme(t);
-				window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', function() {
-					applyTheme(localStorage.getItem('pharos_theme') || 'system');
-				});
-			})();
 			document.addEventListener('mouseover', function(e) {
 				var el = e.target;
 				if (!el.classList) return;
@@ -140,6 +164,14 @@ templ document(f Frame, content string) {
 				}
 			});
 			(function(){
+				// Restore sidebar collapsed state from localStorage
+				var sb = document.getElementById('sidebar');
+				var isCollapsed = false;
+				try { isCollapsed = localStorage.getItem('pharos_sidebar_collapsed') === '1'; } catch(e) {}
+				if (isCollapsed && sb) {
+					sb.classList.add('sidebar-collapsed');
+				}
+				if (sb) setTimeout(function() { sb.classList.add('sidebar-ready'); }, 0);
 				var nav = document.querySelector('[data-workspace]');
 				var ws = nav ? nav.dataset.workspace : '';
 				document.querySelectorAll('.sidebar-section-label').forEach(function(label) {
@@ -148,23 +180,102 @@ templ document(f Frame, content string) {
 					if (!items) return;
 					// Don't override server state for the section containing the
 					// active page — it always stays expanded.
-					if (items.querySelector('.sidebar-link-active')) return;
+					if (items.querySelector('.sidebar-link-active')) {
+						items.style.maxHeight = items.scrollHeight + 'px';
+						return;
+					}
 					var key = 'sidebar_' + ws + '_' + label.dataset.section;
 					var val = localStorage.getItem(key);
-					if (val === null) return;
+					if (val === null) {
+						items.style.maxHeight = items.scrollHeight + 'px';
+						return;
+					}
 					if (val === '1') {
 						items.classList.add('collapsed');
+						items.style.maxHeight = '0px';
 						if (chevron) chevron.style.transform = 'rotate(90deg)';
 					} else {
 						items.classList.remove('collapsed');
+						items.style.maxHeight = items.scrollHeight + 'px';
 						if (chevron) chevron.style.transform = 'rotate(0deg)';
 					}
 				});
 				// Scroll to the active sidebar link so it's visible on page load
 				var activeLink = document.querySelector('.sidebar-link-active');
 				if (activeLink) {
-					activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+					var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+					activeLink.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
 				}
+				// Flyout on section label click when sidebar is collapsed
+				document.querySelectorAll('.sidebar-section-label').forEach(function(label) {
+					label.addEventListener('click', function(e) {
+						if (sb && sb.classList.contains('sidebar-collapsed')) {
+							e.preventDefault();
+							openSectionFlyout(label);
+						}
+					});
+				});
+				// JS-managed tooltip for collapsed sidebar icons
+				var tooltipEl = null, tooltipArrow = null;
+				document.querySelectorAll('.sidebar-section-label[data-tooltip]').forEach(function(el) {
+					el.addEventListener('mouseenter', function() {
+						if (!sb || !sb.classList.contains('sidebar-collapsed') || sb.dataset.flyoutOpen) return;
+						if (tooltipEl) { tooltipEl.remove(); tooltipArrow.remove(); }
+						var r = this.getBoundingClientRect();
+						var midY = r.top + r.height / 2;
+						tooltipEl = document.createElement('div');
+						tooltipEl.className = 'sidebar-tooltip';
+						tooltipEl.textContent = this.dataset.tooltip;
+						tooltipEl.style.left = '70px';
+						tooltipEl.style.top = midY + 'px';
+						tooltipArrow = document.createElement('div');
+						tooltipArrow.className = 'sidebar-tooltip-arrow';
+						tooltipArrow.style.left = '64px';
+						tooltipArrow.style.top = midY + 'px';
+						document.body.appendChild(tooltipArrow);
+						document.body.appendChild(tooltipEl);
+					});
+					el.addEventListener('mouseleave', function() {
+						if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
+						if (tooltipArrow) { tooltipArrow.remove(); tooltipArrow = null; }
+					});
+				});
+				// Tooltip for collapse button
+				document.querySelectorAll('.sidebar-collapse-btn-top[data-tooltip]').forEach(function(el) {
+					el.addEventListener('mouseenter', function() {
+						if (tooltipEl) { tooltipEl.remove(); tooltipArrow.remove(); }
+						var r = this.getBoundingClientRect();
+						tooltipEl = document.createElement('div');
+						tooltipEl.className = 'sidebar-tooltip';
+						tooltipEl.textContent = this.dataset.tooltip;
+						tooltipEl.style.left = (r.left + r.width / 2) + 'px';
+						tooltipEl.style.top = (r.bottom + 6) + 'px';
+						tooltipEl.style.transform = 'translateX(-50%)';
+						document.body.appendChild(tooltipEl);
+					});
+					el.addEventListener('mouseleave', function() {
+						if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
+						if (tooltipArrow) { tooltipArrow.remove(); tooltipArrow = null; }
+					});
+				});
+				// Tooltip for topbar buttons (theme toggle, about, PWA install)
+				document.querySelectorAll('header [data-tooltip]').forEach(function(el) {
+					el.addEventListener('mouseenter', function() {
+						if (tooltipEl) { tooltipEl.remove(); if (tooltipArrow) tooltipArrow.remove(); }
+						var r = this.getBoundingClientRect();
+						tooltipEl = document.createElement('div');
+						tooltipEl.className = 'sidebar-tooltip';
+						tooltipEl.textContent = this.getAttribute('data-tooltip');
+						tooltipEl.style.left = (r.left + r.width / 2) + 'px';
+						tooltipEl.style.top = (r.bottom + 6) + 'px';
+						tooltipEl.style.transform = 'translateX(-50%)';
+						document.body.appendChild(tooltipEl);
+					});
+					el.addEventListener('mouseleave', function() {
+						if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
+						if (tooltipArrow) { tooltipArrow.remove(); tooltipArrow = null; }
+					});
+				});
 				var c = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 				var k = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 				document.querySelectorAll('.prose pre:not([data-no-copy])').forEach(function(pre){
@@ -300,20 +411,25 @@ templ document(f Frame, content string) {
 				// ── Shared refresh helpers ──
 				// Both preserve scroll position of the region being refreshed.
 
-				function reloadIframe() {
-					var iframe = document.querySelector('#page-content iframe');
-					if (!iframe || !iframe.contentWindow) return;
-					try {
-						var savedY = iframe.contentWindow.scrollY;
-						iframe.addEventListener('load', function restore() {
-							iframe.removeEventListener('load', restore);
-							try { iframe.contentWindow.scrollTo(0, savedY); } catch(_) {}
-						});
-						iframe.contentWindow.location.reload();
-					} catch(_) {}
-				}
+			// Reload the iframe for live-sync refresh. The iframe's own
+			// pharos-scroll.js bundle handles cross-session scroll persistence
+			// (save on scroll/visibilitychange, restore on load). This
+			// in-memory save/restore preserves scroll across the reload
+			// itself (immediate, same-tab).
+			function reloadIframe() {
+				var iframe = document.querySelector('#page-content iframe');
+				if (!iframe || !iframe.contentWindow) return;
+				try {
+					var savedY = iframe.contentWindow.scrollY;
+					iframe.addEventListener('load', function restore() {
+						iframe.removeEventListener('load', restore);
+						try { iframe.contentWindow.scrollTo(0, savedY); } catch(_) {}
+					});
+					iframe.contentWindow.location.reload();
+				} catch(_) {}
+			}
 
-				function swapRegion(selector) {
+			function swapRegion(selector) {
 					fetch(location.href, { credentials: 'same-origin' })
 						.then(function(r) { return r.text(); })
 						.then(function(html) {
@@ -370,6 +486,403 @@ templ document(f Frame, content string) {
 						handler.refresh();
 						return;
 					}
+
+					// "navigate" → agent-driven URL navigation (pharos nav).
+					if (ev.type === 'navigate' && ev.url) {
+						location.href = ev.url;
+						return;
+					}
+				});
+			})();
+		</script>
+		<script>
+			// Command palette (LEARN-153). Two-tier results: instant inline
+			// JSON (Tier 1) + appended /api/search (Tier 2). Recents from all
+			// navigation live in localStorage and affect only the no-query
+			// state. Suppressed on in-progress quiz attempt pages.
+			(function() {
+				var overlay = document.getElementById('pharos-palette');
+				if (!overlay) return;
+				var input = document.getElementById('palette-input');
+				var resultsEl = document.getElementById('palette-results');
+				var dataEl = document.getElementById('pharos-palette-data');
+
+				var inlineItems = [];
+				try { inlineItems = JSON.parse(dataEl.textContent || '[]') || []; } catch(_) {}
+				var workspacesCache = null;
+
+				var RECENTS_KEY = 'pharos_recents';
+				function loadRecents() {
+					try {
+						var list = JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]');
+						var seen = {}, out = [];
+						for (var i = 0; i < list.length; i++) {
+							var r = list[i];
+							if (!r || !r.url) continue;
+							r.url = r.url.split('?')[0];  // normalize: drop cache-bust query params
+							if (seen[r.url]) continue;     // dedupe by pathname (legacy dupes)
+							seen[r.url] = true;
+							out.push(r);
+						}
+						return out;
+					} catch(_) { return []; }
+				}
+				function recordRecent(entry) {
+					if (!entry || !entry.url) return;
+					var list = loadRecents().filter(function(r) { return r.url !== entry.url; });
+					list.unshift(entry);
+					if (list.length > 8) list = list.slice(0, 8);
+					try { localStorage.setItem(RECENTS_KEY, JSON.stringify(list)); } catch(_) {}
+				}
+				// Record the current page on every load (recents span all
+				// workspaces). Skip the quiz attempt page — its URL is ephemeral
+				// and navigating back mid-quiz is disruptive. The dashboard and
+				// other workspace-less pages are never recorded.
+				(function recordCurrentPage() {
+					if (location.pathname.indexOf('/attempt/') !== -1) return;
+					var body = document.body;
+					var ws = body.getAttribute('data-active-ws') || '';
+					if (!ws) return;
+					var type = body.getAttribute('data-active-type') || '';
+					var entry = {
+						type: type || 'workspace',
+						title: document.title.replace(/ — Pharos$/, ''),
+						url: location.pathname,
+						workspace: ws
+					};
+					if (type === 'lesson') {
+						var seq = parseInt(body.getAttribute('data-active-seq'), 10);
+						if (seq > 0) entry.seq = seq;
+					}
+					recordRecent(entry);
+				})();
+
+				// Fuzzy subsequence matcher. Returns {rank} (lower = better) or
+				// null when q is not a subsequence of s. Exact < prefix <
+				// substring < subsequence (tighter groupings score better).
+				function fuzzyScore(q, s) {
+					q = q.toLowerCase(); s = s.toLowerCase();
+					if (!q) return { rank: 0 };
+					if (s === q) return { rank: 1 };
+					var si = s.indexOf(q);
+					if (si === 0) return { rank: 2 };
+					if (si !== -1) return { rank: 3 };
+					var qi = 0, prev = -2, gaps = 0, tight = 0;
+					for (var i = 0; i < s.length && qi < q.length; i++) {
+						if (s[i] === q[qi]) {
+							if (prev === i - 1) tight++;
+							else if (prev !== -2) gaps++;
+							prev = i;
+							qi++;
+						}
+					}
+					if (qi !== q.length) return null;
+					return { rank: 4 + gaps - tight };
+				}
+
+				var ICONS = {
+					lesson: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg>',
+					record: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5Z"/><path d="M15 3v6h6"/></svg>',
+					ref: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>',
+					quiz: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>',
+					workspace: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/></svg>',
+					doc: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+					action: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+					home: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
+				};
+				ICONS['quiz-library'] = ICONS.quiz;
+				function iconFor(type) { return ICONS[type] || ICONS.doc; }
+
+				function quickActions() {
+					var activeWs = document.body.getAttribute('data-active-ws') || '';
+					var actions = [];
+					if (activeWs) {
+						actions.push({ type: 'action', title: 'Toggle sidebar', action: function() { if (typeof toggleSidebarCollapse === 'function') toggleSidebarCollapse(); } });
+					}
+					actions.push({ type: 'action', title: 'Toggle theme', action: function() { if (typeof toggleTheme === 'function') toggleTheme(); } });
+					return actions;
+				}
+
+				var selected = -1;
+				var currentRows = [];
+				var pendingTier2 = [];
+				var tier2Timer = null;
+				var tier2Abort = null;
+				var tier2Pending = false;  // a tier-2 fetch is scheduled/in flight
+				var tier2Failed = false;   // the last tier-2 fetch failed
+				var tier2Token = 0;         // invalidates stale fetch callbacks
+				var lastFocused = null;
+
+			function open() {
+				if (location.pathname.indexOf('/attempt/') !== -1) return;
+				lastFocused = document.activeElement;
+				overlay.classList.add('palette-overlay--open');
+				document.body.style.overflow = 'hidden';
+				input.value = '';
+				pendingTier2 = [];
+				render();
+				setTimeout(function() { input.focus(); }, 0);
+				fetchWorkspaces();
+			}
+			function close() {
+				overlay.classList.remove('palette-overlay--open');
+				document.body.style.overflow = '';
+				cancelTier2();
+				if (lastFocused && lastFocused !== document.body && typeof lastFocused.focus === 'function') {
+					try { lastFocused.focus(); } catch(_) {}
+				} else if (trigger) {
+					try { trigger.focus(); } catch(_) {}
+				}
+				lastFocused = null;
+			}
+				function isOpen() { return overlay.classList.contains('palette-overlay--open'); }
+
+			var trigger = document.getElementById('palette-trigger');
+			var attemptPage = location.pathname.indexOf('/attempt/') !== -1;
+			if (trigger) {
+				if (attemptPage) {
+					// Palette is suppressed mid-quiz (open() no-ops on /attempt/) — hide the
+					// trigger rather than render a button that does nothing.
+					trigger.style.display = 'none';
+				} else {
+					trigger.addEventListener('click', function(e) { e.preventDefault(); open(); });
+				}
+			}
+			var kbd = document.getElementById('palette-trigger-kbd');
+			if (kbd && !attemptPage && !/(Mac|iPhone|iPod|iPad)/i.test(navigator.platform || '')) kbd.textContent = 'Ctrl K';
+
+				function fetchWorkspaces() {
+					if (workspacesCache) return;
+					fetch('/api/workspaces').then(function(r) { return r.json(); }).then(function(list) {
+						workspacesCache = Array.isArray(list) ? list : [];
+						if (isOpen()) render();
+					}).catch(function() { workspacesCache = []; });
+				}
+
+				function tier1Items(q) {
+					var pool = inlineItems.slice();
+					if (workspacesCache) {
+						for (var i = 0; i < workspacesCache.length; i++) {
+							var w = workspacesCache[i];
+							pool.push({ type: 'workspace', title: w.topic || w.name, url: '/workspace/' + encodeURIComponent(w.name), workspace: w.name });
+						}
+					}
+					if (!q) return pool;
+					var scored = [];
+					for (var i = 0; i < pool.length; i++) {
+						var s = fuzzyScore(q, pool[i].title);
+						if (s) scored.push({ item: pool[i], rank: s.rank });
+					}
+					scored.sort(function(a, b) {
+						if (a.rank !== b.rank) return a.rank - b.rank;
+						return a.item.title.localeCompare(b.item.title);
+					});
+					return scored.map(function(x) { return x.item; });
+				}
+
+				function cancelTier2() {
+					tier2Token++;  // invalidate any in-flight callback
+					if (tier2Timer) { clearTimeout(tier2Timer); tier2Timer = null; }
+					if (tier2Abort) { try { tier2Abort.abort(); } catch(_) {} tier2Abort = null; }
+					tier2Pending = false;
+					tier2Failed = false;
+				}
+				function scheduleTier2(q) {
+					cancelTier2();
+					if (!q) { pendingTier2 = []; return; }
+					tier2Pending = true;
+					var myToken = tier2Token;
+					tier2Timer = setTimeout(function() {
+						tier2Abort = new AbortController();
+						fetch('/api/search?q=' + encodeURIComponent(q), { signal: tier2Abort.signal })
+							.then(function(r) { return r.json(); })
+							.then(function(list) {
+								if (myToken !== tier2Token) return;  // stale
+								pendingTier2 = Array.isArray(list) ? list : [];
+								tier2Pending = false;
+								tier2Failed = false;
+								if (isOpen() && input.value.trim() === q) render();
+							})
+							.catch(function(err) {
+								if (err && err.name === 'AbortError') return;  // aborted by a new query, not a failure
+								if (myToken !== tier2Token) return;  // stale
+								tier2Pending = false;
+								tier2Failed = true;
+								if (isOpen() && input.value.trim() === q) render();
+							});
+					}, 150);
+				}
+
+				function appendDivider(label, isTier) {
+					currentRows.push({ kind: 'divider', label: label });
+					var d = document.createElement('div');
+					d.className = 'palette-divider' + (isTier ? ' palette-tier-divider' : '');
+					d.textContent = label;
+					resultsEl.appendChild(d);
+				}
+				function appendItemRow(item) {
+					var idx = currentRows.length;
+					currentRows.push({ kind: 'item', item: item });
+					var el = document.createElement('div');
+					el.className = 'palette-row';
+					el.setAttribute('role', 'option');
+					var activeWs = document.body.getAttribute('data-active-ws') || '';
+					var showBadge = item.workspace && item.type !== 'workspace' && item.workspace !== activeWs;
+					el.innerHTML = '<span class="palette-row-icon" aria-hidden="true">' + iconFor(item.type) + '</span>' +
+						'<span class="palette-row-title"></span>' +
+						(showBadge ? '<span class="palette-row-ws"></span>' : '');
+					var titleEl = el.querySelector('.palette-row-title');
+					if (item.type === 'lesson' && item.seq) {
+						titleEl.textContent = ('0' + item.seq).slice(-2) + ' · ' + item.title;
+					} else {
+						titleEl.textContent = item.title;
+					}
+					if (showBadge) {
+						var wsEl = el.querySelector('.palette-row-ws');
+						if (wsEl) wsEl.textContent = item.workspace;
+					}
+					(function(idx, el) {
+						el.addEventListener('mouseenter', function() { setSelected(idx); });
+						el.addEventListener('click', function(e) { e.preventDefault(); activate(idx); });
+					})(idx, el);
+					resultsEl.appendChild(el);
+					currentRows[idx]._el = el;
+				}
+				function appendGroup(label, items) {
+					appendDivider(label);
+					for (var i = 0; i < items.length; i++) appendItemRow(items[i]);
+				}
+				// appendHint adds a non-selectable muted message row (loading / error).
+				function appendHint(text, isAlert) {
+					var el = document.createElement('div');
+					el.className = 'palette-hint' + (isAlert ? ' palette-hint--alert' : '');
+					el.textContent = text;
+					resultsEl.appendChild(el);
+				}
+
+				function render() {
+					var q = input.value.trim();
+					currentRows = [];
+					resultsEl.innerHTML = '';
+					var hasContent = false;
+					var activeWs = document.body.getAttribute('data-active-ws') || '';
+				if (!q) {
+					// Browse: Recents → Workspaces → quick actions (footer).
+					var recents = loadRecents().filter(function(r) { return r.url !== location.pathname; });
+					if (recents.length) { appendGroup('Recents', recents); hasContent = true; }
+					// Workspaces already shown in Recents are skipped so each workspace appears
+					// exactly once (recent ones surface via Recents at the top).
+					var recentUrls = {};
+					for (var i = 0; i < recents.length; i++) recentUrls[recents[i].url] = true;
+					var wsItems = [];
+					if (workspacesCache) {
+						for (var i = 0; i < workspacesCache.length; i++) {
+							var w = workspacesCache[i];
+							// In-workspace: list other workspaces for switching.
+							// Dashboard (activeWs ''): all workspaces appear.
+							if (w.name === activeWs) continue;
+							var wUrl = '/workspace/' + encodeURIComponent(w.name);
+							if (recentUrls[wUrl]) continue;
+							wsItems.push({ type: 'workspace', title: w.topic || w.name, url: wUrl, workspace: w.name });
+						}
+					}
+					if (wsItems.length) { appendGroup('Workspaces', wsItems); hasContent = true; }
+						var qa = quickActions();
+						if (qa.length) { appendGroup('Actions', qa); hasContent = true; }
+					} else {
+						// Search: flat relevance-ranked (best match first); type shown as
+						// icon, workspace badge only when cross-workspace.
+						var t1 = tier1Items(q);
+						for (var i = 0; i < t1.length; i++) { appendItemRow(t1[i]); hasContent = true; }
+						if (pendingTier2.length) {
+							var t1Urls = {};
+							for (var i = 0; i < t1.length; i++) t1Urls[t1[i].url] = true;
+							var t2Items = pendingTier2
+								.map(function(r) { return { type: r.type, title: r.title, url: r.url, workspace: r.workspace || '' }; })
+								.filter(function(r) { return r.workspace !== activeWs && !t1Urls[r.url]; });
+							if (t2Items.length) {
+								if (t1.length) appendDivider('More across workspaces', true);
+								for (var i = 0; i < t2Items.length; i++) { appendItemRow(t2Items[i]); hasContent = true; }
+							}
+						} else if (tier2Failed) {
+							appendHint("Couldn't reach cross-workspace search — showing local results only.", true);
+							hasContent = true;
+						} else if (tier2Pending) {
+							appendHint('Searching across workspaces…', false);
+							hasContent = true;
+						}
+					}
+					if (!hasContent) {
+						var empty = document.createElement('div');
+						empty.className = 'palette-empty';
+						empty.textContent = q ? 'No matches in any workspace.' : 'No workspaces yet.';
+						resultsEl.appendChild(empty);
+						selected = -1;
+						return;
+					}
+					setSelected(firstSelectable());
+				}
+
+				function firstSelectable() {
+					for (var i = 0; i < currentRows.length; i++) {
+						if (currentRows[i].kind === 'item') return i;
+					}
+					return -1;
+				}
+				function setSelected(idx) {
+					for (var i = 0; i < currentRows.length; i++) {
+						if (currentRows[i]._el) currentRows[i]._el.classList.remove('palette-selected');
+					}
+					selected = idx;
+					if (idx >= 0 && currentRows[idx] && currentRows[idx]._el) {
+						currentRows[idx]._el.classList.add('palette-selected');
+						currentRows[idx]._el.scrollIntoView({ block: 'nearest' });
+					}
+				}
+				function moveSelected(delta) {
+					var idx = selected;
+					for (var step = 0; step < currentRows.length; step++) {
+						idx += delta;
+						if (idx < 0) idx = currentRows.length - 1;
+						if (idx >= currentRows.length) idx = 0;
+						if (currentRows[idx] && currentRows[idx].kind === 'item') { setSelected(idx); return; }
+					}
+				}
+				function activate(idx) {
+					if (idx < 0 || idx >= currentRows.length) return;
+					var row = currentRows[idx];
+					if (!row || row.kind !== 'item') return;
+					var item = row.item;
+					if (typeof item.action === 'function') { item.action(); close(); return; }
+					if (item.url) { close(); location.href = item.url; }
+				}
+
+				document.addEventListener('keydown', function(e) {
+					var isCmd = e.metaKey || e.ctrlKey;
+					if (isCmd && (e.key === 'k' || e.key === 'K' || e.key === '/')) {
+						e.preventDefault();
+						if (isOpen()) close(); else open();
+						return;
+					}
+					if (!isOpen()) return;
+					if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+					if (e.key === 'ArrowDown') { e.preventDefault(); moveSelected(1); return; }
+					if (e.key === 'ArrowUp') { e.preventDefault(); moveSelected(-1); return; }
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						if (selected >= 0) activate(selected);
+						else if (input.value.trim()) { close(); location.href = '/search?q=' + encodeURIComponent(input.value.trim()); }
+						return;
+					}
+					if (e.key === 'Tab') { e.preventDefault(); return; }
+				});
+				input.addEventListener('input', function() {
+					pendingTier2 = [];
+					scheduleTier2(input.value.trim());
+					render();
+				});
+				overlay.addEventListener('click', function(e) {
+					if (e.target === overlay) close();
 				});
 			})();
 		</script>

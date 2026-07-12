@@ -112,6 +112,68 @@ func TestPageEscapesTitle(t *testing.T) {
 	}
 }
 
+// TestPaletteDataScriptEmpty verifies the dashboard (no active workspace)
+// emits an empty array so the palette JS always parses valid JSON.
+func TestPaletteDataScriptEmpty(t *testing.T) {
+	got := Frame{}.PaletteDataScript()
+	if !strings.Contains(got, `<script type="application/json" id="pharos-palette-data">[]</script>`) {
+		t.Errorf("expected empty data script tag, got:\n%s", got)
+	}
+}
+
+// TestPaletteDataScriptFromSidebar verifies the palette data module maps
+// every sidebar item kind to its dashboard URL — the deep behaviour behind
+// the one-method interface.
+func TestPaletteDataScriptFromSidebar(t *testing.T) {
+	f := Frame{
+		ActiveWS: "sql-basics",
+		Sidebar: Sidebar{
+			Workspace: &Workspace{Name: "sql-basics"},
+			Lessons:   []LessonEntry{{Seq: 1, Title: "JOINs"}},
+			Records:   []RecordEntry{{Seq: 2, Title: "Notes on indexes"}},
+			Refs:      []RefEntry{{Slug: "ddl-cheatsheet", Title: "DDL cheatsheet"}},
+			Quizzes:   []QuizEntry{{Slug: "q1", Title: "Quiz 1"}},
+		},
+	}
+	got := f.PaletteDataScript()
+	for _, want := range []string{
+		`"type":"lesson"`, `"title":"JOINs"`, `"url":"/workspace/sql-basics/lesson/1"`,
+		`"seq":1`, // lesson sequence mirrors sidebar numbering
+		`"type":"record"`, `"url":"/workspace/sql-basics/record/2"`,
+		`"type":"ref"`, `"url":"/workspace/sql-basics/ref/ddl-cheatsheet"`,
+		`"type":"quiz"`, `"url":"/workspace/sql-basics/quiz/q1"`,
+		`"type":"doc"`, `"url":"/workspace/sql-basics/mission"`,
+		`"url":"/workspace/sql-basics/glossary"`,
+		`"workspace":"sql-basics"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("expected %q in palette data, got:\n%s", want, got)
+		}
+	}
+	// Only the lesson carries seq; records/refs/quizzes/docs omit it (omitempty).
+	if c := strings.Count(got, `"seq"`); c != 1 {
+		t.Errorf("expected exactly one seq field (the lesson), got %d in:\n%s", c, got)
+	}
+}
+
+// TestPaletteDataScriptEscapesHTML guards against a title containing
+// "</script>" breaking out of the embedded JSON script tag.
+func TestPaletteDataScriptEscapesHTML(t *testing.T) {
+	f := Frame{
+		Sidebar: Sidebar{
+			Workspace: &Workspace{Name: "ws"},
+			Lessons:   []LessonEntry{{Seq: 1, Title: `</script><img src=x>`}},
+		},
+	}
+	got := f.PaletteDataScript()
+	if strings.Contains(got, "</script><img") {
+		t.Errorf("expected </script> escaped in JSON, got:\n%s", got)
+	}
+	if !strings.Contains(got, `\u003c/script\u003e`) {
+		t.Errorf("expected \\u003c escaping for </script>, got:\n%s", got)
+	}
+}
+
 func TestQuizLibraryRendersQuizzes(t *testing.T) {
 	d := QuizLibraryData{
 		Workspace: Workspace{Name: "alpha"},

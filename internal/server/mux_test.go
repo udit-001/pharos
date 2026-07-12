@@ -78,6 +78,23 @@ func (e *testEnv) post(t *testing.T, target, body string) *httptest.ResponseReco
 	return rec
 }
 
+func (e *testEnv) patch(t *testing.T, target, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("PATCH", target, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	e.mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func (e *testEnv) delete(t *testing.T, target string) *httptest.ResponseRecorder {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("DELETE", target, nil)
+	e.mux.ServeHTTP(rec, req)
+	return rec
+}
+
 func (e *testEnv) workspaceID(t *testing.T) int64 {
 	t.Helper()
 	rec := e.get(t, "/api/workspaces")
@@ -238,14 +255,13 @@ func TestLessonPageSetsLastViewed(t *testing.T) {
 
 	env.get(t, "/workspace/alpha/lesson/2")
 
-	// Verify SetLastViewed was called — workspace should redirect to lesson 2
+	// Workspace page should show a "Continue" card linking to the last-viewed lesson
 	rec := env.get(t, "/workspace/alpha")
-	if rec.Code != 302 {
-		t.Errorf("workspace page should redirect after viewing a lesson; got %d", rec.Code)
+	if rec.Code != 200 {
+		t.Fatalf("workspace page should render landing page; got %d", rec.Code)
 	}
-	loc := rec.Header().Get("Location")
-	if !strings.Contains(loc, "/lesson/2") {
-		t.Errorf("redirect location = %q, want lesson/2", loc)
+	if !strings.Contains(rec.Body.String(), "Continue: Lesson Two") {
+		t.Error("workspace page should show continue card for last-viewed lesson")
 	}
 }
 
@@ -322,7 +338,7 @@ func TestLessonHTMLNotFound(t *testing.T) {
 		t.Errorf("missing lesson HTML should 404; got %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "isn") {
+	if !strings.Contains(body, "can") {
 		t.Error("404 should render styled not-found page")
 	}
 }
@@ -534,5 +550,144 @@ func TestQuizAttemptAPIFlow(t *testing.T) {
 		`{"quiz_attempt_id":`+attemptID+`,"question_id":`+strconv.FormatInt(q.ID, 10)+`,"response":"0","latency_ms":100}`)
 	if rec.Code != 400 {
 		t.Errorf("submit to completed attempt should 400; got %d", rec.Code)
+	}
+}
+
+// ── Highlights API ──
+
+func TestHighlightsAPI(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+	lessons, _ := wsStore.GetLessons()
+	lessonID := lessons[0].ID
+
+	// GET empty.
+	rec := env.get(t, "/api/workspaces/name/alpha/highlights?docType=lesson&docId="+strconv.FormatInt(lessonID, 10))
+	if rec.Code != 200 {
+		t.Fatalf("GET empty status = %d", rec.Code)
+	}
+	var empty []db.Highlight
+	json.Unmarshal(rec.Body.Bytes(), &empty)
+	if len(empty) != 0 {
+		t.Errorf("expected empty, got %d", len(empty))
+	}
+
+	// POST create.
+	rec = env.post(t, "/api/workspaces/name/alpha/highlights",
+		`{"docType":"lesson","docId":`+strconv.FormatInt(lessonID, 10)+`,"color":"#88C0D0","noteText":"key point","anchorData":"{\"text\":\"hello\",\"prefix\":\"a\",\"suffix\":\"b\"}"}`)
+	if rec.Code != 200 {
+		t.Fatalf("POST create status = %d; body: %s", rec.Code, rec.Body.String())
+	}
+	var created db.Highlight
+	json.Unmarshal(rec.Body.Bytes(), &created)
+	if created.ID == 0 {
+		t.Fatal("created ID not set")
+	}
+	if created.Color != "#88C0D0" {
+		t.Errorf("color = %q, want #88C0D0", created.Color)
+	}
+	if created.NoteText != "key point" {
+		t.Errorf("note = %q", created.NoteText)
+	}
+	if created.WorkspaceID != wsStore.Workspace().ID {
+		t.Errorf("workspaceID not set from scope")
+	}
+
+	// GET returns created.
+	rec = env.get(t, "/api/workspaces/name/alpha/highlights?docType=lesson&docId="+strconv.FormatInt(lessonID, 10))
+	var list []db.Highlight
+	json.Unmarshal(rec.Body.Bytes(), &list)
+	if len(list) != 1 || list[0].ID != created.ID {
+		t.Errorf("GET after create: %+v", list)
+	}
+
+	// PATCH update.
+	rec = env.patch(t, "/api/workspaces/name/alpha/highlights/"+strconv.FormatInt(created.ID, 10),
+		`{"color":"#BF616A","noteText":"updated"}`)
+	if rec.Code != 200 {
+		t.Fatalf("PATCH status = %d", rec.Code)
+	}
+
+	// Verify update.
+	rec = env.get(t, "/api/workspaces/name/alpha/highlights?docType=lesson&docId="+strconv.FormatInt(lessonID, 10))
+	json.Unmarshal(rec.Body.Bytes(), &list)
+	if list[0].Color != "#BF616A" {
+		t.Errorf("updated color = %q, want #BF616A", list[0].Color)
+	}
+	if list[0].NoteText != "updated" {
+		t.Errorf("updated note = %q", list[0].NoteText)
+	}
+
+	// DELETE.
+	rec = env.delete(t, "/api/workspaces/name/alpha/highlights/"+strconv.FormatInt(created.ID, 10))
+	if rec.Code != 204 {
+		t.Errorf("DELETE status = %d, want 204", rec.Code)
+	}
+
+	// GET empty again.
+	rec = env.get(t, "/api/workspaces/name/alpha/highlights?docType=lesson&docId="+strconv.FormatInt(lessonID, 10))
+	json.Unmarshal(rec.Body.Bytes(), &list)
+	if len(list) != 0 {
+		t.Errorf("after delete: %d highlights, want 0", len(list))
+	}
+
+	// DELETE missing → 404.
+	rec = env.delete(t, "/api/workspaces/name/alpha/highlights/"+strconv.FormatInt(created.ID, 10))
+	if rec.Code != 404 {
+		t.Errorf("delete missing status = %d, want 404", rec.Code)
+	}
+
+	// Unknown workspace → 404.
+	rec = env.get(t, "/api/workspaces/name/nonexistent/highlights?docType=lesson&docId=1")
+	if rec.Code != 404 {
+		t.Errorf("unknown workspace status = %d, want 404", rec.Code)
+	}
+}
+
+// TestHighlightIframeConfigInjection proves the lesson HTML iframe gets
+// window.__pharos config + the highlights.js script injected.
+func TestHighlightIframeConfigInjection(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Overwrite with a proper HTML document (has </head>).
+	properHTML := "<!DOCTYPE html><html><head><title>Test</title></head><body><h1>Lesson One</h1><p>Some content</p></body></html>"
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "0001-lesson-one.html"), []byte(properHTML), 0644)
+
+	rec := env.get(t, "/api/lesson-html/alpha/0001-lesson-one.html")
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "window.__pharos") {
+		t.Error("iframe HTML missing window.__pharos config")
+	}
+	if !strings.Contains(body, "/js/pharos-highlights.js") {
+		t.Error("iframe HTML missing pharos-highlights.js script")
+	}
+	if !strings.Contains(body, `"docType":"lesson"`) {
+		t.Error("iframe HTML missing docType config")
+	}
+
+	// Ref HTML also gets highlights injection.
+	os.WriteFile(filepath.Join(env.wsDir, "reference", "ref-one.html"), []byte("<!DOCTYPE html><html><head></head><body><h1>Ref</h1></body></html>"), 0644)
+	rec = env.get(t, "/api/ref-html/alpha/ref-one.html")
+	if rec.Code != 200 {
+		t.Fatalf("ref status = %d", rec.Code)
+	}
+	body = rec.Body.String()
+	if !strings.Contains(body, `"docType":"ref"`) {
+		t.Error("ref iframe HTML missing docType config")
+	}
+
+	// Question HTML gets NO config (questions don't support highlights).
+	os.MkdirAll(filepath.Join(env.wsDir, "questions"), 0755)
+	os.WriteFile(filepath.Join(env.wsDir, "questions", "q1.html"), []byte("<!DOCTYPE html><html><head></head><body></body></html>"), 0644)
+	rec = env.get(t, "/api/question-html/alpha/q1.html")
+	if rec.Code != 200 {
+		t.Fatalf("question status = %d", rec.Code)
+	}
+	body = rec.Body.String()
+	if strings.Contains(body, "window.__pharos") {
+		t.Error("question iframe should NOT have highlights config")
 	}
 }

@@ -211,10 +211,15 @@ pharos start              # Start the read-only web UI (default :9090)
 pharos start --port 9090  # Custom port
 pharos start --no-open    # Don't auto-open the browser
 pharos stop               # Stop the running server (graceful SIGINT, cleans PID file)
+pharos nav <url>          # Navigate the open dashboard tab to a URL
 ```
 
 If already running, `pharos start` prints the URL and returns.
 The dashboard opens on the current workspace if one is set.
+
+`pharos nav` broadcasts a navigate event to all dashboard subscribers.
+Exit 0 = delivered, 1 = no server running, 2 = no tab open.
+The URL is a dashboard path (e.g. `/workspace/{ws}/lesson/{seq}`).
 
 ## Skills
 

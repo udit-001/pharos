@@ -118,6 +118,7 @@ type QuizWidgetItem struct {
 type WorkspaceData struct {
 	Workspace Workspace
 	Mission   string
+	Continue  *ContinueItem
 	Lessons   []LessonEntry
 	Records   []RecordEntry
 	Refs      []RefEntry

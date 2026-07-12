@@ -73,8 +73,8 @@ templ iframeNotFoundPage(kind, ident string) {
 					<path d="M10 17l5-5-5-5"/>
 					<path d="M15 12H3"/>
 				</svg>
-				<h1>This { kind } isn’t on disk</h1>
-				<p>The workspace tracks this { kind }, but the file is missing. It may have been moved or deleted outside pharos. Re-revise it from your agent to restore the content.</p>
+			<h1>This { kind } can’t be found</h1>
+			<p>The workspace still tracks this { kind }, but its file is missing — it may have been moved or deleted outside pharos. Ask your agent to regenerate it.</p>
 				<code>{ ident }</code>
 			</div>
 		</body>

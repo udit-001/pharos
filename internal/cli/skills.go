@@ -51,6 +51,5 @@ func init() {
 	skillsInstallCmd.Flags().Bool("claude-only", false, "Install only to .claude/skills (claude-code)")
 	skillsInstallCmd.Flags().Bool("all", false, "Install all detected families")
 	skillsInstallCmd.Flags().Bool("project", false, "Install at project level instead of globally")
-	skillsUninstallCmd.Flags().Bool("orphans", false, "Remove only orphaned installs at old locations")
 	skillsUninstallCmd.Flags().Bool("all", false, "Remove all discovered installs")
 }

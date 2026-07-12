@@ -25,17 +25,16 @@ Treat the current directory as a teaching workspace. The state of their learning
 - `./questions/*.html`: Optional question stimulus files (attached via `pharos question create --stimulus-file <path>`).
 - `./assets/*`: Reusable **components** shared across lessons. Create with `pharos asset create <filename> --body-file <path>`.
 
-Every workspace **mutation** goes through the CLI — never write files directly with the agent's write tool. The CLI validates the workspace, keeps the database in sync, and the dashboard up to date. A direct write bypasses all of that, so the dashboard goes stale and stats drift. **Zero exceptions.**
+Every workspace **mutation** goes through the CLI — never write **workspace** files (lessons, records, references, assets, MISSION.md) directly with the `write` tool. The CLI validates the workspace, keeps the database in sync, and the dashboard up to date. A direct write bypasses all of that, so the dashboard goes stale and stats drift. **Zero exceptions.**
 
 The `-w` flag is optional — if you've set a current workspace with `pharos workspace use`, all commands default to it. `pharos workspace create` auto-sets the new workspace as current.
 
-The create/revise commands take content via `--body-file`, never inline — multiline HTML/MD breaks in the shell. Write the content to a temp file in the **system temp dir** (`mktemp`), pass `--body-file <path>`, then **remove the temp file once the command succeeds**:
+The create/revise commands take content via `--body-file`, never inline — multiline HTML/MD breaks in the shell. Use the **`write` tool** to write content to a temp file, pass `--body-file <path>` to the CLI, then remove the temp file once the command succeeds:
 
-```bash
-tmp=$(mktemp)
-# ... write content to "$tmp" ...
-pharos lesson create "My Lesson" --body-file "$tmp" && rm "$tmp"
-```
+1. Use the `write` tool to write content to a temp file (e.g. `/tmp/pharos-content.html`)
+2. `pharos lesson create "My Lesson" --body-file /tmp/pharos-content.html && rm /tmp/pharos-content.html`
+
+After creating or revising a lesson, open it in the user's dashboard with `pharos nav <url>` — the URL is in the command output. Nav is best-effort — the content is already created.
 
 ## Philosophy
 

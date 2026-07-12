@@ -9,11 +9,14 @@ import (
 var skillsCheckCmd = &cobra.Command{
 	Use:   "check",
 	Short: "Check installed skills and their status",
-	Long: `Report which skill locations exist and whether they are current,
-outdated, or orphaned (installed at a location pharos no longer manages).
+	Long: `Report which skill locations exist and whether they are current
+or outdated.
 
-Scans every directory each provider reads — global, project, and
-ancestor — so stale copies that shadow fresh installs are surfaced.
+Checks the Agent Skills Open Standard locations:
+  ~/.agents/skills  (global, read by opencode, codex, pi.dev)
+  ~/.claude/skills  (global, read by claude-code)
+  ./.agents/skills  (project)
+  ./.claude/skills  (project)
 
 Examples:
   pharos skills check
@@ -54,20 +57,16 @@ Examples:
 
 		fmt.Println()
 		var installed bool
-		var orphanCount, outdatedCount int
+		var outdatedCount int
 		for _, loc := range locs {
 			if !isSkillInstalled(loc.dir) {
 				continue
 			}
 			installed = true
 			icon := "✓"
-			switch loc.status {
-			case "outdated":
+			if loc.status == "outdated" {
 				icon = "⚠"
 				outdatedCount++
-			case "orphan":
-				icon = "⚠"
-				orphanCount++
 			}
 			fmt.Printf("  %s %s\n", icon, formatLocationLine(loc))
 		}
@@ -80,9 +79,6 @@ Examples:
 		}
 
 		fmt.Println()
-		if orphanCount > 0 {
-			fmt.Printf("  %d orphaned install(s) found. Run 'pharos skills uninstall --orphans' to remove them.\n", orphanCount)
-		}
 		if outdatedCount > 0 {
 			fmt.Printf("  %d outdated install(s) found. Run 'pharos skills install' to update.\n", outdatedCount)
 		}

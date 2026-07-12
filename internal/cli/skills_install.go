@@ -16,14 +16,13 @@ import (
 
 // --- Types ---
 
-// provider is a supported AI coding agent and the directories it reads
-// skills from. Discovery uses readSubdirs to find every copy on disk;
-// detection narrows which providers are present on this machine.
+// provider is a supported AI coding agent. Used for detection (which
+// providers are installed) and display (which providers read each family).
+// The read paths are encoded in the families struct, not here.
 type provider struct {
-	name        string
-	aliases     []string
-	readSubdirs []string
-	detect      func() bool
+	name    string
+	aliases []string
+	detect  func() bool
 }
 
 // installFamily is a write target: a directory name + which providers
@@ -50,28 +49,10 @@ type skillLocation struct {
 // --- Vars ---
 
 var providers = []provider{
-	{
-		name:        "opencode",
-		readSubdirs: []string{".opencode/skills", ".claude/skills", ".agents/skills"},
-		detect:      func() bool { return hasBinary("opencode") || hasDir(".opencode") },
-	},
-	{
-		name:        "codex",
-		readSubdirs: []string{".codex/skills", ".agents/skills"},
-		detect:      func() bool { return hasBinary("codex") || hasDir(".codex") },
-	},
-	{
-		name:        "pi.dev",
-		aliases:     []string{"pi"},
-		readSubdirs: []string{".pi/skills", ".agents/skills"},
-		detect:      func() bool { return hasBinary("pi") || hasDir(".pi") },
-	},
-	{
-		name:        "claude-code",
-		aliases:     []string{"claude"},
-		readSubdirs: []string{".claude/skills"},
-		detect:      func() bool { return hasBinary("claude") || hasDir(".claude") },
-	},
+	{name: "opencode", detect: func() bool { return hasBinary("opencode") || hasDir(".opencode") }},
+	{name: "codex", detect: func() bool { return hasBinary("codex") || hasDir(".codex") }},
+	{name: "pi.dev", aliases: []string{"pi"}, detect: func() bool { return hasBinary("pi") || hasDir(".pi") }},
+	{name: "claude-code", aliases: []string{"claude"}, detect: func() bool { return hasBinary("claude") || hasDir(".claude") }},
 }
 
 var families = []installFamily{
@@ -91,26 +72,43 @@ var families = []installFamily{
 
 // --- Discovery ---
 
+// discover finds skill installs at the two family subdirs (.agents/skills,
+// .claude/skills) at global (home) and project (CWD) scope. No ancestor
+// walk — only checks these four locations.
 func discover() []skillLocation {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil
-	}
-	cwd, _ = filepath.Abs(cwd)
 	home, _ := os.UserHomeDir()
-	stop := ""
-	if root, err := gitWorktreeRoot(cwd); err == nil {
-		stop = root
-	}
+	cwd, _ := os.Getwd()
+	cwd, _ = filepath.Abs(cwd)
+	return discoverAt(home, cwd)
+}
 
-	subdirReaders := map[string][]string{}
-	for _, p := range providers {
-		for _, sd := range p.readSubdirs {
-			subdirReaders[sd] = appendUnique(subdirReaders[sd], p.name)
+// discoverAt is the testable core of discover — takes home and cwd as
+// parameters so tests can control the scan without touching the real
+// filesystem.
+func discoverAt(home, cwd string) []skillLocation {
+	var locs []skillLocation
+	for _, f := range families {
+		globalDir := filepath.Join(home, f.subdir)
+		if dirExists(globalDir) {
+			locs = append(locs, skillLocation{
+				dir:     globalDir,
+				subdir:  f.subdir,
+				scope:   "global",
+				readers: f.readers,
+				family:  f.name,
+			})
+		}
+		projectDir := filepath.Join(cwd, f.subdir)
+		if projectDir != globalDir && dirExists(projectDir) {
+			locs = append(locs, skillLocation{
+				dir:     projectDir,
+				subdir:  f.subdir,
+				scope:   "project",
+				readers: f.readers,
+				family:  f.name,
+			})
 		}
 	}
-
-	locs := discoverFrom(subdirReaders, cwd, stop, home)
 
 	embedded, _ := skillFilesMap(skills.SkillName)
 	for i := range locs {
@@ -119,103 +117,16 @@ func discover() []skillLocation {
 	return locs
 }
 
-func appendUnique(list []string, val string) []string {
-	for _, v := range list {
-		if v == val {
-			return list
-		}
-	}
-	return append(list, val)
-}
-
-func discoverFrom(subdirs map[string][]string, start, stop, home string) []skillLocation {
-	var locs []skillLocation
-	seen := map[string]bool{}
-
-	sortedSubdirs := make([]string, 0, len(subdirs))
-	for sd := range subdirs {
-		sortedSubdirs = append(sortedSubdirs, sd)
-	}
-	sort.Strings(sortedSubdirs)
-
-	dir := start
-	for {
-		for _, sd := range sortedSubdirs {
-			path := filepath.Join(dir, sd)
-			if !dirExists(path) || seen[path] {
-				continue
-			}
-			scope := "ancestor"
-			switch {
-			case dir == start:
-				scope = "project"
-			case home != "" && dir == home:
-				scope = "global"
-			}
-			locs = append(locs, skillLocation{
-				dir:     path,
-				subdir:  sd,
-				scope:   scope,
-				readers: subdirs[sd],
-			})
-			seen[path] = true
-		}
-		if stop != "" && dir == stop {
-			break
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-
-	if home != "" {
-		for _, sd := range sortedSubdirs {
-			path := filepath.Join(home, sd)
-			if !seen[path] && dirExists(path) {
-				locs = append(locs, skillLocation{
-					dir:     path,
-					subdir:  sd,
-					scope:   "global",
-					readers: subdirs[sd],
-				})
-				seen[path] = true
-			}
-		}
-	}
-	return locs
-}
-
 func classifyLocation(loc *skillLocation, embedded map[string][]byte) {
-	loc.family = ""
-	for _, f := range families {
-		if loc.subdir == f.subdir {
-			loc.family = f.name
-			break
-		}
-	}
-	if loc.family == "" {
-		loc.status = "orphan"
+	if anySkillChanged(loc.dir, skills.SkillName, embedded) {
+		loc.status = "outdated"
 	} else {
-		if anySkillChanged(loc.dir, skills.SkillName, embedded) {
-			loc.status = "outdated"
-		} else {
-			loc.status = "current"
-		}
+		loc.status = "current"
 	}
 	manifestPath := skills.ManifestPath(filepath.Join(loc.dir, skills.SkillName))
 	if _, err := os.Stat(manifestPath); err != nil {
 		loc.unmanaged = true
 	}
-}
-
-func gitWorktreeRoot(dir string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
 }
 
 func dirExists(p string) bool {
@@ -608,61 +519,33 @@ func offerSkillInstall() {
 func offerSkillUpgrade() {
 	locs := discover()
 
-	type staleLoc struct {
-		loc skillLocation
-	}
-	var outdated []staleLoc
-	var orphans []staleLoc
-
+	var outdated []skillLocation
 	for _, loc := range locs {
 		if !isSkillInstalled(loc.dir) {
 			continue
 		}
-		switch loc.status {
-		case "outdated":
-			outdated = append(outdated, staleLoc{loc})
-		case "orphan":
-			orphans = append(orphans, staleLoc{loc})
+		if loc.status == "outdated" {
+			outdated = append(outdated, loc)
 		}
 	}
 
-	if len(outdated) == 0 && len(orphans) == 0 {
+	if len(outdated) == 0 {
 		return
 	}
 
 	fmt.Println()
-	if len(orphans) > 0 {
-		fmt.Println("  Orphaned skill installs found:")
-		for _, o := range orphans {
-			fmt.Printf("    ⚠ %s\n", formatLocationLine(o.loc))
-		}
-		fmt.Print("  Remove orphaned installs? [Y/n] ")
-		if promptDefaultYes() {
-			for _, o := range orphans {
-				if err := uninstallSkills(o.loc.dir); err != nil {
-					fmt.Printf("  Warning: could not remove %s: %v\n", o.loc.dir, err)
-				} else {
-					fmt.Printf("  ✓ Removed %s\n", o.loc.dir)
-				}
-			}
-		}
-		fmt.Println()
+	fmt.Println("  Outdated skill installs found:")
+	for _, o := range outdated {
+		fmt.Printf("    ⚠ %s\n", formatLocationLine(o))
 	}
-
-	if len(outdated) > 0 {
-		fmt.Println("  Outdated skill installs found:")
+	fmt.Print("  Update them? [Y/n] ")
+	if promptDefaultYes() {
 		for _, o := range outdated {
-			fmt.Printf("    ⚠ %s\n", formatLocationLine(o.loc))
-		}
-		fmt.Print("  Update them? [Y/n] ")
-		if promptDefaultYes() {
-			for _, o := range outdated {
-				n, err := installAllSkills(o.loc.dir)
-				if err != nil {
-					fmt.Printf("  Warning: failed to update %s: %v\n", o.loc.dir, err)
-				} else {
-					fmt.Printf("  ✓ Updated %s (%d files)\n", o.loc.dir, n)
-				}
+			n, err := installAllSkills(o.dir)
+			if err != nil {
+				fmt.Printf("  Warning: failed to update %s: %v\n", o.dir, err)
+			} else {
+				fmt.Printf("  ✓ Updated %s (%d files)\n", o.dir, n)
 			}
 		}
 	}
@@ -673,39 +556,11 @@ func formatLocationLine(loc skillLocation) string {
 	parts := []string{loc.dir, "—", loc.status, "—", loc.scope}
 	if len(loc.readers) > 0 {
 		parts = append(parts, "—", strings.Join(loc.readers, ", "))
-	} else {
-		parts = append(parts, "— (no agent reads this path)")
-	}
-	if sw := shadowWarning(loc); sw != "" {
-		parts = append(parts, sw)
 	}
 	if loc.unmanaged {
 		parts = append(parts, "[unmanaged]")
 	}
 	return strings.Join(parts, " ")
-}
-
-// shadowWarning returns a parenthetical warning if an orphan location
-// shadows a target install for any of its readers.
-func shadowWarning(loc skillLocation) string {
-	if loc.status != "orphan" || len(loc.readers) == 0 {
-		return ""
-	}
-	for _, reader := range loc.readers {
-		for _, p := range providers {
-			if p.name != reader {
-				continue
-			}
-			for _, sd := range p.readSubdirs {
-				for _, f := range families {
-					if sd == f.subdir {
-						return fmt.Sprintf("(shadows %s for %s)", familyGlobalDir(f), reader)
-					}
-				}
-			}
-		}
-	}
-	return ""
 }
 
 // --- Prompts ---

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/docutil"
 	"github.com/udit-001/pharos/internal/markdown"
@@ -93,6 +95,9 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 		w.Write(web.StoppedPage)
 	})
 
+	// JS bundles for iframe injection — served from embedded bytes.
+	mux.HandleFunc("GET /js/{file}", handleJSBundle)
+
 	// JSON API
 	mux.HandleFunc("GET /api/workspaces", jsonHandler(handleListWorkspaces(store)))
 	mux.HandleFunc("GET /api/workspaces/{id}", jsonHandler(handleGetWorkspace(store)))
@@ -101,6 +106,10 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /api/workspaces/{id}/refs", jsonHandler(handleListRefs(store)))
 	mux.HandleFunc("GET /api/workspaces/{id}/glossary-terms", jsonHandler(handleGetGlossaryTerms(store)))
 	mux.HandleFunc("GET /api/workspaces/name/{name}/glossary-terms", jsonHandler(handleGetGlossaryTermsByName(store)))
+	mux.HandleFunc("GET /api/workspaces/name/{name}/highlights", jsonHandler(handleListHighlights(store)))
+	mux.HandleFunc("POST /api/workspaces/name/{name}/highlights", jsonHandler(handleCreateHighlight(store)))
+	mux.HandleFunc("DELETE /api/workspaces/name/{name}/highlights/{id}", jsonHandler(handleDeleteHighlight(store)))
+	mux.HandleFunc("PATCH /api/workspaces/name/{name}/highlights/{id}", jsonHandler(handleUpdateHighlight(store)))
 	mux.HandleFunc("GET /api/stats", jsonHandler(handleStats(store)))
 	mux.HandleFunc("GET /api/search", jsonHandler(handleSearch(store)))
 
@@ -359,6 +368,124 @@ func handleGetGlossaryTermsByName(store *db.Store) http.HandlerFunc {
 	}
 }
 
+// ── Highlights API ──
+
+func handleListHighlights(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			jsonError(w, "not found", 404)
+			return
+		}
+		docType := r.URL.Query().Get("docType")
+		if docType == "" {
+			docType = "lesson"
+		}
+		docID, _ := strconv.ParseInt(r.URL.Query().Get("docId"), 10, 64)
+		highlights, err := wsStore.GetHighlights(docType, docID)
+		if err != nil {
+			jsonError(w, "query failed", 500)
+			return
+		}
+		if highlights == nil {
+			highlights = []db.Highlight{}
+		}
+		jsonResponse(w, highlights)
+	}
+}
+
+func handleCreateHighlight(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			jsonError(w, "not found", 404)
+			return
+		}
+		var body struct {
+			DocType    string `json:"docType"`
+			DocID      int64  `json:"docId"`
+			Color      string `json:"color"`
+			NoteText   string `json:"noteText"`
+			AnchorData string `json:"anchorData"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		if body.DocID == 0 {
+			jsonError(w, "docId is required", http.StatusBadRequest)
+			return
+		}
+		if body.DocType == "" {
+			body.DocType = "lesson"
+		}
+		created, err := wsStore.CreateHighlight(db.Highlight{
+			DocType:    body.DocType,
+			DocID:      body.DocID,
+			Color:      body.Color,
+			NoteText:   body.NoteText,
+			AnchorData: body.AnchorData,
+		})
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		jsonResponse(w, created)
+	}
+}
+
+func handleDeleteHighlight(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			jsonError(w, "not found", 404)
+			return
+		}
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err := wsStore.DeleteHighlight(id); err != nil {
+			if errors.Is(err, db.ErrHighlightNotFound) {
+				jsonError(w, "not found", 404)
+				return
+			}
+			jsonError(w, err.Error(), 500)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func handleUpdateHighlight(store *db.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		wsStore, err := store.Workspace(name)
+		if err != nil {
+			jsonError(w, "not found", 404)
+			return
+		}
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		var body struct {
+			Color    string `json:"color"`
+			NoteText string `json:"noteText"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		if err := wsStore.UpdateHighlight(id, body.Color, body.NoteText); err != nil {
+			if errors.Is(err, db.ErrHighlightNotFound) {
+				jsonError(w, "not found", 404)
+				return
+			}
+			jsonError(w, err.Error(), 500)
+			return
+		}
+		jsonResponse(w, map[string]any{"ok": true})
+	}
+}
+
 func handleStats(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ws, _ := store.GetWorkspaces()
@@ -385,12 +512,14 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 			Summary   string `json:"summary"`
 			Snippet   string `json:"snippet,omitempty"`
 			Workspace string `json:"workspace"`
+			Seq       int    `json:"seq,omitempty"` // lesson/record sequence number
 		}
 		results := make([]apiResult, 0, len(dbResults))
 		for _, r := range dbResults {
 			results = append(results, apiResult{
 				Type: r.Type, Title: r.Title,
 				URL: searchResultURL(r), Summary: r.Summary, Snippet: r.Snippet, Workspace: r.WorkspaceName,
+				Seq: r.SequenceNumber,
 			})
 		}
 		jsonResponse(w, results)
@@ -487,11 +616,6 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		}
 		ws := wsStore.Workspace()
 
-		if ws.LastLessonSeq != nil {
-			http.Redirect(w, r, urls.Lesson(name, *ws.LastLessonSeq), http.StatusFound)
-			return
-		}
-
 		sd, err := wsStore.GetSidebarData()
 		if err != nil {
 			writeNotFound(w, nil, "Workspace not found", "This workspace could not be loaded.")
@@ -516,9 +640,35 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 			missionHTML = markdown.Render(mission)
 		}
 
+		var continueItem *render.ContinueItem
+		if ws.LastLessonSeq != nil && *ws.LastLessonSeq > 0 {
+			for _, l := range sd.Lessons {
+				if l.Seq == *ws.LastLessonSeq {
+					continueItem = &render.ContinueItem{
+						URL:   urls.Lesson(name, l.Seq),
+						Label: "Continue: " + l.Title,
+					}
+					break
+				}
+			}
+		} else if ws.LastRefSeq != nil && *ws.LastRefSeq > 0 {
+			if refs, err := wsStore.GetRefs(); err == nil {
+				for _, ref := range refs {
+					if ref.ID == int64(*ws.LastRefSeq) {
+						continueItem = &render.ContinueItem{
+							URL:   urls.Ref(name, ref.Slug),
+							Label: "Continue: " + ref.Title,
+						}
+						break
+					}
+				}
+			}
+		}
+
 		data := render.WorkspaceData{
 			Workspace: toRenderWorkspace(sd.Workspace, len(sd.Lessons), len(sd.Records), len(sd.Refs)),
 			Mission:   missionHTML,
+			Continue:  continueItem,
 			Lessons:   toRenderLessons(sd.Lessons),
 			Records:   toRenderRecords(sd.Records),
 			Refs:      toRenderRefs(sd.Refs),
@@ -733,7 +883,7 @@ func handleQuizLibraryPage(store *db.Store) http.HandlerFunc {
 
 		quizzes, err := wsStore.GetQuizzes()
 		if err != nil {
-			writeNotFound(w, nil, "Quizzes not found", "This workspace's quizzes could not be loaded.")
+			writeNotFound(w, nil, "Couldn't load quizzes", "We couldn't load the quizzes for this workspace. Try again.")
 			return
 		}
 
@@ -882,7 +1032,7 @@ func handleQuizStart(store *db.Store) http.HandlerFunc {
 		// Otherwise create a new attempt.
 		qa, err := wsStore.CreateQuizAttempt(quiz.ID)
 		if err != nil {
-			writeNotFound(w, nil, "Could not start", "Failed to create a quiz attempt.")
+			writeNotFound(w, nil, "Couldn't start quiz", "We couldn't start this quiz. Try again.")
 			return
 		}
 		http.Redirect(w, r, urls.QuizAttemptPage(name, slug, qa.ID), http.StatusSeeOther)
@@ -1230,9 +1380,10 @@ func handleSSE(b *Broker) http.HandlerFunc {
 }
 
 // handleNotify accepts a JSON payload from the CLI and broadcasts it to
-// any dashboard clients subscribed to the named topic. Returns 204 —
-// success means "the broker accepted the broadcast", not "a client
-// received it" (there may be zero subscribers).
+// dashboard clients. For topic-scoped events ("changed", "page-changed"),
+// it broadcasts to the named topic's subscribers. For "navigate" events
+// (agent-driven URL navigation), it broadcasts to all subscribers
+// regardless of topic. Returns JSON with the delivered subscriber count.
 func handleNotify(b *Broker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
@@ -1241,22 +1392,34 @@ func handleNotify(b *Broker) http.HandlerFunc {
 			PageType string `json:"pageType"`
 			Seq      int    `json:"seq"`
 			Slug     string `json:"slug"`
+			URL      string `json:"url"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			jsonError(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
-		if body.Topic == "" || body.Type == "" {
-			jsonError(w, "topic and type are required", http.StatusBadRequest)
+		if body.Type == "" {
+			jsonError(w, "type is required", http.StatusBadRequest)
 			return
 		}
-		b.Broadcast(body.Topic, Event{
+		ev := Event{
 			Type:     body.Type,
 			PageType: body.PageType,
 			Seq:      body.Seq,
 			Slug:     body.Slug,
-		})
-		w.WriteHeader(http.StatusNoContent)
+			URL:      body.URL,
+		}
+		var delivered int
+		if body.Type == "navigate" {
+			delivered = b.BroadcastAll(ev)
+		} else {
+			if body.Topic == "" {
+				jsonError(w, "topic is required for non-navigate events", http.StatusBadRequest)
+				return
+			}
+			delivered = b.Broadcast(body.Topic, ev)
+		}
+		jsonResponse(w, map[string]int{"delivered": delivered})
 	}
 }
 
@@ -1272,7 +1435,11 @@ func handleLessonHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveFileOr404(w, r, filepath.Join(ws.Path, "lessons", file), "lesson", file)
+		cfg := iframeConfig{}
+		if lesson, err := wsStore.GetLessonByFilename(file); err == nil {
+			cfg = iframeConfig{workspace: name, docType: "lesson", docID: lesson.ID}
+		}
+		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
 	}
 }
 
@@ -1286,7 +1453,11 @@ func handleRefHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveFileOr404(w, r, filepath.Join(ws.Path, "reference", file), "reference", file)
+		cfg := iframeConfig{}
+		if ref, err := wsStore.GetRefByFilename(file); err == nil {
+			cfg = iframeConfig{workspace: name, docType: "ref", docID: ref.ID}
+		}
+		serveIframeHTML(w, filepath.Join(ws.Path, "reference", file), "reference", file, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js")
 	}
 }
 
@@ -1300,7 +1471,7 @@ func handleQuestionHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveFileOr404(w, r, filepath.Join(ws.Path, "questions", file), "question", file)
+		serveIframeHTML(w, filepath.Join(ws.Path, "questions", file), "question", file, iframeConfig{}, "pharos-theme.js", "pharos-iframe-bridge.js")
 	}
 }
 
@@ -1338,4 +1509,96 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 		}
 		http.ServeFile(w, r, path)
 	}
+}
+
+// ── Shared JS bundle serving ──
+
+// jsBundles maps a filename (without path) to its embedded bytes.
+// Add new bundles here as they are created; the /js/{file} route
+// serves them at GET /js/{name}.
+//
+// jsVer is appended as a query parameter to script src tags for
+// cache-busting. Bump it whenever a bundle's content changes.
+var jsVer = "29"
+var jsBundles = map[string][]byte{
+	"pharos-theme.js":         web.PharosThemeJS,
+	"pharos-toc.js":           web.PharosTocJS,
+	"pharos-iframe-bridge.js": web.PharosIframeBridgeJS,
+	"pharos-highlights.js":    web.PharosHighlightsJS,
+	"pharos-scroll.js":        web.PharosScrollJS,
+}
+
+func handleJSBundle(w http.ResponseWriter, r *http.Request) {
+	file := r.PathValue("file")
+	data, ok := jsBundles[file]
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Write(data)
+}
+
+// ── Iframe script injection ──
+
+// injectFrameScripts injects <script src="/js/{name}"> tags before
+// </head> in an HTML document. Unknown script names are silently
+// dropped — only bundles registered in jsBundles are injected.
+func injectFrameScripts(html []byte, scripts ...string) []byte {
+	var buf bytes.Buffer
+	for _, name := range scripts {
+		if _, ok := jsBundles[name]; !ok {
+			continue
+		}
+		buf.WriteString(`<script src="/js/`)
+		buf.WriteString(name)
+		buf.WriteString(`?v=`)
+		buf.WriteString(jsVer)
+		buf.WriteString(`"></script>`)
+	}
+	if buf.Len() == 0 {
+		return html
+	}
+	tag := bytes.TrimRight(buf.Bytes(), "\n")
+	return bytes.Replace(html, []byte("</head>"), append(tag, []byte("</head>")...), 1)
+}
+
+// ── Iframe HTML serving with script injection ──
+
+// iframeConfig carries the workspace + document identity that the highlights
+// JS bundle reads from window.__pharos. docID of 0 means "no config" (e.g.
+// question stimuli, or a lesson that hasn't been DB-resolved yet).
+type iframeConfig struct {
+	workspace string
+	docType   string
+	docID     int64
+}
+
+// injectIframeConfig injects a <script>window.__pharos = {...}</script> before
+// </head> so iframe bundles (pharos-highlights.js) can read it synchronously
+// on load. Empty docID produces no injection.
+func injectIframeConfig(html []byte, cfg iframeConfig) []byte {
+	if cfg.docID == 0 || cfg.workspace == "" {
+		return html
+	}
+	// JSON-encode for safety (handles quotes/backslashes in workspace name).
+	jsonCfg := fmt.Sprintf(`{"workspace":%q,"docType":%q,"docId":%d}`, cfg.workspace, cfg.docType, cfg.docID)
+	tag := []byte("<script>window.__pharos=" + jsonCfg + ";</script>")
+	return bytes.Replace(html, []byte("</head>"), append(tag, []byte("</head>")...), 1)
+}
+
+// serveIframeHTML reads an HTML file from disk, injects the iframe config
+// and script tags before </head>, and writes the result to the response.
+func serveIframeHTML(w http.ResponseWriter, path, kind, file string, cfg iframeConfig, scripts ...string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		iframeNotFound(w, kind, file)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// Don't cache HTML files that may change via injection configuration.
+	w.Header().Set("Cache-Control", "no-cache")
+	data = injectIframeConfig(data, cfg)
+	w.Write(injectFrameScripts(data, scripts...))
 }

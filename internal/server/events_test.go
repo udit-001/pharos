@@ -149,6 +149,76 @@ drain:
 
 // ── Notify handler tests ──
 
+func TestBroadcastAllReachesAllTopics(t *testing.T) {
+	b := NewBroker()
+	chA, unsubA := b.Subscribe("workspace:alpha")
+	defer unsubA()
+	chB, unsubB := b.Subscribe("workspace:beta")
+	defer unsubB()
+
+	delivered := b.BroadcastAll(Event{Type: "navigate", URL: "/workspace/alpha/lesson/1"})
+	if delivered != 2 {
+		t.Fatalf("delivered=%d, want 2", delivered)
+	}
+
+	for _, ch := range []<-chan Event{chA, chB} {
+		select {
+		case ev := <-ch:
+			if ev.Type != "navigate" || ev.URL != "/workspace/alpha/lesson/1" {
+				t.Fatalf("got event %+v, want navigate with URL", ev)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("BroadcastAll did not deliver to subscriber")
+		}
+	}
+}
+
+func TestBroadcastAllZeroSubscribers(t *testing.T) {
+	b := NewBroker()
+	delivered := b.BroadcastAll(Event{Type: "navigate", URL: "/somewhere"})
+	if delivered != 0 {
+		t.Fatalf("delivered=%d, want 0 with no subscribers", delivered)
+	}
+}
+
+func TestNotifyNavigateBroadcastsToAll(t *testing.T) {
+	b := NewBroker()
+	chA, unsubA := b.Subscribe("workspace:alpha")
+	defer unsubA()
+	chB, unsubB := b.Subscribe("workspace:beta")
+	defer unsubB()
+
+	handler := handleNotify(b)
+	body := `{"type":"navigate","url":"/workspace/alpha/lesson/1"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/notify", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got %d, want 200. body: %s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Delivered int `json:"delivered"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp.Delivered != 2 {
+		t.Fatalf("delivered=%d, want 2 (both topics)", resp.Delivered)
+	}
+
+	// Both subscribers should receive the navigate event with URL.
+	for _, ch := range []<-chan Event{chA, chB} {
+		select {
+		case ev := <-ch:
+			if ev.Type != "navigate" || ev.URL != "/workspace/alpha/lesson/1" {
+				t.Fatalf("got event %+v, want navigate with URL", ev)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("navigate event not delivered to subscriber")
+		}
+	}
+}
+
 func TestNotifyBroadcastsToBroker(t *testing.T) {
 	// Drive the notify handler directly and assert the broker receives
 	// the event — no real HTTP streaming needed. This tests the adapter
@@ -164,8 +234,17 @@ func TestNotifyBroadcastsToBroker(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("notify returned %d, want 204. body: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("notify returned %d, want 200. body: %s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Delivered int `json:"delivered"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response %q: %v", rec.Body.String(), err)
+	}
+	if resp.Delivered != 1 {
+		t.Fatalf("delivered=%d, want 1", resp.Delivered)
 	}
 
 	select {
@@ -189,8 +268,8 @@ func TestNotifyRejectsMissingFields(t *testing.T) {
 		name string
 		body string
 	}{
-		{"missing topic", `{"type":"changed"}`},
 		{"missing type", `{"topic":"workspace:alpha"}`},
+		{"missing topic for non-navigate", `{"type":"changed"}`},
 		{"empty body", `{}`},
 		{"malformed json", `not json`},
 	}
@@ -217,8 +296,15 @@ func TestNotifyToNoSubscribersIsFast(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	elapsed := time.Since(start)
 
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("got %d, want 204", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got %d, want 200", rec.Code)
+	}
+	var resp struct {
+		Delivered int `json:"delivered"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp.Delivered != 0 {
+		t.Fatalf("delivered=%d, want 0 for no subscribers", resp.Delivered)
 	}
 	// With no subscribers, Broadcast is a map lookup + early return —
 	// should be well under 10ms even in CI.

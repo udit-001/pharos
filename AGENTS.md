@@ -36,10 +36,6 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 - **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs `templ generate` + CSS + Go (`--no-css` for Go-only). `pharos start` detects a running server via HTTP GET and skips starting.
 - **`pharos build` writes to `bin/pharos`** (gitignored), not the PATH. The `pharos` on PATH is `~/go/bin/pharos` — after a rebuild, `cp bin/pharos ~/go/bin/` so the running binary picks up the new code. Testing a build change via `pharos build` while the PATH binary is stale will silently exercise the old code path.
-
-### Edit discipline
-
-- **Check for duplicate matches before editing.** When inserting a new section, the `oldString` may match text that was just inserted by a prior edit in the same turn. Read the file after each edit to confirm the result, especially when inserting near existing similar content.
 - **Pre-commit hook in `.githooks/pre-commit`** runs `gofmt` on staged `.go` files. Install with `git config core.hooksPath .githooks`. CI runs the same check (`test -z "$(gofmt -l .)"`), so skipping it will fail in CI.
 
 ### Browser verification
