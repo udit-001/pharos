@@ -45,8 +45,8 @@ templ document(f Frame, content string) {
 								<span class="text-left">Search…</span>
 								<kbd id="palette-trigger-kbd" class="text-[0.7rem] px-1.5 py-px rounded border border-slate-200 bg-slate-50 text-slate-400 font-sans leading-none">⌘K</kbd>
 							</button>
-							<a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" title="About Pharos">@templ.Raw(iconHelp())</a>
-							<button id="pwa-install" style="display:none" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" title="Install app">
+							<a href="/about" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-600 no-underline inline-flex items-center justify-center" data-tooltip="About">@templ.Raw(iconHelp())</a>
+							<button id="pwa-install" style="display:none" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" data-tooltip="Install app">
 								<svg class="pwa-bounce" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 							</button>
 							<button id="theme-toggle" onclick="toggleTheme()" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer inline-flex items-center justify-center" data-tooltip="Toggle theme">
@@ -258,11 +258,10 @@ templ document(f Frame, content string) {
 						if (tooltipArrow) { tooltipArrow.remove(); tooltipArrow = null; }
 					});
 				});
-				// Tooltip for theme toggle
-				var themeBtn = document.getElementById('theme-toggle');
-				if (themeBtn) {
-					themeBtn.addEventListener('mouseenter', function() {
-						if (tooltipEl) { tooltipEl.remove(); tooltipArrow.remove(); }
+				// Tooltip for topbar buttons (theme toggle, about, PWA install)
+				document.querySelectorAll('header [data-tooltip]').forEach(function(el) {
+					el.addEventListener('mouseenter', function() {
+						if (tooltipEl) { tooltipEl.remove(); if (tooltipArrow) tooltipArrow.remove(); }
 						var r = this.getBoundingClientRect();
 						tooltipEl = document.createElement('div');
 						tooltipEl.className = 'sidebar-tooltip';
@@ -272,11 +271,11 @@ templ document(f Frame, content string) {
 						tooltipEl.style.transform = 'translateX(-50%)';
 						document.body.appendChild(tooltipEl);
 					});
-					themeBtn.addEventListener('mouseleave', function() {
+					el.addEventListener('mouseleave', function() {
 						if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
 						if (tooltipArrow) { tooltipArrow.remove(); tooltipArrow = null; }
 					});
-				}
+				});
 				var c = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 				var k = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 				document.querySelectorAll('.prose pre:not([data-no-copy])').forEach(function(pre){
@@ -585,6 +584,7 @@ templ document(f Frame, content string) {
 					action: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
 					home: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
 				};
+				ICONS['quiz-library'] = ICONS.quiz;
 				function iconFor(type) { return ICONS[type] || ICONS.doc; }
 
 				function quickActions() {
