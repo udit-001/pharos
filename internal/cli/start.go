@@ -28,6 +28,7 @@ func startDaemon(port int) (*exec.Cmd, error) {
 	c.Stdin = nil
 	c.Stdout = nil
 	c.Stderr = nil
+	detachDaemon(c)
 	if err := c.Start(); err != nil {
 		return nil, err
 	}
