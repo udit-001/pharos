@@ -79,7 +79,7 @@ pharos workspace create "sql-joins" --topic "SQL Joins"  # same, but explicit to
 
 ## Lessons
 
-A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and titled `0001-<dash-case-name>.html` where the number increments each time. If a lesson already covers the topic, **revise** it with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate.
+A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and titled `0001-<dash-case-name>.html` where the number increments each time. If a lesson already covers the topic, **read** it with `pharos lesson read <seq>`, then **revise** with `pharos lesson revise <seq> --body-file <path>` instead of creating a duplicate.
 
 A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Asset and link paths follow the [iframe escape rules](references/pharos-cli.md#links-inside-lesson-html-iframe-escape).
 
@@ -198,7 +198,7 @@ While creating lessons, you should also create reference documents. Lessons can 
 
 Lessons will rarely be revisited later - reference documents will be. They should be the compressed essence of the lesson, in a format designed for quick reference.
 
-References are addressed by **slug** (descriptive name derived from the title), not sequence numbers. If a reference needs updating, revise it: `pharos reference revise <slug> --body-file <path>`.
+References are addressed by **slug** (descriptive name derived from the title), not sequence numbers. If a reference needs updating, **read** it with `pharos reference read <slug>`, then **revise**: `pharos reference revise <slug> --body-file <path>`.
 
 References are HTML files that render in the same iframe as lessons — they must link `assets/style.css` and follow the [PAGE-THEME.md](./PAGE-THEME.md) boilerplate (theme sync, root-relative asset paths, FOUC prevention). A reference that omits the stylesheet renders unstyled.
 
