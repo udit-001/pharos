@@ -876,6 +876,11 @@ templ document(f Frame, content string) {
 					}
 					if (e.key === 'Tab') { e.preventDefault(); return; }
 				});
+				window.addEventListener('message', function(e) {
+					if (e.data && e.data.type === 'pharos-open-palette') {
+						if (isOpen()) close(); else open();
+					}
+				});
 				input.addEventListener('input', function() {
 					pendingTier2 = [];
 					scheduleTier2(input.value.trim());
