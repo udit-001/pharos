@@ -306,7 +306,7 @@ func (s *Store) ContinueItem() (*ContinueItem, error) {
 				if l.SequenceNumber == *w.LastLessonSeq {
 					return &ContinueItem{
 						URL:   urls.Lesson(w.Name, l.SequenceNumber),
-						Label: fmt.Sprintf("%s — Lesson: %s", w.Name, l.Title),
+						Label: fmt.Sprintf("%s — Lesson: %s", w.DisplayName(), l.Title),
 					}, nil
 				}
 			}
@@ -320,7 +320,7 @@ func (s *Store) ContinueItem() (*ContinueItem, error) {
 				if ref.ID == int64(*w.LastRefSeq) {
 					return &ContinueItem{
 						URL:   urls.Ref(w.Name, ref.Slug),
-						Label: fmt.Sprintf("%s — Reference: %s", w.Name, ref.Title),
+						Label: fmt.Sprintf("%s — Reference: %s", w.DisplayName(), ref.Title),
 					}, nil
 				}
 			}
