@@ -878,7 +878,12 @@ templ document(f Frame, content string) {
 				});
 				window.addEventListener('message', function(e) {
 					if (e.data && e.data.type === 'pharos-open-palette') {
-						if (isOpen()) close(); else open();
+						if (isOpen()) close(); else {
+							open();
+							requestAnimationFrame(function() {
+								requestAnimationFrame(function() { input.focus(); });
+							});
+						}
 					}
 				});
 				input.addEventListener('input', function() {

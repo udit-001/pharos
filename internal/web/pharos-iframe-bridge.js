@@ -7,7 +7,7 @@
     if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K' || e.key === '/')) {
       e.preventDefault();
       e.stopPropagation();
-      try { window.parent.postMessage({ type: 'pharos-open-palette' }, '*'); } catch(_) {}
+      try { window.parent.focus(); window.parent.postMessage({ type: 'pharos-open-palette' }, '*'); } catch(_) {}
     }
   });
 })();
