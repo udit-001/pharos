@@ -176,7 +176,7 @@ pre:hover .copy-code-btn {
 .q { margin: 1.25rem 0; padding: 1rem; background: var(--slate-50); border-radius: 8px; border: 1px solid var(--slate-200); }
 .q p { font-weight: 500; margin-bottom: 0.75rem; color: var(--slate-800); }
 .q .options { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
-.q button { font-family: inherit; background: var(--white); color: var(--slate-700); border: 1px solid var(--slate-200); border-radius: 6px; padding: 0.4rem 0.85rem; cursor: pointer; font-size: 0.85rem; transition: background 0.15s; }
+.q button { font-family: inherit; background: var(--white); color: var(--slate-700); border: 1px solid var(--slate-200); border-radius: 6px; padding: 0.4rem 0.85rem; cursor: pointer; font-size: 0.85rem; line-height: 1.4; transition: background 0.15s; }
 .q button:hover { background: var(--slate-100); }
 .q button.correct { background: var(--emerald-100); border-color: var(--emerald-600); color: var(--emerald-600); }
 .q button.incorrect { background: var(--red-100); border-color: var(--red-600); color: var(--red-600); }

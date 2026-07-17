@@ -129,7 +129,6 @@ func QuizReview(d QuizReviewData) string {
 }
 func Document(d DocumentData) string        { return renderComponent(documentView(d)) }
 func NotFound(title, message string) string { return renderComponent(notFound(title, message)) }
-func Search(d SearchData) string            { return renderComponent(search(d)) }
 
 // workspaceMeta formats the lesson/record/ref/quiz counts for a dashboard card.
 func workspaceMeta(w WorkspaceCard) string {
@@ -238,13 +237,6 @@ func orEmpty(s, fallback string) string {
 		return fallback
 	}
 	return s
-}
-
-func pluralResults(n int) string {
-	if n == 1 {
-		return "result"
-	}
-	return "results"
 }
 
 // BestScoreText returns the display text for a quiz entry's score badge.

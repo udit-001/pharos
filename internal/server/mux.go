@@ -129,7 +129,6 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /workspace/{name}/quiz/{slug}/attempt/{attemptID}", handleQuizAttemptPage(store))
 	mux.HandleFunc("GET /workspace/{name}/quiz/{slug}/review/{attemptID}", handleQuizReviewPage(store))
 	mux.HandleFunc("GET /about", handleAboutPage(store))
-	mux.HandleFunc("GET /search", handleSearchPage(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/{file}", handleLessonHTML(store))
 	mux.HandleFunc("GET /api/ref-html/{name}/{file}", handleRefHTML(store))
 	mux.HandleFunc("GET /api/question-html/{name}/{file}", handleQuestionHTML(store))
@@ -245,17 +244,15 @@ func toRenderQuizzes(qs []db.SidebarQuiz) []render.QuizEntry {
 }
 
 // writePage renders a full page and writes it to the response. If sd is
-// non-nil, it's used for the sidebar; nil gives an empty sidebar (dashboard,
-// search).
-func writePage(w http.ResponseWriter, sd *db.SidebarData, title, activeWS, activeType string, activeSeq int, activeSlug string, searchQuery string, content string) {
+// non-nil, it's used for the sidebar; nil gives an empty sidebar (dashboard).
+func writePage(w http.ResponseWriter, sd *db.SidebarData, title, activeWS, activeType string, activeSeq int, activeSlug string, content string) {
 	f := render.Frame{
-		Title:       title,
-		ActiveWS:    activeWS,
-		ActiveType:  activeType,
-		ActiveSeq:   activeSeq,
-		ActiveSlug:  activeSlug,
-		SearchQuery: searchQuery,
-		Sidebar:     toRenderSidebar(sd),
+		Title:      title,
+		ActiveWS:   activeWS,
+		ActiveType: activeType,
+		ActiveSeq:  activeSeq,
+		ActiveSlug: activeSlug,
+		Sidebar:    toRenderSidebar(sd),
 	}
 	fmt.Fprint(w, render.Page(f, content))
 }
@@ -265,7 +262,7 @@ func writePage(w http.ResponseWriter, sd *db.SidebarData, title, activeWS, activ
 // nil gives a standalone page (workspace-not-found, unknown route).
 func writeNotFound(w http.ResponseWriter, sd *db.SidebarData, title, message string) {
 	w.WriteHeader(http.StatusNotFound)
-	writePage(w, sd, title, "", "", 0, "", "", render.NotFound(title, message))
+	writePage(w, sd, title, "", "", 0, "", render.NotFound(title, message))
 }
 
 // ── API Handlers ──
@@ -547,7 +544,7 @@ func searchResultURL(r db.SearchResult) string {
 
 func handleAboutPage(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		writePage(w, nil, "About", "", "", 0, "", "", render.About())
+		writePage(w, nil, "About", "", "", 0, "", render.About())
 	}
 }
 
@@ -600,7 +597,7 @@ func handleAppShell(store *db.Store) http.HandlerFunc {
 			data.QuizWidget = widget
 		}
 
-		writePage(w, nil, "Dashboard", "", "", 0, "", "", render.Dashboard(data))
+		writePage(w, nil, "Dashboard", "", "", 0, "", render.Dashboard(data))
 	}
 }
 
@@ -673,7 +670,7 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 			Records:   toRenderRecords(sd.Records),
 			Refs:      toRenderRefs(sd.Refs),
 		}
-		writePage(w, &sd, ws.DisplayName(), ws.Name, "", 0, "", "", render.WorkspacePage(data))
+		writePage(w, &sd, ws.DisplayName(), ws.Name, "", 0, "", render.WorkspacePage(data))
 	}
 }
 
@@ -726,7 +723,7 @@ func handleDocPage(store *db.Store, kind string) http.HandlerFunc {
 		}
 
 		sd, _ := wsStore.GetSidebarData()
-		writePage(w, &sd, dk.title, name, kind, 0, "", "", render.Document(data))
+		writePage(w, &sd, dk.title, name, kind, 0, "", render.Document(data))
 	}
 }
 
@@ -756,7 +753,7 @@ func handleGlossaryPage(store *db.Store) http.HandlerFunc {
 
 		wsStore.Touch()
 		sd, _ := wsStore.GetSidebarData()
-		writePage(w, &sd, "Glossary", name, "glossary", 0, "", "", render.Document(data))
+		writePage(w, &sd, "Glossary", name, "glossary", 0, "", render.Document(data))
 	}
 }
 
@@ -793,7 +790,7 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 			Total:  len(sd.Lessons),
 		}
 		wsStore.SetLastViewed("lesson", seq)
-		writePage(w, &sd, current.Title, name, "lesson", seq, "", "", render.Lesson(data))
+		writePage(w, &sd, current.Title, name, "lesson", seq, "", render.Lesson(data))
 	}
 }
 
@@ -829,7 +826,7 @@ func handleRecordPage(store *db.Store) http.HandlerFunc {
 		data := render.RecordData{Title: current.Title, Status: current.Status, BodyHTML: markdown.Render(string(mdData))}
 		wsStore.SetLastViewed("record", seq)
 		sd, _ := wsStore.GetSidebarData()
-		writePage(w, &sd, current.Title, name, "record", seq, "", "", render.Record(data))
+		writePage(w, &sd, current.Title, name, "record", seq, "", render.Record(data))
 	}
 }
 
@@ -859,7 +856,7 @@ func handleRefPage(store *db.Store) http.HandlerFunc {
 		}
 		wsStore.SetLastViewed("ref", int(current.ID))
 		sd, _ := wsStore.GetSidebarData()
-		writePage(w, &sd, current.Title, name, "ref", 0, slug, "", render.Ref(data))
+		writePage(w, &sd, current.Title, name, "ref", 0, slug, render.Ref(data))
 	}
 }
 
@@ -933,7 +930,7 @@ func handleQuizLibraryPage(store *db.Store) http.HandlerFunc {
 			Quizzes:    entries,
 			InProgress: inProgress,
 		}
-		writePage(w, &sd, "Quizzes", ws.Name, "quiz-library", 0, "", "", render.QuizLibrary(data))
+		writePage(w, &sd, "Quizzes", ws.Name, "quiz-library", 0, "", render.QuizLibrary(data))
 	}
 }
 
@@ -997,7 +994,7 @@ func handleQuizPage(store *db.Store) http.HandlerFunc {
 			PastAttempts:      pastAttempts,
 			ExtraAttemptCount: len(allCompleted) - len(pastAttempts),
 		}
-		writePage(w, &sd, current.Title, name, "quiz", 0, slug, "", render.Quiz(data))
+		writePage(w, &sd, current.Title, name, "quiz", 0, slug, render.Quiz(data))
 	}
 }
 
@@ -1122,7 +1119,7 @@ func handleQuizAttemptPage(store *db.Store) http.HandlerFunc {
 			AnsweredResults:  answeredResults,
 			AutoSubmitChoice: settings.AutoSubmitChoice,
 		}
-		writePage(w, &sd, quiz.Title, name, "quiz", 0, slug, "", render.QuizAttempt(data))
+		writePage(w, &sd, quiz.Title, name, "quiz", 0, slug, render.QuizAttempt(data))
 	}
 }
 
@@ -1206,7 +1203,7 @@ func handleQuizReviewPage(store *db.Store) http.HandlerFunc {
 			Total:     total,
 			Items:     items,
 		}
-		writePage(w, &sd, "Review — "+quiz.Title, name, "quiz", 0, slug, "", render.QuizReview(data))
+		writePage(w, &sd, "Review — "+quiz.Title, name, "quiz", 0, slug, render.QuizReview(data))
 	}
 }
 
@@ -1295,28 +1292,6 @@ func handleAbandonQuizAttempt(store *db.Store) http.HandlerFunc {
 			return
 		}
 		jsonResponse(w, map[string]any{"ok": true})
-	}
-}
-
-// ── Search Page ──
-
-func handleSearchPage(store *db.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query().Get("q")
-		data := render.SearchData{Query: q}
-
-		if q != "" {
-			dbResults, _ := store.Search(q)
-			for _, res := range dbResults {
-				data.Results = append(data.Results, render.SearchResult{
-					Type: res.Type, Title: res.Title,
-					URL: searchResultURL(res), Workspace: res.WorkspaceName,
-					Summary: res.Summary, Snippet: res.Snippet,
-				})
-			}
-		}
-
-		writePage(w, nil, "Search", "", "", 0, "", q, render.Search(data))
 	}
 }
 

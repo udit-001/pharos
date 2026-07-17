@@ -161,7 +161,6 @@ func TestSmokePageRoutes(t *testing.T) {
 		{"record", "/workspace/alpha/record/1"},
 		{"ref", "/workspace/alpha/ref/ref-one"},
 		{"quiz-library", "/workspace/alpha/quizzes"},
-		{"search-page", "/search?q=Lesson"},
 		{"lesson-html", "/api/lesson-html/alpha/0001-lesson-one.html"},
 		{"ref-html", "/api/ref-html/alpha/ref-one.html"},
 	}
@@ -262,19 +261,6 @@ func TestLessonPageSetsLastViewed(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "Continue: Lesson Two") {
 		t.Error("workspace page should show continue card for last-viewed lesson")
-	}
-}
-
-func TestSearchPageResults(t *testing.T) {
-	env := newTestEnv(t)
-
-	rec := env.get(t, "/search?q=Lesson")
-	body := rec.Body.String()
-	if !strings.Contains(body, "Lesson One") {
-		t.Error("search for 'Lesson' should find 'Lesson One'")
-	}
-	if !strings.Contains(body, "Lesson Two") {
-		t.Error("search for 'Lesson' should find 'Lesson Two'")
 	}
 }
 

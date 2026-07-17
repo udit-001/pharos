@@ -871,7 +871,6 @@ templ document(f Frame, content string) {
 					if (e.key === 'Enter') {
 						e.preventDefault();
 						if (selected >= 0) activate(selected);
-						else if (input.value.trim()) { close(); location.href = '/search?q=' + encodeURIComponent(input.value.trim()); }
 						return;
 					}
 					if (e.key === 'Tab') { e.preventDefault(); return; }

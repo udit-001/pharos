@@ -515,56 +515,6 @@
   height: 40px;
 }
 
-/* ── Search type badges ── */
-/* Text shades chosen for WCAG AA (>=4.5:1) on the 100-shade background. */
-.badge-lesson {
-  background: var(--color-blue-100);
-  color: var(--color-blue-700);
-}
-.badge-record {
-  background: var(--color-emerald-100);
-  color: var(--color-emerald-700);
-}
-.badge-ref {
-  background: var(--color-amber-100);
-  color: var(--color-amber-700);
-}
-.badge-quiz {
-  background: var(--color-violet-100);
-  color: var(--color-violet-700);
-}
-/* Dark: text is a snow-lifted same-hue shade (~5:1 on the nord tint over
-   nord2 #2e3440). The bright aurora/frost hues fail AA on their own tint
-   (2.6-3.7:1), so each is lifted toward snow until it clears 4.5:1. */
-[data-theme="dark"] .badge-lesson {
-  background: rgba(129, 161, 193, 0.35);
-  color: #d0dce8;
-}
-[data-theme="dark"] .badge-record {
-  background: rgba(163, 190, 140, 0.25);
-  color: #c8d8ba;
-}
-[data-theme="dark"] .badge-ref {
-  background: rgba(208, 135, 112, 0.25);
-  color: #e6beb2;
-}
-[data-theme="dark"] .badge-quiz {
-  background: rgba(180, 142, 173, 0.25);
-  color: #d6c1d2;
-}
-
-/* ── Search result cards ── */
-.search-result {
-  background: var(--color-white);
-}
-[data-theme="dark"] .search-result {
-  background: var(--color-slate-50);
-  border-color: var(--color-slate-200);
-}
-[data-theme="dark"] .search-result:hover {
-  border-color: var(--color-slate-300);
-}
-
 /* ── Dark theme: Continue link contrast ── */
 [data-theme="dark"] .group:hover .group-hover\:text-blue-700 {
   color: var(--color-blue-400, #88c0d0) !important;
