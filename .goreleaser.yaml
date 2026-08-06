@@ -51,6 +51,7 @@ archives:
       - goos: windows
         formats:
           - zip
+          - binary # also upload the raw pharos.exe for winget (portable)
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
