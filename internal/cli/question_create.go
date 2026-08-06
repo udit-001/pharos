@@ -96,7 +96,7 @@ The slug is derived from the title. Examples:
 
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(created)
 			return nil
 		}

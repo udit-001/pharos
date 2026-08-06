@@ -59,7 +59,7 @@ Examples:
 		notifyPageChanged(ws.Name, "record", created.SequenceNumber, "")
 		notifyPageChanged(ws.Name, "record", old.SequenceNumber, "")
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{
 				"created":    created,
 				"superseded": old,

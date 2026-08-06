@@ -64,7 +64,7 @@ func runSearch(cmd *cobra.Command, q string) error {
 		return formatError("search failed", err)
 	}
 
-	if jsonOut {
+	if jsonEnabled(cmd) {
 		printJSON(results)
 		return nil
 	}
@@ -129,7 +129,7 @@ func runRebuildIndex(cmd *cobra.Command) error {
 			return formatError("index failed", err)
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{
 				"workspace": ws.Name,
 				"indexed":   total,
@@ -146,7 +146,7 @@ func runRebuildIndex(cmd *cobra.Command) error {
 		return nil
 	}
 
-	if jsonOut {
+	if jsonEnabled(cmd) {
 		printJSON(map[string]any{"indexed": total})
 		return nil
 	}

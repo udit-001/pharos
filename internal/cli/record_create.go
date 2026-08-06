@@ -49,7 +49,7 @@ Examples:
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 		notifyPageChanged(ws.Name, "record", created.SequenceNumber, "")
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(created)
 			return nil
 		}

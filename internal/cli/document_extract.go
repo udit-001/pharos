@@ -115,7 +115,7 @@ Examples:
 			Chapters: chapters, Workspace: ws.Name,
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			type result struct {
 				handle
 				Text     string `json:"text,omitempty"`

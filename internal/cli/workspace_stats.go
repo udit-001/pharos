@@ -28,7 +28,7 @@ Examples:
 		// the per-workspace QuizCount the helper reads.
 		totals := db.Totals(workspaces)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{
 				"totalWorkspaces": totals.Workspaces,
 				"totalLessons":    totals.Lessons,

@@ -101,7 +101,7 @@ Examples:
 
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			out := map[string]any{"slug": slug}
 			if hasItems {
 				out["items"] = itemCount

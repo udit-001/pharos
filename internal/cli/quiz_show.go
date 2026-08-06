@@ -30,7 +30,7 @@ Examples:
 		// TODO: start dashboard if needed (PID file logic)
 		url := "http://127.0.0.1:9090" + urls.Quiz(ws.Name, slug)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]string{"url": url})
 			return nil
 		}

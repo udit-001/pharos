@@ -29,7 +29,13 @@ func defaultWorkspacesDir() string {
 	return filepath.Join(resolveDataDir(), "workspaces")
 }
 
-var jsonOut bool
+// jsonEnabled reports whether --json was provided for this command run. The
+// flag is read off the command (not a package global) so it never leaks between
+// executions — including across shared-rootCmd test runs.
+func jsonEnabled(cmd *cobra.Command) bool {
+	v, _ := cmd.Flags().GetBool("json")
+	return v
+}
 
 // ctxStore is the context key for the injected *db.Store.
 type ctxStore struct{}
@@ -107,7 +113,7 @@ without needing --workspace.`,
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	rootCmd.PersistentFlags().Bool("json", false, "Output as JSON")
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
 }
@@ -116,7 +122,7 @@ func init() {
 func Execute() {
 	cmd, err := rootCmd.ExecuteC()
 	if err != nil {
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{"error": err.Error()})
 		} else {
 			cmd.PrintErrln(cmd.ErrPrefix(), err.Error())

@@ -25,7 +25,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		locs := discover()
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			type skillStatus struct {
 				Dir       string   `json:"dir"`
 				Scope     string   `json:"scope"`

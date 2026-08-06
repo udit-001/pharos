@@ -49,7 +49,7 @@ Examples:
 		}
 		_ = wsStore.Touch()
 
-		printInstall(name, spec, res, "Added", wsStore.Workspace())
+		printInstall(name, spec, res, "Added", wsStore.Workspace(), cmd)
 		return nil
 	},
 }

@@ -154,7 +154,7 @@ var migrateStatusCmd = &cobra.Command{
 			return nil
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(statuses)
 			return nil
 		}

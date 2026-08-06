@@ -60,7 +60,7 @@ func runWeakList(cmd *cobra.Command) error {
 		return formatError("failed to query weak questions", err)
 	}
 
-	if jsonOut {
+	if jsonEnabled(cmd) {
 		if results == nil {
 			results = []db.WeakQuestionResult{}
 		}

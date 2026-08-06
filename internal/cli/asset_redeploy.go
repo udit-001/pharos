@@ -48,7 +48,7 @@ Examples:
 		}
 		_ = wsStore.Touch()
 
-		printInstall(name, spec, res, "Redeployed", wsStore.Workspace())
+		printInstall(name, spec, res, "Redeployed", wsStore.Workspace(), cmd)
 		return nil
 	},
 }

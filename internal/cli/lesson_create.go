@@ -48,7 +48,7 @@ Examples:
 
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(struct {
 				db.Lesson
 				URL string `json:"url"`

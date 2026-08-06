@@ -49,7 +49,7 @@ Examples:
 			}
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			out := make([]map[string]any, 0, len(lessons))
 			for _, l := range lessons {
 				entry := map[string]any{

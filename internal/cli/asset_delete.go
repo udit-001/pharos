@@ -38,7 +38,7 @@ Examples:
 
 		assetPath := filepath.Join(ws.Path, "assets", filename)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			type assetResult struct {
 				Deleted   bool   `json:"deleted"`
 				Filename  string `json:"filename"`

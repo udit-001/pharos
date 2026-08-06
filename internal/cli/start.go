@@ -69,7 +69,7 @@ Examples:
 		// Check if server is already running
 		if info, err := readPidFile(); err == nil && isServerRunning(info.Port) {
 			url := dashboardURL(s, info.Port)
-			if jsonOut {
+			if jsonEnabled(cmd) {
 				printJSON(map[string]any{"url": url, "running": true, "port": info.Port})
 				return nil
 			}
@@ -96,7 +96,7 @@ Examples:
 			}
 
 			url := dashboardURL(s, port)
-			if jsonOut {
+			if jsonEnabled(cmd) {
 				printJSON(map[string]any{"url": url, "running": true, "port": port})
 				return nil
 			}

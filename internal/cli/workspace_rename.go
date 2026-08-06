@@ -38,7 +38,7 @@ Examples:
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 		notifyServer("home", "changed", 0)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{
 				"renamed":  true,
 				"old_name": oldName,

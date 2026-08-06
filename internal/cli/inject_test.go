@@ -64,7 +64,10 @@ func newRootForTest() *cobra.Command {
 	rootCmd.SetOut(nil)
 	rootCmd.SetErr(nil)
 	rootCmd.SetContext(context.Background())
-	jsonOut = false // global flag leaks across Executes — reset per test
+	// Resettle the persistent --json flag to its default so an earlier test
+	// passing --json doesn't leak into this one (flags persist across Executes
+	// on the shared rootCmd).
+	_ = rootCmd.PersistentFlags().Set("json", "false")
 	return rootCmd
 }
 

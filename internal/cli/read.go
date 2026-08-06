@@ -42,7 +42,7 @@ func runRead[T any](cmd *cobra.Command, spec readSpec[T], key string) error {
 
 	metaOnly, _ := cmd.Flags().GetBool("meta-only")
 
-	if jsonOut {
+	if jsonEnabled(cmd) {
 		result := spec.jsonOut(*item, ws, wsStore)
 		result["workspace"] = ws.Name
 		if !metaOnly {

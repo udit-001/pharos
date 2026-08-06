@@ -36,7 +36,7 @@ var resourcesReadCmd = &cobra.Command{
 		}
 		ws := wsStore.Workspace()
 		resourcePath := filepath.Join(ws.Path, "RESOURCES.md")
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			return readAndPrintJSON(ws, resourcePath, "RESOURCES.md")
 		}
 		return readAndPrintFile(ws, resourcePath)

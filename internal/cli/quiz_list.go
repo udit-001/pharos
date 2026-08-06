@@ -79,7 +79,7 @@ func runWeakQuizList(cmd *cobra.Command) error {
 		results = results[:limit]
 	}
 
-	if jsonOut {
+	if jsonEnabled(cmd) {
 		if results == nil {
 			results = []db.QuizScore{}
 		}

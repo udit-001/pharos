@@ -31,7 +31,7 @@ Examples:
 			return fmt.Errorf("read glossary: %w", err)
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			if terms == nil {
 				terms = []db.GlossaryTerm{}
 			}

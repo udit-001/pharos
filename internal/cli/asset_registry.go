@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/udit-001/pharos/internal/db"
 )
 
@@ -276,12 +278,12 @@ func mergeDownloads(files map[string][]byte, downloads map[string][]byte) map[st
 
 // printInstall renders an InstallAsset result for add/redeploy. verb is
 // "Added" or "Redeployed".
-func printInstall(name string, spec db.AssetSpec, res db.AssetResult, verb string, ws db.Workspace) {
+func printInstall(name string, spec db.AssetSpec, res db.AssetResult, verb string, ws db.Workspace, cmd *cobra.Command) {
 	written := res.FilesWritten
 	if res.LibWritten && spec.Filename != "" {
 		written = append([]string{spec.Filename}, written...)
 	}
-	if jsonOut {
+	if jsonEnabled(cmd) {
 		printJSON(installJSON{
 			Name:     name,
 			Version:  spec.DefaultVersion,

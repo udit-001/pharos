@@ -101,7 +101,7 @@ on it: 'pharos asset add' when absent, 'pharos asset redeploy' when present.`,
 		}
 		sort.Strings(user)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{
 				"seeded":   seeded,
 				"vendored": vendored,
@@ -215,7 +215,7 @@ Examples:
 
 		assetPath := filepath.Join(ws.Path, "assets", filename)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			type assetResult struct {
 				Created   bool   `json:"created"`
 				Filename  string `json:"filename"`

@@ -38,7 +38,7 @@ var notesReadCmd = &cobra.Command{
 		}
 		ws := wsStore.Workspace()
 		notesPath := wsStore.Layout().NotesPath()
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			return readAndPrintJSON(ws, notesPath, "NOTES.md")
 		}
 		return readAndPrintFile(ws, notesPath)

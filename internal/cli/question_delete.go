@@ -54,7 +54,7 @@ Examples:
 			return formatError("failed to delete question", err)
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]string{"status": "deleted", "slug": slug})
 			return nil
 		}

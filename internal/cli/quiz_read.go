@@ -35,7 +35,7 @@ Examples:
 			return formatError("parse quiz items", perr)
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{
 				"id":          current.ID,
 				"slug":        current.Slug,

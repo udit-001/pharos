@@ -25,7 +25,7 @@ Examples:
 
 		current, _ := s.CurrentWorkspace()
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			type wsJSON struct {
 				db.Workspace
 				Current bool `json:"current"`

@@ -59,7 +59,7 @@ Examples:
 
 		lessonURL := urls.Lesson(ws.Name, seq)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]string{"status": "revised", "sequence": fmt.Sprintf("%d", seq), "url": lessonURL})
 			return nil
 		}

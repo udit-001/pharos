@@ -42,7 +42,7 @@ Examples:
 			return formatError("failed to get attempt history", err)
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			if history == nil {
 				history = []db.QuizAttemptScore{}
 			}

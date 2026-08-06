@@ -23,7 +23,7 @@ func runShow(cmd *cobra.Command, spec showSpec) error {
 
 	url := "http://127.0.0.1:9090" + spec.urlPath(ws.Name)
 
-	if jsonOut {
+	if jsonEnabled(cmd) {
 		printJSON(map[string]string{"url": url})
 		return nil
 	}

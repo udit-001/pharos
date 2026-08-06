@@ -30,7 +30,7 @@ Examples:
 			return formatError("failed to set current workspace", err)
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(ws)
 			return nil
 		}
@@ -56,7 +56,7 @@ var workspaceCurrentCmd = &cobra.Command{
 		}
 
 		if name == "" {
-			if jsonOut {
+			if jsonEnabled(cmd) {
 				printJSON(nil)
 				return nil
 			}
@@ -71,7 +71,7 @@ var workspaceCurrentCmd = &cobra.Command{
 		if err != nil {
 			// Workspace was deleted — clear the stale reference
 			_ = s.SetCurrentWorkspace("")
-			if jsonOut {
+			if jsonEnabled(cmd) {
 				printJSON(nil)
 				return nil
 			}
@@ -83,7 +83,7 @@ var workspaceCurrentCmd = &cobra.Command{
 		}
 		ws := wsStore.Workspace()
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(ws)
 			return nil
 		}

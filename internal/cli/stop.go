@@ -23,7 +23,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		info, err := readPidFile()
 		if err != nil {
-			if jsonOut {
+			if jsonEnabled(cmd) {
 				printJSON(map[string]any{"running": false, "message": "no server running"})
 				return nil
 			}
@@ -37,7 +37,7 @@ Examples:
 		if err != nil {
 			// Process doesn't exist; clean up stale PID file
 			cleanupPidFile()
-			if jsonOut {
+			if jsonEnabled(cmd) {
 				printJSON(map[string]any{"running": false, "message": "stale PID file cleaned up"})
 				return nil
 			}
@@ -50,7 +50,7 @@ Examples:
 		if err := stopProcess(proc); err != nil {
 			// Process already dead; clean up stale PID file
 			cleanupPidFile()
-			if jsonOut {
+			if jsonEnabled(cmd) {
 				printJSON(map[string]any{"running": false, "message": "server already stopped"})
 				return nil
 			}
@@ -62,7 +62,7 @@ Examples:
 
 		cleanupPidFile()
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{"running": false, "message": "server stopped"})
 			return nil
 		}

@@ -34,7 +34,7 @@ Examples:
 
 		force, _ := cmd.Flags().GetBool("force")
 
-		if !force && !jsonOut {
+		if !force && !jsonEnabled(cmd) {
 			fmt.Println()
 			fmt.Printf("  Delete workspace %q and all its files?\n", ws.DisplayName())
 			fmt.Printf("  Path: %s\n", ws.Path)
@@ -62,7 +62,7 @@ Examples:
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 		notifyServer("home", "changed", 0)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{
 				"deleted": true,
 				"name":    ws.Name,

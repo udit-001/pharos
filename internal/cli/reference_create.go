@@ -54,7 +54,7 @@ Examples:
 
 		notifyServer("workspace:"+ws.Name, "changed", 0)
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(created)
 			return nil
 		}

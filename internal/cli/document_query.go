@@ -36,7 +36,7 @@ Examples:
 			return formatError("query sources", err)
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(hits)
 			return nil
 		}

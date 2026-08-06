@@ -38,7 +38,7 @@ Examples:
 			return formatError("parse question config", perr)
 		}
 
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			printJSON(map[string]any{
 				"id":        current.ID,
 				"slug":      current.Slug,

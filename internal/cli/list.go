@@ -41,7 +41,7 @@ func runList[T any](cmd *cobra.Command, spec listSpec[T]) error {
 		return formatError(spec.errLabel, err)
 	}
 
-	if jsonOut {
+	if jsonEnabled(cmd) {
 		if items == nil {
 			items = []T{}
 		}

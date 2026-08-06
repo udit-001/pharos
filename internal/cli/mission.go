@@ -36,7 +36,7 @@ var missionReadCmd = &cobra.Command{
 		}
 		ws := wsStore.Workspace()
 		missionPath := filepath.Join(ws.Path, "MISSION.md")
-		if jsonOut {
+		if jsonEnabled(cmd) {
 			return readAndPrintJSON(ws, missionPath, "MISSION.md")
 		}
 		return readAndPrintFile(ws, missionPath)
