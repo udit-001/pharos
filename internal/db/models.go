@@ -252,6 +252,45 @@ type SearchResult struct {
 	Slug           string `json:"slug,omitempty"`           // refs only
 }
 
+// SourceDoc is an ingested document the agent grounds lessons on. The raw file
+// is kept in the workspace's sources/ folder; Text is the sanitized,
+// structure-preserving extraction indexed into sources_fts. Chapters holds the
+// raw chapter-map JSON ([{title,offset}] rune offsets); use ParseChapters for
+// typed access. Machine output, NOT user searchable.
+type SourceDoc struct {
+	ID              int64  `db:"id" json:"id"`
+	WorkspaceID     int64  `db:"workspace_id" json:"workspaceId"`
+	Title           string `db:"title" json:"title"`
+	Slug            string `db:"slug" json:"slug"`
+	Filename        string `db:"filename" json:"filename"` // stored file name in sources/
+	Path            string `db:"path" json:"path"`         // relative to workspace
+	SourceExt       string `db:"source_ext" json:"sourceExt"`
+	Format          string `db:"format" json:"format"`
+	Method          string `db:"method" json:"method"`
+	SHA256          string `db:"sha256" json:"sha256"`
+	Pages           int    `db:"pages" json:"pages"`
+	EstimatedTokens int    `db:"estimated_tokens" json:"estimatedTokens"`
+	Chapters        string `db:"chapters" json:"chapters"` // raw JSON; ParseChapters
+	Text            string `db:"text" json:"-"`            // full extracted text — agent/pull only
+	CreatedAt       string `db:"created_at" json:"createdAt"`
+	UpdatedAt       string `db:"updated_at" json:"updatedAt"`
+}
+
+// SourceChapter is one bounded chapter slice of a source document.
+type SourceChapter struct {
+	Title   string `json:"title"`
+	Segment string `json:"segment"` // the chapter's text
+}
+
+// SourceHit is one provenanced passage from the dedicated source-document
+// retrieval surface (distinct from authored-content search).
+type SourceHit struct {
+	SourceID int64  `json:"sourceId"`
+	Title    string `json:"title"`
+	Chapter  string `json:"chapter,omitempty"`
+	Excerpt  string `json:"excerpt"`
+}
+
 // QuizScore is a Quiz with its best score across completed attempts.
 // BestScore counts correct answers for questions still in the quiz's item
 // list (so removed items don't inflate it); BestTotal is the current item

@@ -275,6 +275,38 @@ func TestSearchAPIResults(t *testing.T) {
 	}
 }
 
+// TestSearchAPIDoesNotReturnSources proves the boundary: an ingested source
+// document must never appear in the user-facing /api/search.
+func TestSearchAPIDoesNotReturnSources(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Ingest a source document with content that also matches a user query.
+	srcPath := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(srcPath, []byte("Chapter 1: Photosynthesis\nChlorophyll absorbs light.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	wsStore, err := env.store.Workspace("alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wsStore.CreateSourceDoc(srcPath, "Botany Notes"); err != nil {
+		t.Fatalf("CreateSourceDoc: %v", err)
+	}
+
+	// The source's unique term must not surface in user search, even though the
+	// dedicated source-retrieval surface would find it.
+	for _, q := range []string{"Chlorophyll", "Botany", "Photosynthesis"} {
+		rec := env.get(t, "/api/search?q="+q)
+		var results []map[string]any
+		json.Unmarshal(rec.Body.Bytes(), &results)
+		for _, r := range results {
+			if r["title"] == "Botany Notes" {
+				t.Errorf("source document leaked into /api/search for q=%q: %+v", q, r)
+			}
+		}
+	}
+}
+
 func TestDocPagePlaceholderDetection(t *testing.T) {
 	env := newTestEnv(t)
 

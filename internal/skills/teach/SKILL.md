@@ -152,6 +152,16 @@ Knowledge should first be gathered from trusted resources. Use `RESOURCES.md` to
 
 For acquiring knowledge, difficulty is the enemy. It eats working memory you need for understanding.
 
+## Grounding on source documents
+
+The user can hand you a local document (a PDF, a DOCX, an EPUB, scanned notes) to learn from instead of researching the internet — "here's my PDF, use it as the basis." Ingest it once, then **ground** every lesson claim in its passages.
+
+1. **Ingest** — `pharos document extract <path>` ingests the file and indexes its text; re-ingesting the same file is a no-op. Read the handle's `estimatedTokens`: when it is large, confirm the cost with the user first.
+2. **Retrieve before you write** — `pharos document query "<terms>"` returns ranked `{source, chapter, excerpt}` hits across the workspace's source documents. Use `pharos document extract <path> --chapter N` to open a whole chapter when an idea spans it.
+3. **Ground every claim** — completion criterion: **every claim in the lesson maps to an excerpt that `document query` returned, and a query that comes back empty is rephrased until it returns one.** Keep the source named (the `{source, chapter}` it returned) so the claim stays traceable to the document.
+
+Command details live in [references/pharos-cli.md](references/pharos-cli.md#source-documents).
+
 ## Skills
 
 If knowledge is all about acquisition, skills are about durability and flexibility. Make the knowledge stick.

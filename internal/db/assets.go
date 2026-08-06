@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 // AssetSpec describes a managed asset — vendored (a downloaded lib plus
@@ -36,13 +35,7 @@ type AssetResult struct {
 // Unexported — tested through WriteAsset/DeleteAsset/InstallAsset, not exposed
 // as part of the interface.
 func (w *WorkspaceStore) safeAssetPath(filename string) (string, error) {
-	dir := filepath.Join(w.ws.Path, "assets")
-	target := filepath.Join(dir, filename)
-	rel, err := filepath.Rel(dir, target)
-	if err != nil || rel == "." || strings.HasPrefix(rel, "..") || filepath.IsAbs(filename) {
-		return "", fmt.Errorf("invalid asset path %q", filename)
-	}
-	return target, nil
+	return w.Layout().SafeJoin("assets", filename)
 }
 
 // AssetPath returns the absolute, traversal-safe path for an asset filename,

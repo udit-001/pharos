@@ -137,6 +137,32 @@ References are addressed by **slug** (descriptive name), not sequence number.
 The slug is derived from the title (e.g. "SQL Join Cheat Sheet" → `sql-join-cheat-sheet`).
 Two workspaces can each have a reference with the same slug.
 
+## Source documents
+
+Ingest a local file (PDF, DOCX, EPUB, ...) into the workspace as a **source
+document**: the original file is kept and its extracted text is indexed for
+retrieval. Source text is a **separate retrieval surface**: `pharos search`
+(CLI and the dashboard) keeps indexing only lessons, records, references, and
+quizzes, so document text never mixes into general search results — retrieve
+document passages with `document query`.
+
+```bash
+pharos document extract <path> \
+  [--title "<name>"] [--text] [--chapter N] [--lines a,b] [--out <path>] [--json]
+pharos document query "<terms...>" [--json]
+```
+
+`pharos document extract <path>` ingests the file and, by default, prints only
+the **handle** (title, format, method, pages, `estimatedTokens`) — pull content
+on demand with `--text` (full text), `--chapter N` (a chapter), or
+`--lines a,b` (a line range); `--out <path>` writes the selected text to a
+file. Re-extracting the same file with the same content is a no-op
+(idempotent); a different file under the same title is a conflict.
+
+`pharos document query <terms>` runs a keyword full-text search **across the
+workspace's source documents only** and returns ranked `{source, chapter,
+excerpt}` hits so a lesson can cite its grounding.
+
 ## Questions
 
 ```bash

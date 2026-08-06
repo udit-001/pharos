@@ -64,6 +64,7 @@ func newRootForTest() *cobra.Command {
 	rootCmd.SetOut(nil)
 	rootCmd.SetErr(nil)
 	rootCmd.SetContext(context.Background())
+	jsonOut = false // global flag leaks across Executes — reset per test
 	return rootCmd
 }
 
