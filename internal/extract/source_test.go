@@ -4,9 +4,11 @@ import (
 	"archive/zip"
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -151,6 +153,116 @@ func TestPDFPopplerFallback(t *testing.T) {
 	}
 	if n, err := pdfinfoPages(filepath.Join("testdata", "sample.pdf")); err != nil || n == 0 {
 		t.Errorf("pdfinfo page count = %d (err %v), want > 0", n, err)
+	}
+}
+
+// TestPDFPartialGoLibFallback is the regression for the lebo102.pdf bug: a
+// PDF the pure-Go lib can only partially read — one page chokes its lexer,
+// the other yields text — must be surfaced as failedPages>0 and, when
+// poppler is present, rescued by the pdftotext fallback. Before the fix the
+// non-empty partial text was treated as a clean extraction and the fallback
+// never fired.
+func TestPDFPartialGoLibFallback(t *testing.T) {
+	path := writeTemp(t, "partial.pdf", genPartialPDF())
+
+	text, _, pages, failed, err := pdfGoLib(path)
+	if err != nil {
+		t.Fatalf("pdfGoLib: %v", err)
+	}
+	if pages != 2 {
+		t.Errorf("pages = %d, want 2", pages)
+	}
+	if failed != 1 {
+		t.Errorf("failedPages = %d, want 1 (page 2 must fail the go-lib)", failed)
+	}
+	if !textual(text) {
+		t.Errorf("go-lib text unexpectedly empty — partial extraction not reproduced: %q", text)
+	}
+	if !strings.Contains(text, "GOOD PAGE ONE") {
+		t.Errorf("go-lib text missing page 1 content: %q", text)
+	}
+
+	out, method, pages, err := extractPDF(path)
+	if err != nil {
+		t.Fatalf("extractPDF: %v", err)
+	}
+	if _, err := exec.LookPath("pdftotext"); err != nil {
+		// poppler absent: fallback stays optional, the go-lib method is kept.
+		if method != "pdf" {
+			t.Errorf("method = %q, want pdf (no poppler on PATH)", method)
+		}
+		t.Skip("pdftotext not on PATH — poppler method assertion skipped")
+	}
+	if method != "pdf-pdftotext" {
+		t.Errorf("extractPDF method = %q, want pdf-pdftotext (fallback must fire)", method)
+	}
+	if pages != 2 {
+		t.Errorf("pages = %d, want 2 (poppler rescues the failed page)", pages)
+	}
+	if !strings.Contains(out, "GOOD PAGE ONE") {
+		t.Errorf("extractPDF text missing content: %q", out)
+	}
+}
+
+// genPartialPDF builds a two-page PDF whose second page carries an invalid
+// escape (\q) inside a content-stream literal string. The go-lib's lexer
+// panics on it and GetPlainText turns that into a per-page error, so the
+// go-lib extraction is non-empty but skips a page — the exact shape of the
+// lebo102.pdf regression. Poppler tolerates the escape, so pdftotext
+// recovers both pages.
+func genPartialPDF() string {
+	obj := func(n int, body string) string {
+		return strconv.Itoa(n) + " 0 obj\n" + body + "\nendobj\n"
+	}
+	streamObj := func(n int, data string) string {
+		return strconv.Itoa(n) + " 0 obj\n<< /Length " + strconv.Itoa(len(data)) + " >>\nstream\n" + data + "\nendstream\nendobj\n"
+	}
+
+	var out string
+	out += "%PDF-1.4\n"
+	offsets := make([]int, 0, 7)
+	appendObj := func(s string) {
+		offsets = append(offsets, len(out))
+		out += s
+	}
+	appendObj(obj(1, "<< /Type /Catalog /Pages 2 0 R >>"))
+	appendObj(obj(2, "<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>"))
+	appendObj(obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>"))
+	appendObj(streamObj(4, "BT /F1 12 Tf 72 720 Td (GOOD PAGE ONE) Tj ET"))
+	appendObj(obj(5, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>"))
+	appendObj(streamObj(6, "BT /F1 12 Tf 72 700 Td (BAD \\q ESCAPE) Tj ET"))
+	appendObj(obj(7, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"))
+
+	xrefStart := len(out)
+	out += "xref\n0 8\n0000000000 65535 f \n"
+	for _, off := range offsets {
+		out += fmt.Sprintf("%010d 00000 n \n", off)
+	}
+	out += "trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n" + strconv.Itoa(xrefStart) + "\n%%EOF\n"
+	return out
+}
+
+// TestPrefersPoppler pins the fallback decision: any non-empty extraction that
+// parsed every page must NOT trigger the fallback, while empty text or any
+// skipped page must. The second case is the regression that let partial
+// go-lib text block the poppler rescue.
+func TestPrefersPoppler(t *testing.T) {
+	cases := []struct {
+		name        string
+		text        string
+		failedPages int
+		want        bool
+	}{
+		{"full extraction", "some real content\nwith a second line", 0, false},
+		{"empty text", "", 0, true},
+		{"whitespace text", "   \n  ", 0, true},
+		{"one skipped page", "partial content", 1, true},
+		{"most pages skipped", "snippets", 14, true},
+	}
+	for _, tc := range cases {
+		if got := prefersPoppler(tc.text, tc.failedPages); got != tc.want {
+			t.Errorf("%s: prefersPoppler(%q, %d) = %v, want %v", tc.name, tc.text, tc.failedPages, got, tc.want)
+		}
 	}
 }
 

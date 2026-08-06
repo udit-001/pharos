@@ -10,17 +10,18 @@ import (
 )
 
 // extractPDF extracts text from a text-layer PDF. The zero-dependency path is
-// the pure-Go ledongthuc/pdf library; when that yields no usable text (an
-// empty result, or a PDF the Go lib reads poorly), it falls back to the
-// optional poppler `pdftotext` binary when present on PATH (LookPath — never a
-// build or hard runtime dependency). PDF ingestion therefore works out of the
-// box anywhere, while tricky PDFs are rescued where poppler is installed.
+// the pure-Go ledongthuc/pdf library; when that yields no usable text, or
+// skips pages it could not parse (the Go lib reads some PDFs poorly), it
+// falls back to the optional poppler `pdftotext` binary when present on PATH
+// (LookPath — never a build or hard runtime dependency). PDF ingestion
+// therefore works out of the box anywhere, while tricky PDFs are rescued where
+// poppler is installed.
 func extractPDF(path string) (string, string, int, error) {
-	text, method, pages, err := pdfGoLib(path)
+	text, method, pages, failedPages, err := pdfGoLib(path)
 	if err != nil {
 		return "", "", 0, err
 	}
-	if !textual(text) {
+	if prefersPoppler(text, failedPages) {
 		if _, err := exec.LookPath("pdftotext"); err == nil {
 			if out, err := pdftotextText(path); err == nil && textual(out) {
 				text, method = out, "pdf-pdftotext"
@@ -35,29 +36,41 @@ func extractPDF(path string) (string, string, int, error) {
 	return text, method, pages, nil
 }
 
+// prefersPoppler reports whether the go-lib extraction is untrustworthy
+// enough to prefer the poppler fallback: no usable text at all, or any page
+// the go-lib failed to parse (a silent skip leaves the extraction
+// incomplete — partial text must not block the fallback).
+func prefersPoppler(text string, failedPages int) bool {
+	return !textual(text) || failedPages > 0
+}
+
 // pdfGoLib extracts via the pure-Go ledongthuc/pdf library (no system deps).
-// A zero-text result is valid (the caller tries the poppler fallback) and is
-// not an error.
-func pdfGoLib(path string) (string, string, int, error) {
+// Pages that are null or fail to parse are skipped and counted in the returned
+// failedPages — a partial extraction is a real signal for the caller, not a
+// successful one. A zero-text result is valid (the caller tries the poppler
+// fallback) and is not an error.
+func pdfGoLib(path string) (text string, method string, pages int, failedPages int, err error) {
 	f, r, err := pdf.Open(path)
 	if err != nil {
-		return "", "", 0, fmt.Errorf("open pdf %s: %w", path, err)
+		return "", "", 0, 0, fmt.Errorf("open pdf %s: %w", path, err)
 	}
 	defer f.Close()
-	pages := r.NumPage()
+	pages = r.NumPage()
 	parts := make([]string, 0, pages)
 	for i := 1; i <= pages; i++ {
 		p := r.Page(i)
 		if p.V.IsNull() {
+			failedPages++
 			continue
 		}
 		t, err := p.GetPlainText(nil)
 		if err != nil {
+			failedPages++
 			continue
 		}
 		parts = append(parts, t)
 	}
-	return strings.Join(parts, "\n"), "pdf", pages, nil
+	return strings.Join(parts, "\n"), "pdf", pages, failedPages, nil
 }
 
 // pdftotextText runs `pdftotext -layout <path> -` and returns stdout.

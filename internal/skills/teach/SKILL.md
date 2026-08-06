@@ -27,6 +27,8 @@ Treat the current directory as a teaching workspace. The state of their learning
 
 Every workspace **mutation** goes through the CLI — never write **workspace** files (lessons, records, references, assets, MISSION.md) directly with the `write` tool. The CLI validates the workspace, keeps the database in sync, and the dashboard up to date. A direct write bypasses all of that, so the dashboard goes stale and stats drift. **Zero exceptions.**
 
+Reading is scoped the same way. When the user hands you a **document** (PDF, DOCX, EPUB, notes) to learn from, it becomes a **source document** — read it only through `pharos document extract` / `pharos document query`, never with raw system tools. See [Grounding on source documents](#grounding-on-source-documents).
+
 The `-w` flag is optional — if you've set a current workspace with `pharos workspace use`, all commands default to it. `pharos workspace create` auto-sets the new workspace as current.
 
 The create/revise commands take content via `--body-file`, never inline — multiline HTML/MD breaks in the shell. Use the **`write` tool** to write content to a temp file, pass `--body-file <path>` to the CLI, then remove the temp file once the command succeeds:
@@ -155,6 +157,8 @@ For acquiring knowledge, difficulty is the enemy. It eats working memory you nee
 ## Grounding on source documents
 
 The user can hand you a local document (a PDF, a DOCX, an EPUB, scanned notes) to learn from instead of researching the internet — "here's my PDF, use it as the basis." Ingest it once, then **ground** every lesson claim in its passages.
+
+**The workspace source-document surface is the ONLY sanctioned reader for a user-supplied document.** Read it through `pharos document extract` / `pharos document query`, never by opening the raw file with system tools (`pdftotext`, `unzip`, a text editor, `cat`). A raw read bypasses the index the retrieval step needs — the lesson would end up grounded in text the workspace can't cite back. If `document extract` cannot read the file, say so and ask the user; don't reach for an external extractor.
 
 1. **Ingest** — `pharos document extract <path>` ingests the file and indexes its text; re-ingesting the same file is a no-op. Read the handle's `estimatedTokens`: when it is large, confirm the cost with the user first.
 2. **Retrieve before you write** — `pharos document query "<terms>"` returns ranked `{source, chapter, excerpt}` hits across the workspace's source documents. Use `pharos document extract <path> --chapter N` to open a whole chapter when an idea spans it.
