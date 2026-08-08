@@ -71,22 +71,21 @@ pharos notes edit --append --body-file <path>  # Append to file
 
 ## Scratchpad (scrap and tag)
 
-The scratchpad is **global and cross-workspace** — it is NOT scoped to the
-current workspace. Scraps and tags live above all workspaces and are sealed
-from them; do not try to attach a scrap to a workspace and do not fetch the
-per-workspace `notes` file here (that is `pharos notes`, above).
+The scratchpad is **global and cross-workspace**: scratches and tags live above
+all workspaces, sealed from them. This is distinct from the per-workspace
+`notes` file (`pharos notes`, above) and from any teaching workspace.
 
-Park loose, uncommitted material here: resources to learn later, half-formed
+Scrap loose, uncommitted material here: resources to learn later, half-formed
 intents, ambitions ("I want to be an ML engineer"), roadmap fragments. **Find
-before you add** — search, then update the existing flood by slug rather than
+before you add** — search, then update the existing scrap by slug rather than
 creating a duplicate. Every idea belongs to exactly one `active` scrap; a
 concept already covered should be `done`, not duplicated.
 
-Read default is `active` only — that keeps the agent context lean. Surface what
-was already covered with `--status done`.
+Read default is `active` only. Surface what was already covered with
+`--status done`.
 
-Tags are first-class: a tag carries a `name` plus a `description` (the
-description is the semantic payload that powers search). Create a tag with a
+Tags are first-class: a tag carries a `name` plus a `description` (its
+semantic payload — the value a scrap's body doesn't carry). Create a tag with a
 real description before attaching it to a scrap — a scrap's `--tag` must
 already exist, otherwise the command fails.
 
