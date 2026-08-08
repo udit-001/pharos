@@ -128,6 +128,9 @@ Examples:
 			return formatError("failed to create scrap", err)
 		}
 
+		if jsonEnabled(cmd) {
+			return printScrapJSON(scrap, nil)
+		}
 		fmt.Println()
 		fmt.Printf("  ✓ Scrap created: %s\n", scrap.Slug)
 		fmt.Println()
@@ -193,6 +196,9 @@ Examples:
 			return formatError("failed to update scrap", err)
 		}
 
+		if jsonEnabled(cmd) {
+			return printScrapJSON(updated, nil)
+		}
 		fmt.Println()
 		fmt.Printf("  ✓ Scrap updated: %s\n", updated.Slug)
 		fmt.Println()
@@ -212,6 +218,10 @@ Examples:
 		s := mustStore(cmd)
 		if err := s.DeleteScrap(args[0]); err != nil {
 			return formatError("failed to delete scrap", err)
+		}
+		if jsonEnabled(cmd) {
+			printJSON(map[string]any{"slug": args[0]})
+			return nil
 		}
 		fmt.Println()
 		fmt.Printf("  ✓ Scrap deleted: %s\n", args[0])

@@ -55,6 +55,22 @@ func TestScrapAddListReadUpdate(t *testing.T) {
 	}
 }
 
+func TestScrapAddJSONReturnsSlug(t *testing.T) {
+	store, cleanup := newTestStore(t)
+	defer cleanup()
+
+	body := writeBodyFile(t, "roadmap content")
+	out := runWithStore(t, []string{"scrap", "add", "agent friendly", "--body-file", body, "--json"}, store)
+
+	// The agent consumes the slug from --json output (find-then-update handle).
+	if !strings.Contains(out, `"slug": "agent-friendly"`) {
+		t.Errorf("add --json missing slug:\n%s", out)
+	}
+	if !strings.Contains(out, `"status": "active"`) {
+		t.Errorf("add --json missing status:\n%s", out)
+	}
+}
+
 func TestScrapListDefaultActiveAndStatusFilter(t *testing.T) {
 	store, cleanup := newTestStore(t)
 	defer cleanup()

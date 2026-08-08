@@ -58,8 +58,13 @@ Examples:
 		name := args[0]
 		desc, _ := cmd.Flags().GetString("description")
 
-		if _, err := s.CreateTag(name, desc); err != nil {
+		tag, err := s.CreateTag(name, desc)
+		if err != nil {
 			return formatError("failed to create tag", err)
+		}
+		if jsonEnabled(cmd) {
+			printJSON(tag)
+			return nil
 		}
 		fmt.Println()
 		fmt.Printf("  ✓ Tag created: %s\n", name)
@@ -83,6 +88,10 @@ Example:
 		if err := s.UpdateTagDescription(name, desc); err != nil {
 			return formatError("failed to update tag", err)
 		}
+		if jsonEnabled(cmd) {
+			printJSON(map[string]any{"name": name, "description": desc})
+			return nil
+		}
 		fmt.Println()
 		fmt.Printf("  ✓ Tag updated: %s\n", name)
 		fmt.Println()
@@ -102,6 +111,10 @@ Example:
 		s := mustStore(cmd)
 		if err := s.DeleteTag(args[0]); err != nil {
 			return formatError("failed to delete tag", err)
+		}
+		if jsonEnabled(cmd) {
+			printJSON(map[string]any{"name": args[0]})
+			return nil
 		}
 		fmt.Println()
 		fmt.Printf("  ✓ Tag deleted: %s\n", args[0])
