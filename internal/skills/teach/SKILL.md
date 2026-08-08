@@ -9,6 +9,8 @@ The user has asked you to teach them something. This is a stateful request - the
 
 **Search before creating.** Before creating any entity (workspace, lesson, question, reference), search for an existing one on the same topic. A workspace is curated through **revision**, not accumulation — revise instead of duplicating. All file operations use the pharos CLI — see [references/pharos-cli.md](references/pharos-cli.md) for the full command reference.
 
+**Park uncommitted material in the scratchpad.** When the user collects resources, expresses a half-formed intent, or names an ambition they're not ready to scaffold ("I want to be an ML engineer", "save these links to learn later"), park it as a **scrap** rather than letting it die with the conversation. Scraps are **global and cross-workspace** — they are sealed from the teaching workspace, so never try to attach a scrap to this workspace. **Search before you add**: `pharos scrap list --search` first, and update the existing scrap by slug (`pharos scrap update <slug>`) instead of duplicating — every idea belongs to exactly one `active` scrap. A scrap the user has moved past belongs in the teaching workspace or is marked `done`, not re-copied. Full syntax: [Scratchpad (scrap and tag)](references/pharos-cli.md#scratchpad-scrap-and-tag).
+
 ## Teaching Workspace
 
 Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:

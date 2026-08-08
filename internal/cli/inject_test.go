@@ -68,6 +68,28 @@ func newRootForTest() *cobra.Command {
 	// passing --json doesn't leak into this one (flags persist across Executes
 	// on the shared rootCmd).
 	_ = rootCmd.PersistentFlags().Set("json", "false")
+	// Resettle scratchpad command flags the same way (flag values + Changed
+	// persist across Executes on the shared, package-global commands). pflag's
+	// StringArray has no Set-to-empty, so we clear the Changed bit directly so
+	// value-based/Changed gating behaves like a fresh invocation.
+	resetScratchFlag := func(cmd *cobra.Command, name string, def string) {
+		_ = cmd.Flags().Set(name, def)
+		if f := cmd.Flags().Lookup(name); f != nil && name == "tag" {
+			f.Changed = false
+			f.Value.Set("")
+		}
+	}
+	resetScratchFlag(scrapListCmd, "status", "active")
+	resetScratchFlag(scrapListCmd, "search", "")
+	resetScratchFlag(scrapAddCmd, "body-file", "")
+	resetScratchFlag(scrapAddCmd, "tag", "")
+	resetScratchFlag(scrapUpdateCmd, "title", "")
+	resetScratchFlag(scrapUpdateCmd, "body-file", "")
+	resetScratchFlag(scrapUpdateCmd, "status", "")
+	if f := scrapUpdateCmd.Flags().Lookup("tag"); f != nil {
+		f.Changed = false
+		f.Value.Set("")
+	}
 	return rootCmd
 }
 

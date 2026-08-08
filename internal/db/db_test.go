@@ -91,3 +91,57 @@ func TestFTSUpdateTriggersScopedToIndexedColumns(t *testing.T) {
 		}
 	}
 }
+
+// TestScrapMigrationApplies asserts the global-scratchpad migration (LEARN-181)
+// runs cleanly on a fresh DB: the scraps/tags/scrap_tags tables exist,
+// scraps_fts is an external-content FTS5 index over scraps, and its _au
+// trigger is scoped to the indexed columns (the LEARN-106 pattern).
+func TestScrapMigrationApplies(t *testing.T) {
+	store := newTestStore(t)
+	db := store.SQL()
+
+	var n int
+	if err := db.QueryRow(
+		"SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('scraps','tags','scrap_tags')",
+	).Scan(&n); err != nil {
+		t.Fatalf("query scrap tables: %v", err)
+	}
+	if n != 3 {
+		t.Fatalf("scrap tables present = %d, want 3", n)
+	}
+
+	// scraps_fts must be external-content over scraps (content-rowid sync), so
+	// body edits stay searchable without manually dropping/recreating the index.
+	var ftsCreate string
+	if err := db.QueryRow(
+		"SELECT sql FROM sqlite_master WHERE type='table' AND name='scraps_fts'",
+	).Scan(&ftsCreate); err != nil {
+		t.Fatalf("query scraps_fts definition: %v", err)
+	}
+	if !strings.Contains(ftsCreate, "content=scraps") {
+		t.Errorf("scraps_fts not external content over scraps:\n%s", ftsCreate)
+	}
+
+	// Tolerate the empty-init creation; the FTS triggers live on the scraps base
+	// table regardless (scraps_ai / scraps_ad / scraps_au).
+	for _, trig := range []string{"scraps_ai", "scraps_ad", "scraps_au"} {
+		var sql string
+		if err := db.QueryRow(
+			"SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?", trig,
+		).Scan(&sql); err != nil {
+			t.Fatalf("query %s definition: %v", trig, err)
+		}
+		if trig == "scraps_au" && !strings.Contains(sql, "UPDATE OF") {
+			t.Errorf("%s not scoped to indexed columns — missing 'UPDATE OF' in:\n%s", trig, sql)
+		}
+	}
+
+	// Foreign-key support is on, so the join rows cascade on scrap/tag delete.
+	var fkOn int
+	if err := db.QueryRow("PRAGMA foreign_keys").Scan(&fkOn); err != nil {
+		t.Fatalf("query foreign_keys: %v", err)
+	}
+	if fkOn != 1 {
+		t.Errorf("foreign_keys = %d, want 1 (for scrap_tags cascade)", fkOn)
+	}
+}

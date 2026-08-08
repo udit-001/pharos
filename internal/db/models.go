@@ -276,6 +276,31 @@ type SourceDoc struct {
 	UpdatedAt       string `db:"updated_at" json:"updatedAt"`
 }
 
+// Scrap is one loose, unstructured capture in the global scratchpad. It is
+// deliberately NOT workspace-scoped (global, sealed from workspaces). Title is
+// required and drives the stable slug; Body is free text (URLs live inside).
+// Status is exactly "active" (default agent read) or "done".
+type Scrap struct {
+	ID        int64  `db:"id" json:"id"`
+	Slug      string `db:"slug" json:"slug"`
+	Title     string `db:"title" json:"title"`
+	Body      string `db:"body" json:"body"`
+	Status    string `db:"status" json:"status"`
+	CreatedAt string `db:"created_at" json:"createdAt"`
+	UpdatedAt string `db:"updated_at" json:"updatedAt"`
+}
+
+// Tag is a first-class grouping object on the scratchpad: a name plus a
+// description (the description is the semantic payload — a bare name adds no
+// info over keyword-matching the body). Many-to-many with Scrap.
+type Tag struct {
+	ID          int64  `db:"id" json:"id"`
+	Name        string `db:"name" json:"name"`
+	Description string `db:"description" json:"description"`
+	CreatedAt   string `db:"created_at" json:"createdAt"`
+	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
+}
+
 // SourceChapter is one bounded chapter slice of a source document.
 type SourceChapter struct {
 	Title   string `json:"title"`

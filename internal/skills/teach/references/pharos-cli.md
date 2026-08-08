@@ -69,6 +69,48 @@ pharos notes edit --body-file <path>           # Write content from a file
 pharos notes edit --append --body-file <path>  # Append to file
 ```
 
+## Scratchpad (scrap and tag)
+
+The scratchpad is **global and cross-workspace** — it is NOT scoped to the
+current workspace. Scraps and tags live above all workspaces and are sealed
+from them; do not try to attach a scrap to a workspace and do not fetch the
+per-workspace `notes` file here (that is `pharos notes`, above).
+
+Park loose, uncommitted material here: resources to learn later, half-formed
+intents, ambitions ("I want to be an ML engineer"), roadmap fragments. **Find
+before you add** — search, then update the existing flood by slug rather than
+creating a duplicate. Every idea belongs to exactly one `active` scrap; a
+concept already covered should be `done`, not duplicated.
+
+Read default is `active` only — that keeps the agent context lean. Surface what
+was already covered with `--status done`.
+
+Tags are first-class: a tag carries a `name` plus a `description` (the
+description is the semantic payload that powers search). Create a tag with a
+real description before attaching it to a scrap — a scrap's `--tag` must
+already exist, otherwise the command fails.
+
+```bash
+# Scrap
+pharos scrap list                                  # all ACTIVE scraps (default)
+pharos scrap list --search "<q>"                   # find-then-update hook
+pharos scrap list --status done                    # what was already covered
+pharos scrap read <slug>
+pharos scrap add "<title>" --body-file <path> [--tag "<n>"]...   # prints slug
+pharos scrap update <slug> --body-file <path>      # --title / --status active|done / --tag ...
+pharos scrap delete <slug>
+
+# Tag
+pharos tag list
+pharos tag create "<name>" --description "..."     # strict create; errors if the name exists
+pharos tag update "<name>" --description "..."     # change a tag's description
+pharos tag delete "<name>"
+```
+
+The slug is derived once from the scrap's required title and stays stable
+across `update`, even when the title changes — use it as the stable
+find-then-update handle.
+
 ## Glossary
 
 ```bash
