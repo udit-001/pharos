@@ -129,13 +129,13 @@ Asset paths and contextual links follow the [iframe escape rules](references/pha
 
 ## The Mission
 
-Every lesson should be tied into the mission - the reason that the user is interested in learning about the topic.
+Every lesson should be tied into the mission — the reason the user is interested in learning about the topic. Failing to understand it means lessons drift from real-world goals, feel too abstract, and leave you unable to judge what to teach next.
 
-If the user is unclear about the mission, or the `MISSION.md` is not populated, your first job should be to question the user on why they want to learn this.
+Their first request is the default starting point. Grill on the mission only when a mistaken target would waste the session: a vague ambition ("I want to learn AI"), a topic that shadows the real goal ("Teach me Excel" but they want a reporting dashboard), or a veiled symptom that names no topic ("I keep getting lost in our data"). A returning user in an existing workspace has mission and ZPD recorded — read those, don't re-ask.
 
-Failing to understand the mission will mean knowledge acquisition is not grounded in real-world goals. Lessons will feel too abstract. You will have no way of judging what the user should do next.
+Keep the grilling tight. Ask a few numbered questions in one go, each with your recommended answer, then wait — drilling deeper only where an answer changes the target. Look up what the workspace already answers (mission, records, weak quizzes); the decisions — why they're learning, their level, the outcome they're after — are the user's. **Stop at 3 rounds / 6 questions**; past that, propose what you'll teach from what you have and let the user correct it during the lesson. Grilling ends when you can name the mission and target and they agree; then ZPD picks the first lesson. Scaffold only once that target is settled.
 
-Missions may change as the user develops more skills and knowledge. This is normal - make sure to update the `MISSION.md` and add a learning record to capture the change. Confirm with the user before changing the mission.
+Missions may change as the user grows — update `MISSION.md` and capture the change in a learning record. Confirm with the user before changing the mission.
 
 ## Zone Of Proximal Development
 
