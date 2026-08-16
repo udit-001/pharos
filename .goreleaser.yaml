@@ -54,10 +54,6 @@ archives:
           - binary # also upload the raw pharos.exe for winget (portable)
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
-    files:
-      - README.md
-      - docs/cli-reference.md
-      - docs/project-setup.md
 
 checksum:
   name_template: 'checksums.txt'
