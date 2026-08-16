@@ -47,7 +47,18 @@ internal/
 │   ├── root.go           # mustStore() context injection
 │   ├── list.go           # runList[T] generic list helper
 │   ├── inject_test.go    # CLI tested against in-memory SQLite
-│   └── *_create.go       # --body-file for safe multiline content creation
+│   ├── *_create.go       # --body-file for safe multiline content creation
+│   ├── lesson_*.go / question_*.go / quiz_*.go / record_*.go /
+│   │   reference_*.go    # entity CRUD + read/show/revise verbs per entity
+│   ├── workspace_*.go    # workspace create/list/use/rename/stats/delete
+│   ├── glossary_*.go / tag.go / scrap*.go  # glossary terms, tags, scraps
+│   ├── document*.go      # source docs: extract (pdf/epub/docx) + query
+│   ├── asset*.go         # assets/ management + registry
+│   ├── mission.go / notes.go / resources.go  # workspace doc read/edit
+│   ├── nav.go / notify.go / exec.go  # dashboard navigation + server exec
+│   ├── start.go / dev.go / stop.go / daemon_*.go  # server lifecycle
+│   ├── build.go / tailwind*.go / upgrade.go / version.go
+│   └── skills*.go        # skills check/install/uninstall
 ├── config/         # pharos.toml config (data_dir, etc.)
 ├── db/             # Data access layer — SQLite via sqlx, typed query methods
 │   ├── models.go         # Domain structs (Workspace, Lesson, etc.)
@@ -55,19 +66,26 @@ internal/
 │   ├── scan.go           # Generic row scanner (deduplicated loop)
 │   ├── fts_query.go      # Centralised FTS5 query builder
 │   ├── seal_test.go      # Encapsulation guarantee (no raw SQL escape)
+│   ├── lessons.go / lesson_content.go / questions.go / quizzes.go /
+│   │   quiz_attempts.go / references.go / learning_records.go  # entities
+│   ├── glossary_terms.go / highlights.go / scraps.go / source_docs.go
+│   ├── workspaces.go / settings.go / sidebar.go / assets.go
+│   ├── layout.go / fileutil.go / slugify.go / seed.go / seed/  # store plumbing
 │   └── *_test.go         # Integration tests with temp SQLite DBs
 ├── docutil/        # Workspace document template helpers (IsTemplate, StripH1)
-├── extract/        # HTML→plaintext text extraction (goquery-based)
+├── extract/        # HTML→plaintext text extraction (goquery-based) + pdf/epub/docx/rtf
 ├── markdown/       # Markdown→HTML rendering (goldmark)
-├── migrate/        # Embedded SQL migrations (12 files)
+├── migrate/        # Embedded SQL migrations (21 files)
 ├── render/         # HTML rendering — templ components + view models
 │   ├── frame.go / frame.templ    # Page shell (sidebar, topbar, tooltips)
-│   ├── views.templ               # Dashboard, about, workspace, search views
-│   ├── icons.go                  # SVG icon helpers
+│   ├── views.templ / iframe_not_found.templ  # Dashboard + workspace views
+│   ├── quiz_scripts.go           # embeds quiz-attempt.js
+│   ├── icons.go / models.go
 │   └── render_test.go            # 8 tests proving HTML output as VM function
 ├── server/         # HTTP server — thin handlers, no HTML strings
-│   ├── mux.go             # Route handlers + JSON API (712 lines)
-│   └── server.go          # Server lifecycle (start/stop/PID)
+│   ├── mux.go             # Route handlers + JSON API (~1580 lines)
+│   ├── server.go          # Server lifecycle (start/stop/PID)
+│   └── events.go          # Server-sent events / notifications
 ├── urls/           # URL scheme — one owner for workspace/lesson/record/ref paths
 ├── version/        # Version detection (ldflags or debug.BuildInfo + VCS)
 ├── web/            # Embedded CSS + favicon (generated, committed)

@@ -1,85 +1,67 @@
 # Pharos
 
-CLI tool for AI-guided learning workspaces, with a read-only web dashboard for taking quizzes and browsing lessons.
+Ask your AI to teach you something. Pharos turns that into lessons, quizzes,
+and a running record of what you've actually learned — all on your computer.
 
-## Quick start
+You read something once and forget it. Pharos is the other loop: lessons
+written for you, quizzes that find your weak spots, and the next lesson
+aimed at exactly those gaps.
 
-```bash
-go install github.com/udit-001/pharos/cmd/pharos@latest
-pharos init                            # create database, install teach skill
-pharos workspace create "Topic Name"   # creates ~/.pharos/workspaces/topic-name/
-pharos start                           # open the web dashboard (:9090)
-```
+## Get started
 
-Install the teach skill so your AI agent can drive the workflow:
+**1. Install Pharos**
 
 ```bash
-pharos skills install               # auto-detects your agent
+curl -sfL https://raw.githubusercontent.com/udit-001/pharos/main/install.sh | sh
 ```
 
-Then ask your agent: *"teach me about [topic]"* — it creates lessons, quizzes, and tracks your progress.
+(If you have Go installed, `go install github.com/udit-001/pharos/cmd/pharos@latest` works too.)
 
-## How learning works
-
-Pharos builds a **workspace** per topic. Each workspace has:
-
-- **Mission** — why you're learning this
-- **Lessons** — self-contained HTML, authored by your AI agent
-- **Quizzes** — retrieval practice (choice and recall questions)
-- **Learning records** — ADR-style notes of what you understood
-- **References** — cheat sheets
-- **Glossary** — canonical terminology with in-lesson tooltips
-
-The loop: lessons teach, quizzes test, weak questions drive the next lesson.
-
-## Web dashboard
-
-`pharos start` opens a read-only dashboard where you:
-
-- Browse lessons, records, and references
-- **Take quizzes** with instant feedback and review
-- Search across all content
-- Toggle light/dark/system theme
-
-## Quizzes
-
-Two question modes:
-
-- **Choice** — select an option, get graded instantly
-- **Recall** — flip a flashcard, self-grade (Got it / Not yet)
-
-Enable auto-submit to skip the Check button on choice questions:
+**2. Connect your AI**
 
 ```bash
-pharos config set auto_submit_choice on
+pharos init
+pharos skills install --agent pi.dev
 ```
 
-Track weak spots:
+Works with `pi.dev`, `claude-code`, `codex`, `opencode`. Then just ask:
+*"teach me linear algebra"* or *"teach me French cooking"*. Your AI builds
+the lessons; Pharos keeps track of everything.
+
+**3. Learn**
 
 ```bash
-pharos quiz list --weak          # quizzes by lowest accuracy
-pharos question list --weak      # specific questions dragging you down
+pharos start    # opens the dashboard
 ```
 
-## Configuration
+Take quizzes, review lessons, watch your progress. Update later with
+`pharos upgrade`.
 
-```bash
-pharos config read                          # show current settings
-pharos config set data_dir ~/my-pharos      # move the data directory
-pharos config set auto_submit_choice on      # auto-submit on option select
-```
+## What you can do
 
-## Data & privacy
+**Learn anything, properly**
+Each topic gets its own workspace: lessons written by your AI, a glossary of
+terms, cheat-sheet references, and a mission statement so the learning stays
+aimed at why you started.
 
-All data is local — SQLite at `~/.pharos/pharos.db`, workspace files under `~/.pharos/workspaces/`. No telemetry, no accounts, no cloud.
+**Quiz yourself, find the gaps**
+Multiple-choice questions grade instantly; flashcards you flip and self-grade.
+Pharos tracks which questions you keep missing — the next lesson targets them.
 
-## Maintenance
+**Capture ideas before they vanish**
+"I want to learn ML someday" — saved from a chat in two seconds as a scrap,
+ready to become a workspace when you're ready.
 
-```bash
-pharos upgrade          # upgrade to latest release
-pharos migrate status   # check database migrations
-```
+**Learn from your own material**
+Hand it a PDF or ebook and it extracts the text, so lessons and quizzes can
+come from the document you actually care about.
 
-## Docs
+## Your data
 
-[CLI reference](docs/cli-reference.md) · [Project setup](docs/project-setup.md)
+One folder: `~/.pharos/`. Back it up and you're done. There's no account,
+and nothing gets uploaded.
+
+## Going deeper
+
+- **[CLI reference](docs/cli-reference.md)** — every command, if you like the terminal
+- **[Project setup](docs/project-setup.md)** — how Pharos is built, for contributors
