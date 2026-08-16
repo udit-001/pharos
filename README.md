@@ -37,24 +37,12 @@ pharos start    # opens the dashboard
 Take quizzes, review lessons, watch your progress. Update later with
 `pharos upgrade`.
 
-## What you can do
+## What it does
 
-**Learn anything, properly**
-Each topic gets its own workspace: lessons written by your AI, a glossary of
-terms, cheat-sheet references, and a mission statement so the learning stays
-aimed at why you started.
-
-**Quiz yourself, find the gaps**
-Multiple-choice questions grade instantly; flashcards you flip and self-grade.
-Pharos tracks which questions you keep missing — the next lesson targets them.
-
-**Capture ideas before they vanish**
-"I want to learn ML someday" — saved from a chat in two seconds as a scrap,
-ready to become a workspace when you're ready.
-
-**Learn from your own material**
-Hand it a PDF or ebook and it extracts the text, so lessons and quizzes can
-come from the document you actually care about.
+- **Learn anything** — each topic gets a workspace: AI-written lessons, a glossary, cheat-sheet references, and a mission for why you started.
+- **Quiz the gaps** — instant multiple-choice, flip-and-grade flashcards. The questions you keep missing drive the next lesson.
+- **Save "someday" ideas** — "I want to learn ML" becomes a scrap in two seconds, ready to be a workspace when you are.
+- **Learn from your files** — hand over a PDF or ebook; lessons and quizzes come from the document you actually care about.
 
 ## Your data
 
