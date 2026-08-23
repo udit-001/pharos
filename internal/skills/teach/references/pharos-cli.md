@@ -130,7 +130,7 @@ section per category. `--avoid` records synonyms or phrasing to steer away from 
 pharos lesson create "<title>" --body-file <path>  # Create a new lesson
 pharos lesson list                                  # List lessons
 pharos lesson list --search "<q>"                   # Search lessons
-pharos lesson revise <seq> --body-file <path>       # Revise a lesson (--title, --summary optional)
+pharos lesson revise <seq> [--body-file <path>] [--title ".."] [--summary ".."]  # Revise; ≥1 flag. Metadata-only keeps the body untouched
 pharos lesson show <seq>                            # Show in dashboard
 pharos lesson read <seq>                            # Read content + metadata
 pharos lesson read <seq> --meta-only                # Read metadata only
@@ -168,7 +168,7 @@ as superseded.
 pharos reference create "<title>" --body-file <path>  # Create a reference (slug-based filename)
 pharos reference list                                  # List references
 pharos reference list --search "<q>"                   # Search references
-pharos reference revise <slug> --body-file <path>      # Revise an existing reference
+pharos reference revise <slug> [--body-file <path>] [--title ".."] [--summary ".."]  # Revise; ≥1 flag. Metadata-only keeps the body untouched
 pharos reference show <slug>                           # Show in dashboard
 pharos reference read <slug>                           # Read content + metadata
 pharos reference read <slug> --meta-only               # Read metadata only

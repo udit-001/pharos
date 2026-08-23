@@ -222,6 +222,74 @@ func TestReadBodyFileMsysEmptyAfterConversion(t *testing.T) {
 	}
 }
 
+// TestLessonReviseMetadataOnly locks the CLI wiring for the metadata-only
+// branch: --title alone revises without any --body-file.
+func TestLessonReviseMetadataOnly(t *testing.T) {
+	store, cleanup := newTestStore(t)
+	defer cleanup()
+
+	wsDB, err := store.AddWorkspace(db.Workspace{Name: "rev-meta", Path: t.TempDir()})
+	if err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	wss, err := store.Workspace(wsDB.Name)
+	if err != nil {
+		t.Fatalf("open workspace store: %v", err)
+	}
+	l, err := wss.CreateLesson("old title", "<p>keep me</p>")
+	if err != nil {
+		t.Fatalf("CreateLesson: %v", err)
+	}
+	before, err := wss.GetLessonBySeq(int(l.SequenceNumber))
+	if err != nil {
+		t.Fatalf("GetLessonBySeq: %v", err)
+	}
+
+	out := runWithStore(t, []string{"lesson", "revise", fmt.Sprintf("%d", l.SequenceNumber), "-w", wsDB.Name, "--title", "renamed"}, store)
+	if !strings.Contains(out, "✓") {
+		t.Errorf("expected success marker, got:\n%s", out)
+	}
+	after, err := wss.GetLessonBySeq(int(l.SequenceNumber))
+	if err != nil {
+		t.Fatalf("GetLessonBySeq after: %v", err)
+	}
+	if after.Title != "renamed" {
+		t.Errorf("title = %q, want %q", after.Title, "renamed")
+	}
+	if after.BodyText != before.BodyText {
+		t.Errorf("body_text changed on metadata-only revise")
+	}
+}
+
+// TestReviseWithoutFlagsRejected pins the ≥1-flag contract on both commands:
+// with nothing to change, the error names the positive path instead of the
+// old dead-end "--body-file is required".
+func TestReviseWithoutFlagsRejected(t *testing.T) {
+	store, cleanup := newTestStore(t)
+	defer cleanup()
+
+	wsDB, err := store.AddWorkspace(db.Workspace{Name: "rev-none", Path: t.TempDir()})
+	if err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+
+	for _, args := range [][]string{
+		{"lesson", "revise", "1", "-w", wsDB.Name},
+		{"reference", "revise", "some-slug", "-w", wsDB.Name},
+	} {
+		_, err := runCmdErr(t, args, store)
+		if err == nil {
+			t.Fatalf("%v: expected error with no revision flags", args)
+		}
+		if !strings.Contains(err.Error(), "nothing to revise") {
+			t.Errorf("%v: error should state 'nothing to revise', got: %v", args, err)
+		}
+		if strings.Contains(err.Error(), "--body-file is required") {
+			t.Errorf("%v: error should not be the old dead-end message, got: %v", args, err)
+		}
+	}
+}
+
 // TestLooksLikeMSYSPath pins the detection predicate.
 func TestLooksLikeMSYSPath(t *testing.T) {
 	cases := map[string]bool{

@@ -370,6 +370,9 @@ func (w *WorkspaceStore) ReviseQuestion(slug string, title, mode, config, stimul
 	if err != nil {
 		return Question{}, err
 	}
+	if title == nil && mode == nil && config == nil && stimulus == nil {
+		return Question{}, fmt.Errorf("nothing to revise: pass a new title, mode, config, or stimulus")
+	}
 
 	t := current.Title
 	if title != nil {
@@ -1122,15 +1125,15 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 }
 
 // ReviseLesson overwrites a lesson's content in place. Sequence and filename
-// are unchanged.
-func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, summary *string) error {
+// are unchanged. A nil bodyHTML is a metadata-only revise: the body file and
+// its indexed body_text are left untouched; only title/summary/updated_at move.
+func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML *string, title *string, summary *string) error {
 	current, err := w.GetLessonBySeq(seq)
 	if err != nil {
 		return fmt.Errorf("find lesson: %w", err)
 	}
-
-	if err := writeToFile(w.Layout().LessonPath(current.Filename), bodyHTML); err != nil {
-		return fmt.Errorf("write lesson file: %w", err)
+	if bodyHTML == nil && title == nil && summary == nil {
+		return fmt.Errorf("nothing to revise: pass a new body, title, or summary")
 	}
 
 	now := nowTimestamp()
@@ -1142,7 +1145,16 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML string, title *string, s
 	if summary != nil {
 		s = *summary
 	}
-	bodyText := extract.FromHTML(bodyHTML)
+
+	if bodyHTML == nil {
+		_, err = w.db().Exec("UPDATE lessons SET title = ?, summary = ?, updated_at = ? WHERE id = ?", t, s, now, current.ID)
+		return err
+	}
+
+	if err := writeToFile(w.Layout().LessonPath(current.Filename), *bodyHTML); err != nil {
+		return fmt.Errorf("write lesson file: %w", err)
+	}
+	bodyText := extract.FromHTML(*bodyHTML)
 	_, err = w.db().Exec("UPDATE lessons SET title = ?, summary = ?, body_text = ?, updated_at = ? WHERE id = ?", t, s, bodyText, now, current.ID)
 	return err
 }
@@ -1317,14 +1329,15 @@ func (w *WorkspaceStore) CreateRef(title, bodyHTML string) (Reference, error) {
 }
 
 // ReviseRef overwrites a reference's content in place. Slug is unchanged.
-func (w *WorkspaceStore) ReviseRef(slug, bodyHTML string, title *string, summary *string) error {
+// A nil bodyHTML is a metadata-only revise: the body file and its indexed
+// body_text are left untouched; only title/summary/updated_at move.
+func (w *WorkspaceStore) ReviseRef(slug string, bodyHTML *string, title *string, summary *string) error {
 	current, err := w.GetRefBySlug(slug)
 	if err != nil {
 		return fmt.Errorf("find reference: %w", err)
 	}
-
-	if err := writeToFile(w.Layout().RefPath(current.Filename), bodyHTML); err != nil {
-		return fmt.Errorf("write reference file: %w", err)
+	if bodyHTML == nil && title == nil && summary == nil {
+		return fmt.Errorf("nothing to revise: pass a new body, title, or summary")
 	}
 
 	now := nowTimestamp()
@@ -1336,7 +1349,16 @@ func (w *WorkspaceStore) ReviseRef(slug, bodyHTML string, title *string, summary
 	if summary != nil {
 		s = *summary
 	}
-	bodyText := extract.FromHTML(bodyHTML)
+
+	if bodyHTML == nil {
+		_, err = w.db().Exec("UPDATE references_t SET title = ?, summary = ?, updated_at = ? WHERE id = ?", t, s, now, current.ID)
+		return err
+	}
+
+	if err := writeToFile(w.Layout().RefPath(current.Filename), *bodyHTML); err != nil {
+		return fmt.Errorf("write reference file: %w", err)
+	}
+	bodyText := extract.FromHTML(*bodyHTML)
 	_, err = w.db().Exec("UPDATE references_t SET title = ?, summary = ?, body_text = ?, updated_at = ? WHERE id = ?", t, s, bodyText, now, current.ID)
 	return err
 }

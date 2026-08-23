@@ -11,9 +11,14 @@ var refReviseCmd = &cobra.Command{
 	Short: "Revise an existing reference document",
 	Long: `Overwrite a reference's content in place. The slug and filename are unchanged.
 
+At least one of --body-file, --title, or --summary is required. A
+metadata-only revise (--title/--summary without --body-file) leaves the
+reference file and its search text untouched.
+
 Examples:
   pharos reference revise sql-syntax --body-file /tmp/new-ref.html
-  pharos reference revise sql-syntax --body-file /tmp/new-ref.html --title "Updated Title"`,
+  pharos reference revise sql-syntax --body-file /tmp/new-ref.html --title "Updated Title"
+  pharos reference revise sql-syntax --title "Renamed" --summary "Metadata-only revise"`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -25,24 +30,12 @@ Examples:
 			return err
 		}
 
-		bodyFile, _ := cmd.Flags().GetString("body-file")
-		if bodyFile == "" {
-			return fmt.Errorf("--body-file is required")
-		}
-		data, err := readBodyFile(bodyFile)
+		in, err := parseReviseInputs(cmd, fmt.Sprintf("pharos reference revise %s --title \"New Title\" --summary \"Updated summary\"", slug))
 		if err != nil {
 			return err
 		}
 
-		var titlePtr, summaryPtr *string
-		if v, _ := cmd.Flags().GetString("title"); v != "" {
-			titlePtr = &v
-		}
-		if v, _ := cmd.Flags().GetString("summary"); v != "" {
-			summaryPtr = &v
-		}
-
-		if err := wsStore.ReviseRef(slug, string(data), titlePtr, summaryPtr); err != nil {
+		if err := wsStore.ReviseRef(slug, in.body, in.title, in.summary); err != nil {
 			return formatError("failed to revise reference", err)
 		}
 
@@ -65,7 +58,7 @@ Examples:
 func init() {
 	refCmd.AddCommand(refReviseCmd)
 	refReviseCmd.Flags().StringP("workspace", "w", "", "Workspace name")
-	refReviseCmd.Flags().String("body-file", "", "Read reference HTML content from a file (required)")
+	refReviseCmd.Flags().String("body-file", "", "Read reference HTML content from a file (replaces the existing body)")
 	refReviseCmd.Flags().String("title", "", "Update the reference title")
 	refReviseCmd.Flags().String("summary", "", "Update the reference summary")
 }

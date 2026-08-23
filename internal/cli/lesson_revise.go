@@ -12,10 +12,14 @@ var lessonReviseCmd = &cobra.Command{
 	Short: "Revise an existing lesson",
 	Long: `Overwrite a lesson's content in place. The sequence number and filename are unchanged.
 
+At least one of --body-file, --title, or --summary is required. A
+metadata-only revise (--title/--summary without --body-file) leaves the
+lesson file and its search text untouched.
+
 Examples:
   pharos lesson revise 3 --body-file /tmp/new-lesson.html
   pharos lesson revise 3 --body-file /tmp/new-lesson.html --title "Updated Title"
-  pharos lesson revise 3 --body-file /tmp/new-lesson.html --summary "Updated summary"`,
+  pharos lesson revise 3 --title "Renamed" --summary "Metadata-only revise"`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -30,24 +34,12 @@ Examples:
 			return err
 		}
 
-		bodyFile, _ := cmd.Flags().GetString("body-file")
-		if bodyFile == "" {
-			return fmt.Errorf("--body-file is required")
-		}
-		data, err := readBodyFile(bodyFile)
+		in, err := parseReviseInputs(cmd, fmt.Sprintf("pharos lesson revise %d --title \"New Title\" --summary \"Updated summary\"", seq))
 		if err != nil {
 			return err
 		}
 
-		var titlePtr, summaryPtr *string
-		if v, _ := cmd.Flags().GetString("title"); v != "" {
-			titlePtr = &v
-		}
-		if v, _ := cmd.Flags().GetString("summary"); v != "" {
-			summaryPtr = &v
-		}
-
-		if err := wsStore.ReviseLesson(seq, string(data), titlePtr, summaryPtr); err != nil {
+		if err := wsStore.ReviseLesson(seq, in.body, in.title, in.summary); err != nil {
 			return formatError("failed to revise lesson", err)
 		}
 
@@ -75,7 +67,7 @@ Examples:
 func init() {
 	lessonCmd.AddCommand(lessonReviseCmd)
 	lessonReviseCmd.Flags().StringP("workspace", "w", "", "Workspace name")
-	lessonReviseCmd.Flags().String("body-file", "", "Read lesson HTML content from a file (required)")
+	lessonReviseCmd.Flags().String("body-file", "", "Read lesson HTML content from a file (replaces the existing body)")
 	lessonReviseCmd.Flags().String("title", "", "Update the lesson title")
 	lessonReviseCmd.Flags().String("summary", "", "Update the lesson summary")
 }

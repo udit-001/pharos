@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 // goos is overridable in tests so the Windows-specific branch can be
@@ -31,6 +33,46 @@ func defaultCygpathToWindows(path string) (string, error) {
 // UNC paths (//server/share) are excluded.
 func looksLikeMSYSPath(p string) bool {
 	return strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "//")
+}
+
+// reviseInputs bundles the optional fields shared by content-revise
+// commands. A nil field means "leave unchanged"; ParseReviseInputs guarantees
+// at least one is set.
+type reviseInputs struct {
+	body    *string // replacement body, loaded from --body-file
+	title   *string // replacement title, from --title
+	summary *string // replacement summary, from --summary
+}
+
+// parseReviseInputs reads --body-file, --title, and --summary off cmd,
+// loading the body file when present. A call that would change nothing is an
+// error whose message shows the positive path: hint is the command-specific
+// metadata-only example line.
+func parseReviseInputs(cmd *cobra.Command, hint string) (*reviseInputs, error) {
+	bodyFile, _ := cmd.Flags().GetString("body-file")
+	titleFlag, _ := cmd.Flags().GetString("title")
+	summaryFlag, _ := cmd.Flags().GetString("summary")
+
+	in := &reviseInputs{}
+	if titleFlag != "" {
+		in.title = &titleFlag
+	}
+	if summaryFlag != "" {
+		in.summary = &summaryFlag
+	}
+	if bodyFile != "" {
+		data, err := readBodyFile(bodyFile)
+		if err != nil {
+			return nil, err
+		}
+		b := string(data)
+		in.body = &b
+	}
+
+	if in.body == nil && in.title == nil && in.summary == nil {
+		return nil, fmt.Errorf("nothing to revise — pass --body-file, --title, and/or --summary\n  metadata only:  %s", hint)
+	}
+	return in, nil
 }
 
 // readBodyFile reads the --body-file path and rejects empty content.

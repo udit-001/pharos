@@ -90,6 +90,14 @@ func newRootForTest() *cobra.Command {
 		f.Changed = false
 		f.Value.Set("")
 	}
+	// lesson/reference revise flags leak the same way (metadata-only revise
+	// tests set --title/--summary without --body-file).
+	resetScratchFlag(lessonReviseCmd, "body-file", "")
+	resetScratchFlag(lessonReviseCmd, "title", "")
+	resetScratchFlag(lessonReviseCmd, "summary", "")
+	resetScratchFlag(refReviseCmd, "body-file", "")
+	resetScratchFlag(refReviseCmd, "title", "")
+	resetScratchFlag(refReviseCmd, "summary", "")
 	return rootCmd
 }
 

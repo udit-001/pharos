@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func newTestStore(t *testing.T) *Store {
@@ -1050,7 +1051,8 @@ func TestFTSUpdateTriggerResyncsOnIndexedColumnChange(t *testing.T) {
 	}
 
 	newTitle := "banjo"
-	if err := ws.ReviseLesson(int(l.SequenceNumber), "<p>body content</p>", &newTitle, nil); err != nil {
+	unchangedBody := "<p>body content</p>"
+	if err := ws.ReviseLesson(int(l.SequenceNumber), &unchangedBody, &newTitle, nil); err != nil {
 		t.Fatalf("ReviseLesson: %v", err)
 	}
 
@@ -1063,6 +1065,137 @@ func TestFTSUpdateTriggerResyncsOnIndexedColumnChange(t *testing.T) {
 		t.Fatalf("Search old title: %v", err)
 	} else if len(results) != 0 {
 		t.Errorf("expected old title gone from index, got %d results", len(results))
+	}
+}
+
+// TestReviseLessonMetadataOnly proves a nil bodyHTML is a metadata-only
+// revise: the lesson file and its indexed body_text are untouched; only
+// title/summary/updated_at move.
+func TestReviseLessonMetadataOnly(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "meta-l")
+
+	l, err := ws.CreateLesson("guitar", "<p>fretboard</p>")
+	if err != nil {
+		t.Fatalf("CreateLesson: %v", err)
+	}
+	before, err := ws.GetLessonBySeq(int(l.SequenceNumber))
+	if err != nil {
+		t.Fatalf("GetLessonBySeq: %v", err)
+	}
+	bodyPath := ws.Layout().LessonPath(before.Filename)
+	bodyBefore, err := os.ReadFile(bodyPath)
+	if err != nil {
+		t.Fatalf("read lesson file: %v", err)
+	}
+
+	newTitle, newSummary := "banjo", "five strings"
+	if err := ws.ReviseLesson(int(l.SequenceNumber), nil, &newTitle, &newSummary); err != nil {
+		t.Fatalf("ReviseLesson metadata-only: %v", err)
+	}
+
+	after, err := ws.GetLessonBySeq(int(l.SequenceNumber))
+	if err != nil {
+		t.Fatalf("GetLessonBySeq after: %v", err)
+	}
+	if after.Title != newTitle || after.Summary != newSummary {
+		t.Errorf("metadata not updated: title=%q summary=%q", after.Title, after.Summary)
+	}
+	if after.BodyText != before.BodyText {
+		t.Errorf("body_text changed on metadata-only revise: %q -> %q", before.BodyText, after.BodyText)
+	}
+	if bodyAfter, err := os.ReadFile(bodyPath); err != nil {
+		t.Fatalf("reread lesson file: %v", err)
+	} else if string(bodyAfter) != string(bodyBefore) {
+		t.Errorf("lesson file changed on metadata-only revise")
+	}
+	beforeAt, err := time.Parse(time.RFC3339Nano, before.UpdatedAt)
+	if err != nil {
+		t.Fatalf("parse updated_at %q: %v", before.UpdatedAt, err)
+	}
+	afterAt, err := time.Parse(time.RFC3339Nano, after.UpdatedAt)
+	if err != nil {
+		t.Fatalf("parse updated_at %q: %v", after.UpdatedAt, err)
+	}
+	if !afterAt.After(beforeAt) {
+		t.Errorf("updated_at should advance on metadata-only revise: %s -> %s", before.UpdatedAt, after.UpdatedAt)
+	}
+}
+
+// TestReviseRefMetadataOnly mirrors TestReviseLessonMetadataOnly for
+// references: nil bodyHTML keeps the file and body_text untouched.
+func TestReviseRefMetadataOnly(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "meta-r")
+
+	ref, err := ws.CreateRef("SQL Joins", "<p>join syntax</p>")
+	if err != nil {
+		t.Fatalf("CreateRef: %v", err)
+	}
+	before, err := ws.GetRefBySlug(ref.Slug)
+	if err != nil {
+		t.Fatalf("GetRefBySlug: %v", err)
+	}
+	bodyPath := ws.Layout().RefPath(before.Filename)
+	bodyBefore, err := os.ReadFile(bodyPath)
+	if err != nil {
+		t.Fatalf("read reference file: %v", err)
+	}
+
+	newTitle, newSummary := "SQL JOINs", "how joins combine rows"
+	if err := ws.ReviseRef(ref.Slug, nil, &newTitle, &newSummary); err != nil {
+		t.Fatalf("ReviseRef metadata-only: %v", err)
+	}
+
+	after, err := ws.GetRefBySlug(ref.Slug)
+	if err != nil {
+		t.Fatalf("GetRefBySlug after: %v", err)
+	}
+	if after.Title != newTitle || after.Summary != newSummary {
+		t.Errorf("metadata not updated: title=%q summary=%q", after.Title, after.Summary)
+	}
+	if after.BodyText != before.BodyText {
+		t.Errorf("body_text changed on metadata-only revise: %q -> %q", before.BodyText, after.BodyText)
+	}
+	if bodyAfter, err := os.ReadFile(bodyPath); err != nil {
+		t.Fatalf("reread reference file: %v", err)
+	} else if string(bodyAfter) != string(bodyBefore) {
+		t.Errorf("reference file changed on metadata-only revise")
+	}
+}
+
+// TestReviseNoOpRejected pins the store-side invariant shared by the revise
+// family: a call with nothing to change is an error at the module itself,
+// not just at the CLI.
+func TestReviseNoOpRejected(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "noop")
+
+	l, err := ws.CreateLesson("guitar", "<p>fretboard</p>")
+	if err != nil {
+		t.Fatalf("CreateLesson: %v", err)
+	}
+	ref, err := ws.CreateRef("SQL Joins", "<p>join syntax</p>")
+	if err != nil {
+		t.Fatalf("CreateRef: %v", err)
+	}
+	q, err := ws.AddQuestion(Question{
+		Title:  "Capital of France",
+		Mode:   "choice",
+		Config: `{"options":["London","Paris","Berlin"],"key":1}`,
+	}, "")
+	if err != nil {
+		t.Fatalf("AddQuestion: %v", err)
+	}
+
+	if err := ws.ReviseLesson(int(l.SequenceNumber), nil, nil, nil); err == nil {
+		t.Error("ReviseLesson(all nil): expected error")
+	}
+	if err := ws.ReviseRef(ref.Slug, nil, nil, nil); err == nil {
+		t.Error("ReviseRef(all nil): expected error")
+	}
+	if _, err := ws.ReviseQuestion(q.Slug, nil, nil, nil, nil); err == nil {
+		t.Error("ReviseQuestion(all nil): expected error")
 	}
 }
 
