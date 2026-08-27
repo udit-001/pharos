@@ -17,7 +17,7 @@ import (
 
 // Vendored companion embeds — embedded files that ship alongside a
 // downloaded lib (mermaid-theme.js, highlight.css, the lightbox files). The
-// seeded universal files (style.css, glossary-tooltip.js, copy-code.js, the
+// seeded universal files (style.css, copy-code.js, the
 // Inter font) are embedded in internal/db/seed.go and referenced below as
 // db.SeedStyleCSS etc.
 
@@ -85,10 +85,6 @@ var knownAssets = map[string]db.AssetSpec{
 	"style": {
 		Source: "seeded",
 		Files:  map[string][]byte{"style.css": []byte(db.SeedStyleCSS)},
-	},
-	"glossary-tooltip": {
-		Source: "seeded",
-		Files:  map[string][]byte{"glossary-tooltip.js": []byte(db.SeedGlossaryTooltipJS)},
 	},
 	"copy-code": {
 		Source: "seeded",

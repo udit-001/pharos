@@ -18,8 +18,7 @@ redeploy overwrites user customizations to a file — consistent across
 vendored companions and seeded files.
 
 Examples:
-  pharos asset redeploy mermaid
-  pharos asset redeploy glossary-tooltip`,
+  pharos asset redeploy mermaid`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)

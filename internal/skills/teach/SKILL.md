@@ -31,8 +31,6 @@ Every workspace **mutation** goes through the CLI — never write **workspace** 
 
 Reading is scoped the same way. When the user hands you a **document** (PDF, DOCX, EPUB, notes) to learn from, it becomes a **source document** — read it only through `pharos document extract` / `pharos document query`, never with raw system tools. See [Grounding on source documents](#grounding-on-source-documents).
 
-The `-w` flag is optional — if you've set a current workspace with `pharos workspace use`, all commands default to it. `pharos workspace create` auto-sets the new workspace as current.
-
 The create/revise commands take content via `--body-file`, never inline — multiline HTML/MD breaks in the shell. Use the **`write` tool** to write content to a temp file, pass `--body-file <path>` to the CLI, then remove the temp file once the command succeeds:
 
 1. Use the `write` tool to write content to a temp file (e.g. `/tmp/pharos-content.html`)
@@ -113,7 +111,7 @@ HTML pages (lessons and references) are built from reusable **assets** in
   quantitative data plotted on axes), **highlightjs** for code highlighting
   (plus mermaid-lightbox for full-size diagram view), **katex** for math
   notation; and the framework's universal files (style.css,
-  glossary-tooltip.js, copy-code.js, the Inter font). Install with
+  copy-code.js, the Inter font). Install with
   `pharos asset add <name>`; force-sync to the current binary with
   `pharos asset redeploy <name>`. See [references/chart.md](references/chart.md)
   for the chart authoring recipe.
@@ -126,8 +124,6 @@ A shared stylesheet ships with every workspace (`assets/style.css`, seeded) —
 extend it rather than creating per-page styles. See [PAGE-THEME.md](./PAGE-THEME.md)
 for the design system (Nord palette, component patterns, theming
 conventions). As the workspace grows, so should the component library.
-
-Asset paths and contextual links follow the [iframe escape rules](references/pharos-cli.md#links-inside-lesson-html-iframe-escape) — never use `../` for assets or relative links for dashboard navigation.
 
 ## The Mission
 
@@ -220,15 +216,7 @@ References are addressed by **slug** (descriptive name derived from the title), 
 
 References are HTML files that render in the same iframe as lessons — they must link `assets/style.css` and follow the [PAGE-THEME.md](./PAGE-THEME.md) boilerplate (theme sync, root-relative asset paths, FOUC prevention). A reference that omits the stylesheet renders unstyled.
 
-Some learning topics lend themselves to reference:
-
-- Syntax and code snippets for programming
-- Algorithms and flowcharts for processes
-- Yoga poses and sequences for yoga
-- Exercises and routines for fitness
-- Glossaries for any topic with its own nomenclature
-
-Glossaries, in particular, are an essential reference. Once one is created, it should be adhered to in every lesson. When writing a lesson, fetch the glossary terms with `pharos glossary list --json` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — see [PAGE-THEME.md](./PAGE-THEME.md) for the tooltip convention.
+When writing a lesson, fetch glossary terms with `pharos glossary list --json` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — the server auto-injects the tooltip script. See [PAGE-THEME.md](./PAGE-THEME.md) for the convention.
 
 ## `NOTES.md`
 
@@ -236,6 +224,4 @@ The user will sometimes express preferences of how they want to be taught, or th
 
 After each session, check `NOTES.md` for user preferences before starting the next session. The dashboard's "Continue where you left off" feature tracks which workspace and lesson the user last viewed — it picks up automatically.
 
-## Followup Questions
 
-After presenting a lesson, ask the user in chat if they have any followup questions.

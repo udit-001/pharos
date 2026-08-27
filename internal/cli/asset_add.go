@@ -20,8 +20,7 @@ Use 'pharos asset list' to see available assets and which are present.
 
 Examples:
   pharos asset add mermaid
-  pharos asset add highlightjs
-  pharos asset add glossary-tooltip`,
+  pharos asset add highlightjs`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)

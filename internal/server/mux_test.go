@@ -361,6 +361,33 @@ func TestLessonHTMLNotFound(t *testing.T) {
 	}
 }
 
+func TestGlossaryTooltipAutoInjection(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Lesson WITH glossary-term — tooltip script should be injected.
+	withGlossary := `<html><head></head><body><span class="glossary-term" data-term="JOIN">a join</span></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "glossary-lesson.html"), []byte(withGlossary), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "Glossary", Filename: "glossary-lesson.html"})
+
+	rec := env.get(t, "/api/lesson-html/alpha/glossary-lesson.html")
+	body := rec.Body.String()
+	if !strings.Contains(body, "glossary-tooltip.js") {
+		t.Error("lesson with glossary-term should auto-inject glossary-tooltip.js")
+	}
+
+	// Lesson WITHOUT glossary-term — tooltip script should NOT be injected.
+	withoutGlossary := `<html><head></head><body><p>No glossary here</p></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "plain-lesson.html"), []byte(withoutGlossary), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "Plain", Filename: "plain-lesson.html"})
+
+	rec = env.get(t, "/api/lesson-html/alpha/plain-lesson.html")
+	body = rec.Body.String()
+	if strings.Contains(body, "glossary-tooltip.js") {
+		t.Error("lesson without glossary-term should NOT inject glossary-tooltip.js")
+	}
+}
+
 func TestDashboardContinueCard(t *testing.T) {
 	env := newTestEnv(t)
 

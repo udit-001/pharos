@@ -23,9 +23,6 @@ var SeedStyleCSS string
 //go:embed seed/fonts/inter-latin.woff2
 var SeedInterLatinWOFF2 []byte
 
-//go:embed seed/glossary-tooltip.js
-var SeedGlossaryTooltipJS string
-
 //go:embed seed/copy-code.js
 var SeedCopyCodeJS string
 
@@ -49,7 +46,6 @@ func seedWorkspaceDefaults(layout Layout, displayName string) error {
 		content string
 	}{
 		{layout.AssetPath("style.css"), SeedStyleCSS},
-		{layout.AssetPath("glossary-tooltip.js"), SeedGlossaryTooltipJS},
 		{layout.AssetPath("copy-code.js"), SeedCopyCodeJS},
 		{layout.MissionPath(), strings.ReplaceAll(seedMissionMD, "{{DISPLAY_NAME}}", displayName)},
 		{layout.ResourcesPath(), strings.ReplaceAll(seedResourcesMD, "{{DISPLAY_NAME}}", displayName)},

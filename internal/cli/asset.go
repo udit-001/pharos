@@ -31,7 +31,7 @@ var assetListCmd = &cobra.Command{
 	Long: `List assets in the workspace's assets/ directory, grouped by source:
 
   Seeded   — universal defaults every workspace starts with (style.css,
-             glossary-tooltip.js, copy-code.js, the Inter font).
+             copy-code.js, the Inter font).
    Vendored — third-party libraries added on demand (mermaid, highlightjs,
               katex, vega, mermaid-lightbox).
   User     — components authored with 'pharos asset create'.

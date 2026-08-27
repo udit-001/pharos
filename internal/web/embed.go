@@ -45,3 +45,6 @@ var PharosHighlightsJS []byte
 
 //go:embed pharos-scroll.js
 var PharosScrollJS []byte
+
+//go:embed glossary-tooltip.js
+var GlossaryTooltipJS []byte

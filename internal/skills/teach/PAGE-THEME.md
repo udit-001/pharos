@@ -122,7 +122,7 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 
 Key rules:
 - **No `data-theme` on `<html>`** — the blocking script sets it dynamically
-- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), optional glossary tooltip (`<script src="assets/glossary-tooltip.js">`), `<script src="assets/copy-code.js">`, and postMessage listener
+- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), `<script src="assets/copy-code.js">`, and postMessage listener. Glossary tooltip is auto-injected by the server when `glossary-term` classes are present — no manual script tag needed.
 - **CSS links are root-relative** — no `../`; see [references/pharos-cli.md](references/pharos-cli.md#links-inside-lesson-html-iframe-escape) for why
 
 ---
@@ -369,13 +369,7 @@ The <span class="glossary-term" data-term="Hypertrophy">Hypertrophy</span>
 response drives muscle growth.
 ```
 
-**Tooltip CSS + JS** — both are seeded in `assets/` at workspace creation and linked automatically by pages that already include `<link rel="stylesheet" href="assets/style.css">`. The only addition needed is the script reference before `</body>` (before the postMessage listener):
-
-```html
-<script src="assets/glossary-tooltip.js"></script>
-```
-
-The JS fetches definitions from `GET /api/workspaces/name/{name}/glossary-terms` at runtime — no definitions are baked into the page HTML. The workspace name is extracted from the iframe URL automatically.
+**Tooltip CSS + JS** — the CSS is seeded in `assets/style.css` at workspace creation. The JS is auto-injected by the server when it detects `glossary-term` classes in the HTML — no manual script tag needed. Just wrap terms with `<span class="glossary-term" data-term="...">` and the server handles the rest.
 
 **Don't wrap every occurrence.** Use judgement: wrap the first occurrence in a section, or where re-reading the definition aids understanding. Over-wrapping makes text noisy and trains readers to ignore tooltips.
 
@@ -399,4 +393,4 @@ Blocks where typing builds storage strength — skill-phase exercise code — us
 2. **Dark mode is free** — switching `data-theme` toggles all variable values; using variables makes it work automatically
 3. **No dashboard chrome in pages** — the dashboard owns navigation
 4. **Reusable components live in `assets/`** — extract shared CSS with `pharos asset create`
-5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css` and `assets/glossary-tooltip.js` should be purely presentational/behavioural, not theme-detection
+5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css` should be purely presentational/behavioural, not theme-detection

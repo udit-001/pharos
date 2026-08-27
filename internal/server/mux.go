@@ -1527,6 +1527,7 @@ var jsBundles = map[string][]byte{
 	"pharos-iframe-bridge.js": web.PharosIframeBridgeJS,
 	"pharos-highlights.js":    web.PharosHighlightsJS,
 	"pharos-scroll.js":        web.PharosScrollJS,
+	"glossary-tooltip.js":     web.GlossaryTooltipJS,
 }
 
 func handleJSBundle(w http.ResponseWriter, r *http.Request) {
@@ -1600,6 +1601,10 @@ func serveIframeHTML(w http.ResponseWriter, path, kind, file string, cfg iframeC
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// Don't cache HTML files that may change via injection configuration.
 	w.Header().Set("Cache-Control", "no-cache")
+	// Auto-inject glossary tooltip when the content uses glossary-term classes.
+	if bytes.Contains(data, []byte("glossary-term")) {
+		scripts = append(scripts, "glossary-tooltip.js")
+	}
 	data = injectIframeConfig(data, cfg)
 	w.Write(injectFrameScripts(data, scripts...))
 }
