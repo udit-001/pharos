@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,6 +12,30 @@ import (
 
 	"github.com/udit-001/pharos/internal/extract"
 )
+
+// snapshotDB copies the SQLite database file to backupPath.
+// Safe under WAL mode — provides a consistent point-in-time copy.
+func snapshotDB(path, backupPath string) error {
+	os.Remove(backupPath)
+	src, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.Create(backupPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	_, err = io.Copy(dst, src)
+	return err
+}
+
+// restoreDB replaces the database with the backup. Called on migration failure.
+func restoreDB(path, backupPath string) {
+	os.Remove(path)
+	os.Rename(backupPath, path)
+}
 
 // backfillSlugs assigns slugs to lessons and learning_records, rewrites
 // seq-based in-lesson links, and adds uniqueness constraints.

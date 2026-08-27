@@ -78,10 +78,20 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
 
+	// Snapshot DB before migrations so we can restore on failure.
+	snapshotPath := path + ".pre-migrate"
+	if err := snapshotDB(path, snapshotPath); err != nil {
+		return nil, fmt.Errorf("snapshot db: %w", err)
+	}
+
 	// Run goose migrations
 	if err := migrate.Up(db.DB); err != nil {
+		restoreDB(path, snapshotPath)
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
+
+	// Migrations succeeded — clean up snapshot.
+	os.Remove(snapshotPath)
 
 	// Backfill slugs for lessons and learning records.
 	// All operations are idempotent — safe to re-run on restart.
