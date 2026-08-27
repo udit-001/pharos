@@ -84,8 +84,8 @@ func Open(path string) (*Store, error) {
 	}
 
 	// Backfill slugs for lessons and learning records.
-	// Snapshot DB before backfill so we can restore on failure.
-	if err := backfillSlugsWithSnapshot(db.DB, path); err != nil {
+	// All operations are idempotent — safe to re-run on restart.
+	if err := backfillSlugs(db.DB); err != nil {
 		return nil, fmt.Errorf("backfill slugs: %w", err)
 	}
 

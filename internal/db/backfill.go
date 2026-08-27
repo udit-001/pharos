@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,51 +12,8 @@ import (
 	"github.com/udit-001/pharos/internal/extract"
 )
 
-// snapshotDB copies the SQLite database file to backupPath.
-// Uses io.Copy — safe because WAL mode ensures a consistent read.
-func snapshotDB(path, backupPath string) error {
-	os.Remove(backupPath) // idempotent — remove stale backup
-	src, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-	dst, err := os.Create(backupPath)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-	_, err = io.Copy(dst, src)
-	return err
-}
-
-// restoreDB replaces the database with the backup. Called on migration failure.
-func restoreDB(path, backupPath string) {
-	os.Remove(path)
-	os.Rename(backupPath, path)
-}
-
-// backfillSlugsWithSnapshot wraps backfillSlugs with snapshot/restore.
-// On any failure, the original DB is restored from the snapshot.
-func backfillSlugsWithSnapshot(db *sql.DB, dbPath string) error {
-	// Snapshot the database.
-	snapshotPath := dbPath + ".pre-slug"
-	if err := snapshotDB(dbPath, snapshotPath); err != nil {
-		return fmt.Errorf("snapshot db: %w", err)
-	}
-
-	if err := backfillSlugs(db); err != nil {
-		restoreDB(dbPath, snapshotPath)
-		return err
-	}
-
-	// Success — clean up snapshot.
-	os.Remove(snapshotPath)
-	return nil
-}
-
-// backfillSlugs assigns slugs to lessons and learning_records, renames files,
-// rewrites seq-based in-lesson links, and adds uniqueness constraints.
+// backfillSlugs assigns slugs to lessons and learning_records, rewrites
+// seq-based in-lesson links, and adds uniqueness constraints.
 // Idempotent — safe to call multiple times.
 func backfillSlugs(db *sql.DB) error {
 	// Check if slug column exists (pre-migration databases).
