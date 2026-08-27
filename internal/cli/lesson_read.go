@@ -14,21 +14,17 @@ var lessonReadCmd = &cobra.Command{
 	Long: `Print a lesson's metadata and body content. Use --meta-only to skip the body.
 
 Examples:
-  pharos lesson read 3
-  pharos lesson read 3 --meta-only
-  pharos lesson read 3 --json`,
+  pharos lesson read sql-joins
+  pharos lesson read sql-joins --meta-only
+  pharos lesson read sql-joins --json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runRead(cmd, readSpec[db.Lesson]{
 			fetch:    func(ws *db.WorkspaceStore) ([]db.Lesson, error) { return ws.GetLessons() },
 			errLabel: "failed to get lessons",
 			findItem: func(items []db.Lesson, key string) (*db.Lesson, error) {
-				n, err := parseSeq(key)
-				if err != nil {
-					return nil, err
-				}
 				for i := range items {
-					if items[i].SequenceNumber == n {
+					if items[i].Slug == key {
 						return &items[i], nil
 					}
 				}
@@ -37,14 +33,13 @@ Examples:
 			keyName: "lesson",
 			jsonOut: func(item db.Lesson, ws db.Workspace, wsStore *db.WorkspaceStore) map[string]any {
 				m := map[string]any{
-					"sequenceNumber": item.SequenceNumber,
-					"title":          item.Title,
-					"filename":       item.Filename,
-					"summary":        item.Summary,
-					"createdAt":      item.CreatedAt,
-					"updatedAt":      item.UpdatedAt,
+					"slug":      item.Slug,
+					"title":     item.Title,
+					"summary":   item.Summary,
+					"createdAt": item.CreatedAt,
+					"updatedAt": item.UpdatedAt,
 				}
-				linkedQuizzes, _ := wsStore.LessonContent().QuizzesForLesson(item.SequenceNumber)
+				linkedQuizzes, _ := wsStore.LessonContent().QuizzesForLesson(item.Slug)
 				if len(linkedQuizzes) > 0 {
 					slugs := make([]string, len(linkedQuizzes))
 					for i, q := range linkedQuizzes {
@@ -60,7 +55,7 @@ Examples:
 				fmt.Printf("  Summary: %s\n", item.Summary)
 				fmt.Printf("  Created: %s\n", item.CreatedAt)
 				fmt.Printf("  Updated: %s\n", item.UpdatedAt)
-				linkedQuizzes, _ := wsStore.LessonContent().QuizzesForLesson(item.SequenceNumber)
+				linkedQuizzes, _ := wsStore.LessonContent().QuizzesForLesson(item.Slug)
 				if len(linkedQuizzes) > 0 {
 					slugs := make([]string, len(linkedQuizzes))
 					for i, q := range linkedQuizzes {

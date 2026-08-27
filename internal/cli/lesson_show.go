@@ -6,22 +6,19 @@ import (
 )
 
 var lessonShowCmd = &cobra.Command{
-	Use:   "show <seq>",
+	Use:   "show <slug>",
 	Short: "Get a lesson's dashboard URL",
 	Long: `Print the dashboard URL for viewing a lesson.
 
 Examples:
-  pharos lesson show 3
-  pharos lesson show 3 --json`,
+  pharos lesson show sql-joins
+  pharos lesson show sql-joins --json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		n, err := parseSeq(args[0])
-		if err != nil {
-			return err
-		}
+		slug := args[0]
 		return runShow(cmd, showSpec{
 			urlPath: func(wsName string) string {
-				return urls.Lesson(wsName, n)
+				return urls.Lesson(wsName, slug)
 			},
 			label: "lesson",
 		})

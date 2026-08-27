@@ -28,27 +28,23 @@ func parseSeq(s string) (int, error) {
 	return n, nil
 }
 
-// parseLessonFlag reads the optional --lesson flag (a lesson sequence number
-// linking a quiz to the lesson whose skill it practices). Returns (seq, hasFlag,
-// err); when the flag is empty, hasFlag is false so callers can leave the link
-// unset. Shared by `quiz create` and `quiz revise`.
-func parseLessonFlag(cmd *cobra.Command) (int, bool, error) {
+// parseLessonFlag reads the optional --lesson flag (a lesson slug linking a
+// quiz to the lesson whose skill it practices). Returns (slug, hasFlag, err);
+// when the flag is empty, hasFlag is false so callers can leave the link unset.
+// Shared by `quiz create` and `quiz revise`.
+func parseLessonFlag(cmd *cobra.Command) (string, bool, error) {
 	raw, _ := cmd.Flags().GetString("lesson")
 	if strings.TrimSpace(raw) == "" {
-		return 0, false, nil
+		return "", false, nil
 	}
-	seq, err := parseSeq(raw)
-	if err != nil {
-		return 0, false, fmt.Errorf("--lesson %w", err)
-	}
-	return seq, true, nil
+	return strings.TrimSpace(raw), true, nil
 }
 
-// lessonRef formats a quiz's lesson link for display: "#N" when linked, "—"
-// when not. Shared by quiz read/list/attempts/show.
-func lessonRef(seq *int) string {
-	if seq == nil {
+// lessonRef formats a quiz's lesson link for display: the slug when linked,
+// "—" when not. Shared by quiz show/attempts.
+func lessonRef(slug *string) string {
+	if slug == nil {
 		return "—"
 	}
-	return fmt.Sprintf("#%d", *seq)
+	return *slug
 }

@@ -83,6 +83,12 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
+	// Backfill slugs for lessons and learning records.
+	// Snapshot DB before backfill so we can restore on failure.
+	if err := backfillSlugsWithSnapshot(db.DB, path); err != nil {
+		return nil, fmt.Errorf("backfill slugs: %w", err)
+	}
+
 	store := &Store{db: db}
 
 	return store, nil

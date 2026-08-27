@@ -120,7 +120,7 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /workspace/{name}/resources", handleDocPage(store, "resources"))
 	mux.HandleFunc("GET /workspace/{name}/glossary", handleGlossaryPage(store))
 	mux.HandleFunc("GET /workspace/{name}/notes", handleDocPage(store, "notes"))
-	mux.HandleFunc("GET /workspace/{name}/lesson/{seq}", handleLessonPage(store))
+	mux.HandleFunc("GET /workspace/{name}/lesson/{id}", handleLessonPage(store))
 	mux.HandleFunc("GET /workspace/{name}/record/{seq}", handleRecordPage(store))
 	mux.HandleFunc("GET /workspace/{name}/ref/{slug}", handleRefPage(store))
 	mux.HandleFunc("GET /workspace/{name}/quizzes", handleQuizLibraryPage(store))
@@ -129,7 +129,7 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /workspace/{name}/quiz/{slug}/attempt/{attemptID}", handleQuizAttemptPage(store))
 	mux.HandleFunc("GET /workspace/{name}/quiz/{slug}/review/{attemptID}", handleQuizReviewPage(store))
 	mux.HandleFunc("GET /about", handleAboutPage(store))
-	mux.HandleFunc("GET /api/lesson-html/{name}/{file}", handleLessonHTML(store))
+	mux.HandleFunc("GET /api/lesson-html/{name}/{id}", handleLessonHTML(store))
 	mux.HandleFunc("GET /api/ref-html/{name}/{file}", handleRefHTML(store))
 	mux.HandleFunc("GET /api/question-html/{name}/{file}", handleQuestionHTML(store))
 	mux.HandleFunc("GET /api/lesson-html/{name}/assets/{file...}", handleAssetFile(store))
@@ -214,7 +214,7 @@ func toRenderWorkspace(ws db.Workspace, lessonCount, recordCount, refCount int) 
 func toRenderLessons(ls []db.SidebarLesson) []render.LessonEntry {
 	out := make([]render.LessonEntry, len(ls))
 	for i, l := range ls {
-		out[i] = render.LessonEntry{Seq: l.Seq, Title: l.Title}
+		out[i] = render.LessonEntry{Seq: l.Seq, Slug: l.Slug, Title: l.Title}
 	}
 	return out
 }
@@ -222,7 +222,7 @@ func toRenderLessons(ls []db.SidebarLesson) []render.LessonEntry {
 func toRenderRecords(rs []db.SidebarRecord) []render.RecordEntry {
 	out := make([]render.RecordEntry, len(rs))
 	for i, r := range rs {
-		out[i] = render.RecordEntry{Seq: r.Seq, Title: r.Title, Status: r.Status, Summary: r.Summary}
+		out[i] = render.RecordEntry{Seq: r.Seq, Slug: r.Slug, Title: r.Title, Status: r.Status, Summary: r.Summary}
 	}
 	return out
 }
@@ -529,7 +529,7 @@ func handleSearch(store *db.Store) http.HandlerFunc {
 func searchResultURL(r db.SearchResult) string {
 	switch r.Type {
 	case "lesson":
-		return urls.Lesson(r.WorkspaceName, r.SequenceNumber)
+		return urls.Lesson(r.WorkspaceName, r.Slug)
 	case "record":
 		return urls.Record(r.WorkspaceName, r.SequenceNumber)
 	case "ref":
@@ -638,20 +638,20 @@ func handleWorkspacePage(store *db.Store) http.HandlerFunc {
 		}
 
 		var continueItem *render.ContinueItem
-		if ws.LastLessonSeq != nil && *ws.LastLessonSeq > 0 {
+		if ws.LastLessonSlug != nil && *ws.LastLessonSlug != "" {
 			for _, l := range sd.Lessons {
-				if l.Seq == *ws.LastLessonSeq {
+				if l.Slug == *ws.LastLessonSlug {
 					continueItem = &render.ContinueItem{
-						URL:   urls.Lesson(name, l.Seq),
+						URL:   urls.Lesson(name, l.Slug),
 						Label: "Continue: " + l.Title,
 					}
 					break
 				}
 			}
-		} else if ws.LastRefSeq != nil && *ws.LastRefSeq > 0 {
+		} else if ws.LastRefSlug != nil && *ws.LastRefSlug != "" {
 			if refs, err := wsStore.GetRefs(); err == nil {
 				for _, ref := range refs {
-					if ref.ID == int64(*ws.LastRefSeq) {
+					if ref.Slug == *ws.LastRefSlug {
 						continueItem = &render.ContinueItem{
 							URL:   urls.Ref(name, ref.Slug),
 							Label: "Continue: " + ref.Title,
@@ -762,7 +762,7 @@ func handleGlossaryPage(store *db.Store) http.HandlerFunc {
 func handleLessonPage(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
-		seq, _ := strconv.Atoi(r.PathValue("seq"))
+		id := r.PathValue("id")
 
 		wsStore, err := store.Workspace(name)
 		if err != nil {
@@ -770,11 +770,26 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 			return
 		}
 
-		current, err := wsStore.GetLessonBySeq(seq)
-		if err != nil {
-			sd, _ := wsStore.GetSidebarData()
-			writeNotFound(w, &sd, "Lesson not found", fmt.Sprintf("Lesson #%d doesn't exist in this workspace.", seq))
+		// Auto-detect: if id is all digits, treat as sequence number (backward compat).
+		// Otherwise treat as slug (canonical form).
+		var current *db.Lesson
+		if seq, err := strconv.Atoi(id); err == nil {
+			current, err = wsStore.GetLessonBySeq(seq)
+			if err != nil {
+				sd, _ := wsStore.GetSidebarData()
+				writeNotFound(w, &sd, "Lesson not found", fmt.Sprintf("Lesson #%d doesn't exist in this workspace.", seq))
+				return
+			}
+			// Redirect to canonical slug URL.
+			http.Redirect(w, r, urls.Lesson(name, current.Slug), http.StatusSeeOther)
 			return
+		} else {
+			current, err = wsStore.GetLessonBySlug(id)
+			if err != nil {
+				sd, _ := wsStore.GetSidebarData()
+				writeNotFound(w, &sd, "Lesson not found", fmt.Sprintf("Lesson %q doesn't exist in this workspace.", id))
+				return
+			}
 		}
 
 		sd, err := wsStore.GetSidebarData()
@@ -785,12 +800,12 @@ func handleLessonPage(store *db.Store) http.HandlerFunc {
 
 		data := render.LessonData{
 			Title:  current.Title,
-			RawURL: fmt.Sprintf("/api/lesson-html/%s/%s", urls.PathEscape(name), urls.PathEscape(current.Filename)),
-			Seq:    seq,
+			RawURL: fmt.Sprintf("/api/lesson-html/%s/%s", urls.PathEscape(name), urls.PathEscape(current.Slug)),
+			Seq:    current.SequenceNumber,
 			Total:  len(sd.Lessons),
 		}
-		wsStore.SetLastViewed("lesson", seq)
-		writePage(w, &sd, current.Title, name, "lesson", seq, "", render.Lesson(data))
+		wsStore.SetLastViewed("lesson", current.Slug)
+		writePage(w, &sd, current.Title, name, "lesson", 0, current.Slug, render.Lesson(data))
 	}
 }
 
@@ -824,7 +839,7 @@ func handleRecordPage(store *db.Store) http.HandlerFunc {
 		}
 
 		data := render.RecordData{Title: current.Title, Status: current.Status, BodyHTML: markdown.Render(string(mdData))}
-		wsStore.SetLastViewed("record", seq)
+		wsStore.SetLastViewed("record", current.Slug)
 		sd, _ := wsStore.GetSidebarData()
 		writePage(w, &sd, current.Title, name, "record", seq, "", render.Record(data))
 	}
@@ -854,7 +869,7 @@ func handleRefPage(store *db.Store) http.HandlerFunc {
 			Title:  current.Title,
 			RawURL: fmt.Sprintf("/api/ref-html/%s/%s", urls.PathEscape(name), urls.PathEscape(current.Filename)),
 		}
-		wsStore.SetLastViewed("ref", int(current.ID))
+		wsStore.SetLastViewed("ref", current.Slug)
 		sd, _ := wsStore.GetSidebarData()
 		writePage(w, &sd, current.Title, name, "ref", 0, slug, render.Ref(data))
 	}
@@ -1403,7 +1418,7 @@ func handleNotify(b *Broker) http.HandlerFunc {
 func handleLessonHTML(store *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
-		file := r.PathValue("file")
+		id := r.PathValue("id")
 		wsStore, err := store.Workspace(name)
 		if err != nil {
 			iframeNotFound(w, "workspace", name)
@@ -1411,10 +1426,21 @@ func handleLessonHTML(store *db.Store) http.HandlerFunc {
 		}
 		ws := wsStore.Workspace()
 		cfg := iframeConfig{}
-		if lesson, err := wsStore.GetLessonByFilename(file); err == nil {
-			cfg = iframeConfig{workspace: name, docType: "lesson", docID: lesson.ID}
+
+		// Resolve: try slug first, then filename.
+		var lesson *db.Lesson
+		if l, err := wsStore.GetLessonBySlug(id); err == nil {
+			lesson = l
+		} else if l, err := wsStore.GetLessonByFilename(id); err == nil {
+			lesson = l
 		}
-		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", file), "lesson", file, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
+		if lesson != nil {
+			cfg = iframeConfig{workspace: name, docType: "lesson", docID: lesson.ID}
+			serveIframeHTML(w, filepath.Join(ws.Path, "lessons", lesson.Filename), "lesson", lesson.Filename, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
+			return
+		}
+		// Fallback: try as raw filename.
+		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", id), "lesson", id, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
 	}
 }
 

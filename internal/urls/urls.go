@@ -19,9 +19,9 @@ func Workspace(name string) string {
 	return fmt.Sprintf("/workspace/%s", PathEscape(name))
 }
 
-// Lesson returns a lesson page URL: /workspace/{name}/lesson/{seq}.
-func Lesson(ws string, seq int) string {
-	return fmt.Sprintf("/workspace/%s/lesson/%d", PathEscape(ws), seq)
+// Lesson returns a lesson page URL: /workspace/{name}/lesson/{slug}.
+func Lesson(ws, slug string) string {
+	return fmt.Sprintf("/workspace/%s/lesson/%s", PathEscape(ws), PathEscape(slug))
 }
 
 // Record returns a record page URL: /workspace/{name}/record/{seq}.

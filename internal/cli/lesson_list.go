@@ -38,13 +38,13 @@ Examples:
 			return formatError("failed to list lessons", err)
 		}
 
-		// Build the lesson -> quiz-slugs map once (reverse of Quiz.LessonSeq)
+		// Build the lesson -> quiz-slugs map once (reverse of Quiz.LessonSlug)
 		// so each row can show whether the lesson's skill is practiced.
-		quizByLesson := map[int][]string{}
+		quizByLesson := map[string][]string{}
 		if quizzes, qerr := wsStore.GetQuizzes(); qerr == nil {
 			for _, q := range quizzes {
-				if q.LessonSeq != nil {
-					quizByLesson[*q.LessonSeq] = append(quizByLesson[*q.LessonSeq], q.Slug)
+				if q.LessonSlug != nil {
+					quizByLesson[*q.LessonSlug] = append(quizByLesson[*q.LessonSlug], q.Slug)
 				}
 			}
 		}
@@ -53,12 +53,11 @@ Examples:
 			out := make([]map[string]any, 0, len(lessons))
 			for _, l := range lessons {
 				entry := map[string]any{
-					"sequenceNumber": l.SequenceNumber,
-					"title":          l.Title,
-					"filename":       l.Filename,
-					"summary":        l.Summary,
+					"slug":    l.Slug,
+					"title":   l.Title,
+					"summary": l.Summary,
 				}
-				if slugs, ok := quizByLesson[l.SequenceNumber]; ok {
+				if slugs, ok := quizByLesson[l.Slug]; ok {
 					entry["quizzes"] = slugs
 				}
 				out = append(out, entry)
@@ -80,13 +79,12 @@ Examples:
 		rows := make([][]string, 0, len(lessons))
 		for _, l := range lessons {
 			rows = append(rows, []string{
-				fmt.Sprintf("%d", l.SequenceNumber),
 				truncate(l.Title, 40),
-				l.Filename,
-				quizCell(quizByLesson[l.SequenceNumber]),
+				l.Slug,
+				quizCell(quizByLesson[l.Slug]),
 			})
 		}
-		fmt.Println(formatTable([]string{"#", "Title", "File", "Quiz"}, rows))
+		fmt.Println(formatTable([]string{"Title", "Slug", "Quiz"}, rows))
 		fmt.Println()
 		return nil
 	},

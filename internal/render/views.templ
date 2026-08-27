@@ -137,7 +137,7 @@ templ workspacePage(d WorkspaceData) {
 		} else {
 			for _, l := range d.Lessons {
 				<div class="py-2 border-b border-slate-100 last:border-0">
-					<a href={ urls.Lesson(ws.Name, l.Seq) } class="no-underline text-slate-800 flex justify-between items-center group">
+					<a href={ urls.Lesson(ws.Name, l.Slug) } class="no-underline text-slate-800 flex justify-between items-center group">
 						<span class="font-medium text-sm group-hover:text-blue-700 transition-colors">{ l.Seq }. { l.Title }</span>
 						<span class="text-xs text-slate-400 tabular-nums">L{ l.Seq }</span>
 					</a>

@@ -82,7 +82,7 @@ func TestWorkspaceStoreScoping(t *testing.T) {
 	}
 
 	// SetLastViewed + Touch — scoped, no ID
-	if err := ws.SetLastViewed("lesson", 2); err != nil {
+	if err := ws.SetLastViewed("lesson", created.Slug); err != nil {
 		t.Fatalf("scoped SetLastViewed: %v", err)
 	}
 	if err := ws.Touch(); err != nil {
@@ -482,7 +482,7 @@ func TestQuizLessonLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddQuestion: %v", err)
 	}
-	seq := lesson.SequenceNumber
+	lessonSlug := lesson.Slug
 	linked, err := alpha.AddQuiz(Quiz{
 		Title: "JOINs quiz",
 		Items: fmt.Sprintf(`["%s"]`, q.Slug),
@@ -490,13 +490,13 @@ func TestQuizLessonLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddQuiz: %v", err)
 	}
-	if linked.LessonSeq != nil {
-		t.Errorf("created quiz LessonSeq = %v, want nil (not linked yet)", linked.LessonSeq)
+	if linked.LessonSlug != nil {
+		t.Errorf("created quiz LessonSlug = %v, want nil (not linked yet)", linked.LessonSlug)
 	}
 
 	// Link via the seam.
 	lc := alpha.LessonContent()
-	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+	if err := lc.SetQuizLesson(linked.Slug, lessonSlug); err != nil {
 		t.Fatalf("SetQuizLesson: %v", err)
 	}
 
@@ -505,12 +505,12 @@ func TestQuizLessonLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetQuizBySlug: %v", err)
 	}
-	if got.LessonSeq == nil || *got.LessonSeq != seq {
-		t.Errorf("read-back LessonSeq = %v, want %d", got.LessonSeq, seq)
+	if got.LessonSlug == nil || *got.LessonSlug != lessonSlug {
+		t.Errorf("read-back LessonSlug = %v, want %q", got.LessonSlug, lessonSlug)
 	}
 
 	// Reverse: QuizzesForLesson finds it.
-	rev, err := lc.QuizzesForLesson(seq)
+	rev, err := lc.QuizzesForLesson(lessonSlug)
 	if err != nil {
 		t.Fatalf("QuizzesForLesson: %v", err)
 	}
@@ -518,12 +518,12 @@ func TestQuizLessonLink(t *testing.T) {
 		t.Errorf("reverse lookup = %d quizzes, want 1 with slug %q", len(rev), linked.Slug)
 	}
 
-	// An unlinked quiz has nil LessonSeq and is excluded from the reverse lookup.
+	// An unlinked quiz has nil LessonSlug and is excluded from the reverse lookup.
 	unlinked, _ := alpha.AddQuiz(Quiz{Title: "General", Items: fmt.Sprintf(`["%s"]`, q.Slug)})
-	if unlinked.LessonSeq != nil {
-		t.Errorf("unlinked quiz LessonSeq = %v, want nil", unlinked.LessonSeq)
+	if unlinked.LessonSlug != nil {
+		t.Errorf("unlinked quiz LessonSlug = %v, want nil", unlinked.LessonSlug)
 	}
-	rev2, _ := lc.QuizzesForLesson(seq)
+	rev2, _ := lc.QuizzesForLesson(lessonSlug)
 	if len(rev2) != 1 {
 		t.Errorf("reverse lookup after adding unlinked = %d, want 1", len(rev2))
 	}
@@ -533,23 +533,23 @@ func TestQuizLessonLink(t *testing.T) {
 		t.Fatalf("ClearQuizLesson: %v", err)
 	}
 	cleared, _ := alpha.GetQuizBySlug(linked.Slug)
-	if cleared.LessonSeq != nil {
-		t.Errorf("after clear, LessonSeq = %v, want nil", cleared.LessonSeq)
+	if cleared.LessonSlug != nil {
+		t.Errorf("after clear, LessonSlug = %v, want nil", cleared.LessonSlug)
 	}
 	if err := lc.ClearQuizLesson(linked.Slug); err != nil {
 		t.Fatalf("ClearQuizLesson (idempotent): %v", err)
 	}
 
 	// SetQuizLesson re-links. Overwrites existing link.
-	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+	if err := lc.SetQuizLesson(linked.Slug, lessonSlug); err != nil {
 		t.Fatalf("SetQuizLesson: %v", err)
 	}
 	reset, _ := alpha.GetQuizBySlug(linked.Slug)
-	if reset.LessonSeq == nil || *reset.LessonSeq != seq {
-		t.Errorf("after re-set, LessonSeq = %v, want %d", reset.LessonSeq, seq)
+	if reset.LessonSlug == nil || *reset.LessonSlug != lessonSlug {
+		t.Errorf("after re-set, LessonSlug = %v, want %q", reset.LessonSlug, lessonSlug)
 	}
 	// Setting the same lesson again works (idempotent overwrite).
-	if err := lc.SetQuizLesson(linked.Slug, seq); err != nil {
+	if err := lc.SetQuizLesson(linked.Slug, lessonSlug); err != nil {
 		t.Fatalf("SetQuizLesson (overwrite): %v", err)
 	}
 }
@@ -577,18 +577,17 @@ func TestQuizLessonLinkErrors(t *testing.T) {
 	lc := alpha.LessonContent()
 
 	// SetQuizLesson with stale quiz slug.
-	if err := lc.SetQuizLesson("nonexistent", 1); !errors.Is(err, ErrQuizNotFound) {
+	if err := lc.SetQuizLesson("nonexistent", "joins"); !errors.Is(err, ErrQuizNotFound) {
 		t.Errorf("SetQuizLesson with bad slug: got %v, want ErrQuizNotFound", err)
 	}
 
-	// SetQuizLesson with nonexistent lesson sequence.
-	if err := lc.SetQuizLesson(quiz.Slug, 999); !errors.Is(err, ErrLessonNotFound) {
+	// SetQuizLesson with nonexistent lesson slug.
+	if err := lc.SetQuizLesson(quiz.Slug, "nonexistent-lesson"); !errors.Is(err, ErrLessonNotFound) {
 		t.Errorf("SetQuizLesson with bad lesson: got %v, want ErrLessonNotFound", err)
 	}
 
 	// SetQuizLesson with valid inputs succeeds.
-	seq := lesson.SequenceNumber
-	if err := lc.SetQuizLesson(quiz.Slug, seq); err != nil {
+	if err := lc.SetQuizLesson(quiz.Slug, lesson.Slug); err != nil {
 		t.Fatalf("SetQuizLesson valid: %v", err)
 	}
 
@@ -603,7 +602,7 @@ func TestQuizLessonLinkErrors(t *testing.T) {
 	}
 
 	// QuizzesForLesson with no matches returns empty, not error.
-	empty, err := lc.QuizzesForLesson(999)
+	empty, err := lc.QuizzesForLesson("nonexistent-lesson")
 	if err != nil {
 		t.Fatalf("QuizzesForLesson unknown lesson: %v", err)
 	}

@@ -129,7 +129,7 @@ func TestPaletteDataScriptFromSidebar(t *testing.T) {
 		ActiveWS: "sql-basics",
 		Sidebar: Sidebar{
 			Workspace: &Workspace{Name: "sql-basics"},
-			Lessons:   []LessonEntry{{Seq: 1, Title: "JOINs"}},
+			Lessons:   []LessonEntry{{Seq: 1, Slug: "joins", Title: "JOINs"}},
 			Records:   []RecordEntry{{Seq: 2, Title: "Notes on indexes"}},
 			Refs:      []RefEntry{{Slug: "ddl-cheatsheet", Title: "DDL cheatsheet"}},
 			Quizzes:   []QuizEntry{{Slug: "q1", Title: "Quiz 1"}},
@@ -137,7 +137,7 @@ func TestPaletteDataScriptFromSidebar(t *testing.T) {
 	}
 	got := f.PaletteDataScript()
 	for _, want := range []string{
-		`"type":"lesson"`, `"title":"JOINs"`, `"url":"/workspace/sql-basics/lesson/1"`,
+		`"type":"lesson"`, `"title":"JOINs"`, `"url":"/workspace/sql-basics/lesson/joins"`,
 		`"seq":1`, // lesson sequence mirrors sidebar numbering
 		`"type":"record"`, `"url":"/workspace/sql-basics/record/2"`,
 		`"type":"ref"`, `"url":"/workspace/sql-basics/ref/ddl-cheatsheet"`,

@@ -8,12 +8,12 @@ import (
 	"github.com/udit-001/pharos/internal/urls"
 )
 
-const wsColumns = `id, name, topic, path, mission_why, created_at, last_studied, last_lesson_seq, last_record_seq, last_ref_seq`
+const wsColumns = `id, name, topic, path, mission_why, created_at, last_studied, last_lesson_slug, last_record_slug, last_ref_slug`
 
 func scanWorkspace(row interface{ Scan(...any) error }) (Workspace, error) {
 	var w Workspace
 	err := row.Scan(&w.ID, &w.Name, &w.Topic, &w.Path, &w.MissionWhy, &w.CreatedAt, &w.LastStudied,
-		&w.LastLessonSeq, &w.LastRecordSeq, &w.LastRefSeq)
+		&w.LastLessonSlug, &w.LastRecordSlug, &w.LastRefSlug)
 	return w, err
 }
 
@@ -182,20 +182,21 @@ func (s *Store) UpdateWorkspaceTopic(id int64, topic string) error {
 }
 
 // SetLastViewed records which item was last viewed in this workspace.
-func (s *Store) SetLastViewed(id int64, itemType string, seq int) error {
+// The identifier is a stable slug, not a sequence number — it survives reorder.
+func (s *Store) SetLastViewed(id int64, itemType string, slug string) error {
 	col := ""
 	switch itemType {
 	case "lesson":
-		col = "last_lesson_seq"
+		col = "last_lesson_slug"
 	case "record":
-		col = "last_record_seq"
+		col = "last_record_slug"
 	case "ref":
-		col = "last_ref_seq"
+		col = "last_ref_slug"
 	default:
 		return fmt.Errorf("unknown item type: %s", itemType)
 	}
 	now := nowTimestamp()
-	_, err := s.db.Exec(fmt.Sprintf("UPDATE workspaces SET %s = ?, last_studied = ? WHERE id = ?", col), seq, now, id)
+	_, err := s.db.Exec(fmt.Sprintf("UPDATE workspaces SET %s = ?, last_studied = ? WHERE id = ?", col), slug, now, id)
 	return err
 }
 
@@ -290,39 +291,31 @@ type ContinueItem struct {
 // workspace has any activity. The URL/label are built here so the handler is
 // a thin caller.
 //
-// last_ref_seq stores a reference's row ID, not a sequence number — refs are
-// slug-based (migration 00006 dropped sequence_number). The > 0 guard skips
-// stale zero values from the pre-fix SetLastViewed("ref", 0) call.
+// Uses stable slugs — no seq→slug lookup loop needed.
 func (s *Store) ContinueItem() (*ContinueItem, error) {
 	ws, _ := s.GetWorkspaces()
 	for _, w := range ws {
-		if w.LastLessonSeq != nil && *w.LastLessonSeq > 0 {
+		if w.LastLessonSlug != nil && *w.LastLessonSlug != "" {
 			wsStore, err := s.Workspace(w.Name)
 			if err != nil {
 				continue
 			}
-			lessons, _ := wsStore.GetLessons()
-			for _, l := range lessons {
-				if l.SequenceNumber == *w.LastLessonSeq {
-					return &ContinueItem{
-						URL:   urls.Lesson(w.Name, l.SequenceNumber),
-						Label: fmt.Sprintf("%s — Lesson: %s", w.DisplayName(), l.Title),
-					}, nil
-				}
+			if l, err := wsStore.GetLessonBySlug(*w.LastLessonSlug); err == nil {
+				return &ContinueItem{
+					URL:   urls.Lesson(w.Name, l.Slug),
+					Label: fmt.Sprintf("%s — Lesson: %s", w.DisplayName(), l.Title),
+				}, nil
 			}
-		} else if w.LastRefSeq != nil && *w.LastRefSeq > 0 {
+		} else if w.LastRefSlug != nil && *w.LastRefSlug != "" {
 			wsStore, err := s.Workspace(w.Name)
 			if err != nil {
 				continue
 			}
-			refs, _ := wsStore.GetRefs()
-			for _, ref := range refs {
-				if ref.ID == int64(*w.LastRefSeq) {
-					return &ContinueItem{
-						URL:   urls.Ref(w.Name, ref.Slug),
-						Label: fmt.Sprintf("%s — Reference: %s", w.DisplayName(), ref.Title),
-					}, nil
-				}
+			if ref, err := wsStore.GetRefBySlug(*w.LastRefSlug); err == nil {
+				return &ContinueItem{
+					URL:   urls.Ref(w.Name, ref.Slug),
+					Label: fmt.Sprintf("%s — Reference: %s", w.DisplayName(), ref.Title),
+				}, nil
 			}
 		}
 	}

@@ -8,20 +8,20 @@ import (
 
 // Workspace represents a learning workspace.
 type Workspace struct {
-	ID            int64  `db:"id" json:"id"`
-	Name          string `db:"name" json:"name"`   // directory name
-	Topic         string `db:"topic" json:"topic"` // user-friendly topic
-	Path          string `db:"path" json:"path"`   // absolute path to workspace dir
-	MissionWhy    string `db:"mission_why" json:"missionWhy"`
-	LastLessonSeq *int   `db:"last_lesson_seq" json:"lastLessonSeq,omitempty"`
-	LastRecordSeq *int   `db:"last_record_seq" json:"lastRecordSeq,omitempty"`
-	LastRefSeq    *int   `db:"last_ref_seq" json:"lastRefSeq,omitempty"`
-	LessonCount   int    `db:"-" json:"lessonCount"` // computed
-	RecordCount   int    `db:"-" json:"recordCount"` // computed
-	RefCount      int    `db:"-" json:"refCount"`    // computed
-	QuizCount     int    `db:"-" json:"quizCount"`   // computed
-	CreatedAt     string `db:"created_at" json:"createdAt"`
-	LastStudied   string `db:"last_studied" json:"lastStudied"`
+	ID             int64   `db:"id" json:"id"`
+	Name           string  `db:"name" json:"name"`   // directory name
+	Topic          string  `db:"topic" json:"topic"` // user-friendly topic
+	Path           string  `db:"path" json:"path"`   // absolute path to workspace dir
+	MissionWhy     string  `db:"mission_why" json:"missionWhy"`
+	LastLessonSlug *string `db:"last_lesson_slug" json:"lastLessonSlug,omitempty"`
+	LastRecordSlug *string `db:"last_record_slug" json:"lastRecordSlug,omitempty"`
+	LastRefSlug    *string `db:"last_ref_slug" json:"lastRefSlug,omitempty"`
+	LessonCount    int     `db:"-" json:"lessonCount"` // computed
+	RecordCount    int     `db:"-" json:"recordCount"` // computed
+	RefCount       int     `db:"-" json:"refCount"`    // computed
+	QuizCount      int     `db:"-" json:"quizCount"`   // computed
+	CreatedAt      string  `db:"created_at" json:"createdAt"`
+	LastStudied    string  `db:"last_studied" json:"lastStudied"`
 }
 
 // Lesson represents a single lesson file.
@@ -30,7 +30,8 @@ type Lesson struct {
 	WorkspaceID    int64  `db:"workspace_id" json:"workspaceId"`
 	Title          string `db:"title" json:"title"`
 	SequenceNumber int    `db:"sequence_number" json:"sequenceNumber"`
-	Filename       string `db:"filename" json:"filename"` // e.g. 0003-joins.html
+	Slug           string `db:"slug" json:"slug"`
+	Filename       string `db:"filename" json:"filename"` // e.g. joins.html
 	Path           string `db:"path" json:"path"`         // relative to workspace
 	Summary        string `db:"summary" json:"summary"`
 	BodyText       string `db:"body_text" json:"bodyText,omitempty"`
@@ -44,7 +45,8 @@ type LearningRecord struct {
 	WorkspaceID    int64  `db:"workspace_id" json:"workspaceId"`
 	Title          string `db:"title" json:"title"`
 	SequenceNumber int    `db:"sequence_number" json:"sequenceNumber"`
-	Filename       string `db:"filename" json:"filename"` // e.g. 0003-joins.md
+	Slug           string `db:"slug" json:"slug"`
+	Filename       string `db:"filename" json:"filename"` // e.g. topic.md
 	Path           string `db:"path" json:"path"`         // relative to workspace
 	Status         string `db:"status" json:"status"`     // active | superseded
 	SupersededBy   int64  `db:"superseded_by" json:"supersededBy,omitempty"`
@@ -87,19 +89,19 @@ type Question struct {
 
 // Quiz represents an ordered list of question slugs grouped under a title.
 // Items is the raw JSON slug array; use ParseItems for typed access.
-// LessonSeq optionally links the quiz to the lesson whose skill it practices
-// (nil = unlinked). It is a soft reference by (workspace, sequence_number),
-// not a FK — resolved at read time.
+// LessonSlug optionally links the quiz to the lesson whose skill it practices
+// (nil = unlinked). It is a soft reference by stable slug, not a FK — resolved
+// at read time. Unlike the old lesson_seq, slug links survive lesson reorder.
 type Quiz struct {
-	ID          int64  `db:"id" json:"id"`
-	WorkspaceID int64  `db:"workspace_id" json:"workspaceId"`
-	Title       string `db:"title" json:"title"`
-	Slug        string `db:"slug" json:"slug"`
-	Description string `db:"description" json:"description"`
-	Items       string `db:"items" json:"items"` // raw JSON array of question slugs
-	LessonSeq   *int   `db:"lesson_seq" json:"lessonSeq,omitempty"`
-	CreatedAt   string `db:"created_at" json:"createdAt"`
-	UpdatedAt   string `db:"updated_at" json:"updatedAt"`
+	ID          int64   `db:"id" json:"id"`
+	WorkspaceID int64   `db:"workspace_id" json:"workspaceId"`
+	Title       string  `db:"title" json:"title"`
+	Slug        string  `db:"slug" json:"slug"`
+	Description string  `db:"description" json:"description"`
+	Items       string  `db:"items" json:"items"` // raw JSON array of question slugs
+	LessonSlug  *string `db:"lesson_slug" json:"lessonSlug,omitempty"`
+	CreatedAt   string  `db:"created_at" json:"createdAt"`
+	UpdatedAt   string  `db:"updated_at" json:"updatedAt"`
 }
 
 // QuestionConfig is the typed, mode-specific shape of a Question's config.
@@ -249,7 +251,7 @@ type SearchResult struct {
 	WorkspaceName  string `json:"workspaceName"`
 	WorkspaceID    int64  `json:"-"`
 	SequenceNumber int    `json:"sequenceNumber,omitempty"` // lessons and records
-	Slug           string `json:"slug,omitempty"`           // refs only
+	Slug           string `json:"slug,omitempty"`           // lesson/record slug
 }
 
 // SourceDoc is an ingested document the agent grounds lessons on. The raw file

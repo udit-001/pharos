@@ -20,10 +20,11 @@ func TestTotals(t *testing.T) {
 func TestContinueItemLesson(t *testing.T) {
 	store := newTestStore(t)
 	ws := seedWorkspace(t, store, "alpha")
-	if _, err := ws.AddLesson(Lesson{Title: "Intro", Filename: "0001-intro.html"}); err != nil {
+	lesson, err := ws.AddLesson(Lesson{Title: "Intro", Filename: "0001-intro.html"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ws.SetLastViewed("lesson", 1); err != nil {
+	if err := ws.SetLastViewed("lesson", lesson.Slug); err != nil {
 		t.Fatal(err)
 	}
 
@@ -34,7 +35,7 @@ func TestContinueItemLesson(t *testing.T) {
 	if ci == nil {
 		t.Fatal("expected continue item, got nil")
 	}
-	if want := "/workspace/alpha/lesson/1"; ci.URL != want {
+	if want := "/workspace/alpha/lesson/intro"; ci.URL != want {
 		t.Errorf("URL = %q, want %q", ci.URL, want)
 	}
 	if want := "alpha — Lesson: Intro"; ci.Label != want {
@@ -57,7 +58,7 @@ func TestContinueItemRef(t *testing.T) {
 		t.Fatal(err)
 	}
 	// View the SECOND ref — the continue card must show it, not refs[0]
-	if err := ws.SetLastViewed("ref", int(ref2.ID)); err != nil {
+	if err := ws.SetLastViewed("ref", ref2.Slug); err != nil {
 		t.Fatal(err)
 	}
 
@@ -79,18 +80,20 @@ func TestContinueItemRef(t *testing.T) {
 func TestContinueItemPicksMostRecentWorkspace(t *testing.T) {
 	store := newTestStore(t)
 	goWs := seedWorkspace(t, store, "go")
-	if _, err := goWs.AddLesson(Lesson{Title: "Go Program", Filename: "0001.html"}); err != nil {
+	goLesson, err := goWs.AddLesson(Lesson{Title: "Go Program", Filename: "0001.html"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := goWs.SetLastViewed("lesson", 1); err != nil {
+	if err := goWs.SetLastViewed("lesson", goLesson.Slug); err != nil {
 		t.Fatal(err)
 	}
 
 	autismWs := seedWorkspace(t, store, "autism")
-	if _, err := autismWs.AddLesson(Lesson{Title: "Autism Lesson", Filename: "0001.html"}); err != nil {
+	autismLesson, err := autismWs.AddLesson(Lesson{Title: "Autism Lesson", Filename: "0001.html"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := autismWs.SetLastViewed("lesson", 1); err != nil {
+	if err := autismWs.SetLastViewed("lesson", autismLesson.Slug); err != nil {
 		t.Fatal(err)
 	}
 

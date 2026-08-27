@@ -52,15 +52,16 @@ Examples:
 			printJSON(struct {
 				db.Lesson
 				URL string `json:"url"`
-			}{created, urls.Lesson(ws.Name, created.SequenceNumber)})
+			}{created, urls.Lesson(ws.Name, created.Slug)})
 			return nil
 		}
 
 		fmt.Println()
 		fmt.Printf("  ✓ Lesson created: %s\n", title)
+		fmt.Printf("    Slug: %s\n", created.Slug)
 		fmt.Printf("    File: %s/%s\n", ws.Path, created.Path)
 		fmt.Printf("    Workspace: %s\n", ws.DisplayName())
-		fmt.Printf("    URL: %s\n", urls.Lesson(ws.Name, created.SequenceNumber))
+		fmt.Printf("    URL: %s\n", urls.Lesson(ws.Name, created.Slug))
 		fmt.Println()
 
 		return nil

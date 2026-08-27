@@ -53,7 +53,7 @@ Examples:
 		fmt.Println()
 		fmt.Printf("  %s\n", quiz.Title)
 		fmt.Printf("  Slug: %s\n", quiz.Slug)
-		fmt.Printf("  Lesson: %s\n", lessonRef(quiz.LessonSeq))
+		fmt.Printf("  Lesson: %s\n", lessonRef(quiz.LessonSlug))
 		fmt.Println()
 
 		if len(history) == 0 {

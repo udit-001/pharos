@@ -157,7 +157,7 @@ func TestSmokePageRoutes(t *testing.T) {
 		{"resources", "/workspace/alpha/resources"},
 		{"glossary", "/workspace/alpha/glossary"},
 		{"notes", "/workspace/alpha/notes"},
-		{"lesson", "/workspace/alpha/lesson/1"},
+		{"lesson", "/workspace/alpha/lesson/lesson-one"},
 		{"record", "/workspace/alpha/record/1"},
 		{"ref", "/workspace/alpha/ref/ref-one"},
 		{"quiz-library", "/workspace/alpha/quizzes"},
@@ -229,7 +229,7 @@ func TestLessonPagePrevNext(t *testing.T) {
 	env := newTestEnv(t)
 
 	// Lesson 1: should have "next" (Lesson Two) but no "prev"
-	rec := env.get(t, "/workspace/alpha/lesson/1")
+	rec := env.get(t, "/workspace/alpha/lesson/lesson-one")
 	body := rec.Body.String()
 	if !strings.Contains(body, "Lesson One") {
 		t.Error("lesson 1 page missing title 'Lesson One'")
@@ -239,7 +239,7 @@ func TestLessonPagePrevNext(t *testing.T) {
 	}
 
 	// Lesson 2: should have "prev" (Lesson One) but no "next"
-	rec = env.get(t, "/workspace/alpha/lesson/2")
+	rec = env.get(t, "/workspace/alpha/lesson/lesson-two")
 	body = rec.Body.String()
 	if !strings.Contains(body, "Lesson Two") {
 		t.Error("lesson 2 page missing title 'Lesson Two'")
@@ -252,7 +252,7 @@ func TestLessonPagePrevNext(t *testing.T) {
 func TestLessonPageSetsLastViewed(t *testing.T) {
 	env := newTestEnv(t)
 
-	env.get(t, "/workspace/alpha/lesson/2")
+	env.get(t, "/workspace/alpha/lesson/lesson-two")
 
 	// Workspace page should show a "Continue" card linking to the last-viewed lesson
 	rec := env.get(t, "/workspace/alpha")
@@ -365,7 +365,7 @@ func TestDashboardContinueCard(t *testing.T) {
 	env := newTestEnv(t)
 
 	// View a lesson so LastLessonSeq is set
-	env.get(t, "/workspace/alpha/lesson/1")
+	env.get(t, "/workspace/alpha/lesson/lesson-one")
 
 	rec := env.get(t, "/")
 	body := rec.Body.String()
@@ -420,7 +420,7 @@ func TestGlossaryTermsByNameAPI(t *testing.T) {
 func TestLessonNotFound(t *testing.T) {
 	env := newTestEnv(t)
 
-	rec := env.get(t, "/workspace/alpha/lesson/999")
+	rec := env.get(t, "/workspace/alpha/lesson/nonexistent")
 	if rec.Code != 404 {
 		t.Errorf("nonexistent lesson should 404; got %d", rec.Code)
 	}

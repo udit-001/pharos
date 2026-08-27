@@ -14,12 +14,14 @@ type SidebarData struct {
 // SidebarLesson is the sidebar projection of a lesson.
 type SidebarLesson struct {
 	Seq   int
+	Slug  string
 	Title string
 }
 
 // SidebarRecord is the sidebar projection of a learning record.
 type SidebarRecord struct {
 	Seq     int
+	Slug    string
 	Title   string
 	Status  string
 	Summary string
@@ -61,11 +63,11 @@ func (w *WorkspaceStore) GetSidebarData() (SidebarData, error) {
 
 	sl := make([]SidebarLesson, len(lessons))
 	for i, l := range lessons {
-		sl[i] = SidebarLesson{Seq: l.SequenceNumber, Title: l.Title}
+		sl[i] = SidebarLesson{Seq: l.SequenceNumber, Slug: l.Slug, Title: l.Title}
 	}
 	sr := make([]SidebarRecord, len(records))
 	for i, r := range records {
-		sr[i] = SidebarRecord{Seq: r.SequenceNumber, Title: r.Title, Status: r.Status, Summary: r.Summary}
+		sr[i] = SidebarRecord{Seq: r.SequenceNumber, Slug: r.Slug, Title: r.Title, Status: r.Status, Summary: r.Summary}
 	}
 	sf := make([]SidebarRef, len(refs))
 	for i, ref := range refs {

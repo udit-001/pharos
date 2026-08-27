@@ -119,7 +119,7 @@ func quizScoreRow(s db.QuizScore) []string {
 		truncate(s.Title, 40),
 		fmt.Sprintf("%d", len(items)),
 		best,
-		lessonRef(s.LessonSeq),
+		lessonRef(s.LessonSlug),
 	}
 }
 

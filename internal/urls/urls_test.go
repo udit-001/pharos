@@ -36,8 +36,8 @@ func TestBuilders(t *testing.T) {
 	}{
 		{name: "workspace", got: Workspace("go snippets"), want: "/workspace/go%20snippets"},
 		{name: "workspace no spaces", got: Workspace("alpha"), want: "/workspace/alpha"},
-		{name: "lesson", got: Lesson("go snippets", 3), want: "/workspace/go%20snippets/lesson/3"},
-		{name: "lesson seq 1", got: Lesson("alpha", 1), want: "/workspace/alpha/lesson/1"},
+		{name: "lesson", got: Lesson("go snippets", "sql-joins"), want: "/workspace/go%20snippets/lesson/sql-joins"},
+		{name: "lesson slug", got: Lesson("alpha", "where-clauses"), want: "/workspace/alpha/lesson/where-clauses"},
 		{name: "record", got: Record("go snippets", 7), want: "/workspace/go%20snippets/record/7"},
 		{name: "ref", got: Ref("go snippets", "joins"), want: "/workspace/go%20snippets/ref/joins"},
 		{name: "ref slug escaped if it had spaces", got: Ref("alpha", "two words"), want: "/workspace/alpha/ref/two%20words"},

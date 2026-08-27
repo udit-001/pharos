@@ -245,7 +245,7 @@ func TestLessonReviseMetadataOnly(t *testing.T) {
 		t.Fatalf("GetLessonBySeq: %v", err)
 	}
 
-	out := runWithStore(t, []string{"lesson", "revise", fmt.Sprintf("%d", l.SequenceNumber), "-w", wsDB.Name, "--title", "renamed"}, store)
+	out := runWithStore(t, []string{"lesson", "revise", l.Slug, "-w", wsDB.Name, "--title", "renamed"}, store)
 	if !strings.Contains(out, "✓") {
 		t.Errorf("expected success marker, got:\n%s", out)
 	}
@@ -272,9 +272,17 @@ func TestReviseWithoutFlagsRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
+	wss, err := store.Workspace(wsDB.Name)
+	if err != nil {
+		t.Fatalf("open workspace store: %v", err)
+	}
+	createdLesson, err := wss.CreateLesson("test lesson", "<p>content</p>")
+	if err != nil {
+		t.Fatalf("CreateLesson: %v", err)
+	}
 
 	for _, args := range [][]string{
-		{"lesson", "revise", "1", "-w", wsDB.Name},
+		{"lesson", "revise", createdLesson.Slug, "-w", wsDB.Name},
 		{"reference", "revise", "some-slug", "-w", wsDB.Name},
 	} {
 		_, err := runCmdErr(t, args, store)

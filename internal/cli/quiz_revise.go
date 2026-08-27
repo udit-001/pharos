@@ -18,13 +18,13 @@ var quizReviseCmd = &cobra.Command{
 
 --items blocks if the quiz has any in-progress attempts — wait for them to
 complete or be abandoned first. --lesson does not block (it is metadata that
-doesn't affect a running attempt's questions). Pass --lesson 0 to unlink.
+doesn't affect a running attempt's questions). Pass --lesson "" to unlink.
 
 Examples:
   pharos quiz revise sql-basics --items "joins,indexes" --workspace "sql"
-  pharos quiz revise sql-basics --lesson 3 --workspace "sql"
-  pharos quiz revise sql-basics --items "joins,indexes" --lesson 3 --workspace "sql"
-  pharos quiz revise sql-basics --lesson 0 --workspace "sql"   # unlink`,
+  pharos quiz revise sql-basics --lesson sql-joins --workspace "sql"
+  pharos quiz revise sql-basics --items "joins,indexes" --lesson sql-joins --workspace "sql"
+  pharos quiz revise sql-basics --lesson "" --workspace "sql"   # unlink`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -40,25 +40,20 @@ Examples:
 		itemsFlag, _ := cmd.Flags().GetString("items")
 		hasItems := strings.TrimSpace(itemsFlag) != ""
 
-		// --lesson 0 means "unlink" (clear the link). parseLessonFlag rejects 0
-		// as invalid, so handle the explicit-unlink sentinel here.
 		lessonRaw, _ := cmd.Flags().GetString("lesson")
-		lessonGiven := strings.TrimSpace(lessonRaw) != ""
-		var lessonSeq *int
+		lessonGiven := cmd.Flags().Changed("lesson")
+		var lessonSlug *string
 		if lessonGiven {
-			if strings.TrimSpace(lessonRaw) == "0" {
-				lessonSeq = nil // explicit unlink
+			trimmed := strings.TrimSpace(lessonRaw)
+			if trimmed == "" {
+				lessonSlug = nil // explicit unlink
 			} else {
-				seq, _, perr := parseLessonFlag(cmd)
-				if perr != nil {
-					return perr
-				}
-				lessonSeq = &seq
+				lessonSlug = &trimmed
 			}
 		}
 
 		if !hasItems && !lessonGiven {
-			return fmt.Errorf("at least one of --items or --lesson is required\n  pharos quiz revise %q --workspace %q --items \"slug1,slug2\" [--lesson N]", slug, ws.Name)
+			return fmt.Errorf("at least one of --items or --lesson is required\n  pharos quiz revise %q --workspace %q --items \"slug1,slug2\" [--lesson <slug>]", slug, ws.Name)
 		}
 
 		var itemCount int
@@ -89,10 +84,10 @@ Examples:
 		if lessonGiven {
 			lc := wsStore.LessonContent()
 			var err error
-			if lessonSeq == nil {
+			if lessonSlug == nil {
 				err = lc.ClearQuizLesson(slug)
 			} else {
-				err = lc.SetQuizLesson(slug, *lessonSeq)
+				err = lc.SetQuizLesson(slug, *lessonSlug)
 			}
 			if err != nil {
 				return formatError("failed to revise quiz lesson link", err)
@@ -107,10 +102,10 @@ Examples:
 				out["items"] = itemCount
 			}
 			if lessonGiven {
-				if lessonSeq == nil {
-					out["lessonSeq"] = nil
+				if lessonSlug == nil {
+					out["lessonSlug"] = nil
 				} else {
-					out["lessonSeq"] = *lessonSeq
+					out["lessonSlug"] = *lessonSlug
 				}
 			}
 			printJSON(out)
@@ -123,10 +118,10 @@ Examples:
 			fmt.Printf("    Items: %d question(s)\n", itemCount)
 		}
 		if lessonGiven {
-			if lessonSeq == nil {
+			if lessonSlug == nil {
 				fmt.Printf("    Lesson: unlinked\n")
 			} else {
-				fmt.Printf("    Lesson: #%d\n", *lessonSeq)
+				fmt.Printf("    Lesson: %s\n", *lessonSlug)
 			}
 		}
 		fmt.Println()
@@ -138,5 +133,5 @@ func init() {
 	quizCmd.AddCommand(quizReviseCmd)
 	quizReviseCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	quizReviseCmd.Flags().String("items", "", "Comma-separated list of question slugs in order")
-	quizReviseCmd.Flags().String("lesson", "", "Link to a lesson by sequence number (0 to unlink)")
+	quizReviseCmd.Flags().String("lesson", "", "Link to a lesson by slug (empty string to unlink)")
 }

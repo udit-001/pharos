@@ -60,6 +60,20 @@ func (w *WorkspaceStore) GetLessonBySeq(seq int) (*Lesson, error) {
 	return &lesson, nil
 }
 
+// GetLessonBySlug returns a single lesson by its slug, or an error if not found.
+// Slug is the stable identity for a lesson — use this for all lookups.
+func (w *WorkspaceStore) GetLessonBySlug(slug string) (*Lesson, error) {
+	row := w.db().QueryRow(
+		fmt.Sprintf("SELECT %s FROM lessons WHERE workspace_id = ? AND slug = ?", lessonColumns),
+		w.ws.ID, slug,
+	)
+	lesson, err := scanLesson(row)
+	if err != nil {
+		return nil, fmt.Errorf("lesson %q not found: %w", slug, err)
+	}
+	return &lesson, nil
+}
+
 // GetLessonByFilename returns a single lesson by its filename, or an error
 // if not found. Used by the iframe HTML handler to resolve a lesson's ID
 // from the filename in the URL.
@@ -104,7 +118,7 @@ func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 		sr := SearchResult{
 			Type: "lesson", Title: l.Title, Summary: l.Summary,
 			WorkspaceName: w.ws.Name, WorkspaceID: w.ws.ID,
-			SequenceNumber: l.SequenceNumber,
+			SequenceNumber: l.SequenceNumber, Slug: l.Slug,
 		}
 		if sr.Summary == "" && l.BodyText != "" {
 			sr.Snippet = truncateSnippet(stripLeadingTitle(l.BodyText, l.Title), 200)
@@ -120,7 +134,7 @@ func (w *WorkspaceStore) Search(query string) ([]SearchResult, error) {
 		sr := SearchResult{
 			Type: "record", Title: rec.Title, Summary: rec.Summary,
 			WorkspaceName: w.ws.Name, WorkspaceID: w.ws.ID,
-			SequenceNumber: rec.SequenceNumber,
+			SequenceNumber: rec.SequenceNumber, Slug: rec.Slug,
 		}
 		if sr.Summary == "" && rec.BodyText != "" {
 			sr.Snippet = truncateSnippet(rec.BodyText, 200)
@@ -180,10 +194,15 @@ func (w *WorkspaceStore) AddLesson(l Lesson) (Lesson, error) {
 	w.db().Get(&maxSeq, "SELECT COALESCE(MAX(sequence_number), 0) FROM lessons WHERE workspace_id = ?", l.WorkspaceID)
 	l.SequenceNumber = maxSeq + 1
 
+	// Derive slug from title if not set.
+	if l.Slug == "" {
+		l.Slug = Slugify(l.Title)
+	}
+
 	result, err := w.db().Exec(
-		`INSERT INTO lessons (workspace_id, title, sequence_number, filename, path, summary, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		l.WorkspaceID, l.Title, l.SequenceNumber, l.Filename, l.Path, l.Summary, now, now,
+		`INSERT INTO lessons (workspace_id, title, sequence_number, slug, filename, path, summary, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		l.WorkspaceID, l.Title, l.SequenceNumber, l.Slug, l.Filename, l.Path, l.Summary, now, now,
 	)
 	if err != nil {
 		return Lesson{}, fmt.Errorf("add lesson: %w", err)
@@ -254,15 +273,20 @@ func (w *WorkspaceStore) AddRecord(r LearningRecord) (LearningRecord, error) {
 		r.Status = "active"
 	}
 
+	// Derive slug from title if not set.
+	if r.Slug == "" {
+		r.Slug = Slugify(r.Title)
+	}
+
 	var supersededBy interface{}
 	if r.SupersededBy > 0 {
 		supersededBy = r.SupersededBy
 	}
 
 	result, err := w.db().Exec(
-		`INSERT INTO learning_records (workspace_id, title, sequence_number, filename, path, status, superseded_by, summary, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.WorkspaceID, r.Title, r.SequenceNumber, r.Filename, r.Path, r.Status, supersededBy, r.Summary, now, now,
+		`INSERT INTO learning_records (workspace_id, title, sequence_number, slug, filename, path, status, superseded_by, summary, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.WorkspaceID, r.Title, r.SequenceNumber, r.Slug, r.Filename, r.Path, r.Status, supersededBy, r.Summary, now, now,
 	)
 	if err != nil {
 		return LearningRecord{}, fmt.Errorf("add learning record: %w", err)
@@ -1058,8 +1082,8 @@ func (w *WorkspaceStore) DeleteHighlight(id int64) error {
 // ── Workspace-scoped mutations ──
 
 // SetLastViewed records which item was last viewed in this workspace.
-func (w *WorkspaceStore) SetLastViewed(itemType string, seq int) error {
-	return w.store.SetLastViewed(w.ws.ID, itemType, seq)
+func (w *WorkspaceStore) SetLastViewed(itemType string, slug string) error {
+	return w.store.SetLastViewed(w.ws.ID, itemType, slug)
 }
 
 // Touch updates the last_studied timestamp for this workspace.
@@ -1089,7 +1113,7 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 	seqNum := maxSeq + 1
 
 	slug := Slugify(title)
-	filename := fmt.Sprintf("%04d-%s.html", seqNum, slug)
+	filename := slug + ".html"
 	bodyText := extract.FromHTML(bodyHTML)
 
 	tx, err := w.db().Begin()
@@ -1099,9 +1123,9 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 	defer tx.Rollback()
 
 	result, err := tx.Exec(
-		`INSERT INTO lessons (workspace_id, title, sequence_number, filename, path, summary, body_text, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		w.ws.ID, title, seqNum, filename, w.Layout().LessonRelPath(filename), "", bodyText, now, now,
+		`INSERT INTO lessons (workspace_id, title, sequence_number, slug, filename, path, summary, body_text, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		w.ws.ID, title, seqNum, slug, filename, w.Layout().LessonRelPath(filename), "", bodyText, now, now,
 	)
 	if err != nil {
 		return Lesson{}, fmt.Errorf("insert lesson: %w", err)
@@ -1119,7 +1143,7 @@ func (w *WorkspaceStore) CreateLesson(title, bodyHTML string) (Lesson, error) {
 
 	return Lesson{
 		ID: id, WorkspaceID: w.ws.ID, Title: title, SequenceNumber: seqNum,
-		Filename: filename, Path: w.Layout().LessonRelPath(filename),
+		Slug: slug, Filename: filename, Path: w.Layout().LessonRelPath(filename),
 		BodyText: bodyText, CreatedAt: now, UpdatedAt: now,
 	}, nil
 }
@@ -1159,6 +1183,100 @@ func (w *WorkspaceStore) ReviseLesson(seq int, bodyHTML *string, title *string, 
 	return err
 }
 
+// MoveLesson reorders a lesson within the workspace. fromSlug identifies the
+// lesson to move; toSlug and pos identify the target position:
+//   - "before" / "after": insert relative to toSlug
+//   - "first": move to position 1
+//   - "last": move to the end
+//
+// Returns the old and new sequence numbers (for CLI output and live-sync).
+// All cascade effects (quiz links, last_viewed) are updated atomically.
+func (w *WorkspaceStore) MoveLesson(fromSlug, toSlug, pos string) (oldSeq, newSeq int, err error) {
+	from, err := w.GetLessonBySlug(fromSlug)
+	if err != nil {
+		return 0, 0, fmt.Errorf("source lesson: %w", err)
+	}
+
+	lessons, err := w.GetLessons()
+	if err != nil {
+		return 0, 0, fmt.Errorf("list lessons: %w", err)
+	}
+
+	// Compute target sequence.
+	var targetSeq int
+	switch pos {
+	case "first":
+		targetSeq = 1
+	case "last":
+		targetSeq = len(lessons)
+	case "before", "after":
+		to, err := w.GetLessonBySlug(toSlug)
+		if err != nil {
+			return 0, 0, fmt.Errorf("target lesson: %w", err)
+		}
+		targetSeq = to.SequenceNumber
+		if pos == "after" {
+			targetSeq++
+		}
+		// Adjust if moving down (source is before target).
+		if from.SequenceNumber < to.SequenceNumber {
+			targetSeq--
+		}
+	default:
+		return 0, 0, fmt.Errorf("invalid position: %q (use before, after, first, or last)", pos)
+	}
+
+	if targetSeq < 1 {
+		targetSeq = 1
+	}
+	if targetSeq > len(lessons) {
+		targetSeq = len(lessons)
+	}
+
+	oldSeq = from.SequenceNumber
+	newSeq = targetSeq
+	if oldSeq == newSeq {
+		return oldSeq, newSeq, nil // no-op
+	}
+
+	// Shift sequence numbers in a transaction.
+	now := nowTimestamp()
+	tx, err := w.db().Begin()
+	if err != nil {
+		return 0, 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	if oldSeq < newSeq {
+		// Moving down: shift [oldSeq+1 .. newSeq] down by 1.
+		_, err = tx.Exec(`UPDATE lessons SET sequence_number = sequence_number - 1 WHERE workspace_id = ? AND sequence_number > ? AND sequence_number <= ?`, w.ws.ID, oldSeq, newSeq)
+	} else {
+		// Moving up: shift [newSeq .. oldSeq-1] up by 1.
+		_, err = tx.Exec(`UPDATE lessons SET sequence_number = sequence_number + 1 WHERE workspace_id = ? AND sequence_number >= ? AND sequence_number < ?`, w.ws.ID, newSeq, oldSeq)
+	}
+	if err != nil {
+		return 0, 0, fmt.Errorf("shift sequences: %w", err)
+	}
+
+	// Set moved lesson to target position.
+	_, err = tx.Exec(`UPDATE lessons SET sequence_number = ?, updated_at = ? WHERE id = ?`, newSeq, now, from.ID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("set target position: %w", err)
+	}
+
+	// Note: quiz links use lesson_slug (stable identity), not sequence number.
+	// No quiz cascade needed — slug links survive reorder.
+
+	// Note: last_lesson_slug uses stable identity, not sequence number.
+	// No cascade needed — slug links survive reorder.
+
+	if err = tx.Commit(); err != nil {
+		return 0, 0, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return oldSeq, newSeq, nil
+}
+
 // insertRecord is the deep core of record creation: it computes the next
 // sequence number, slug, filename, and body_text, then runs the INSERT via
 // the given executor without beginning or committing a transaction. This
@@ -1180,14 +1298,14 @@ func (w *WorkspaceStore) insertRecord(ext sqlx.Ext, title, bodyMD, summary strin
 	seqNum := maxSeq + 1
 
 	slug := Slugify(title)
-	filename := fmt.Sprintf("%04d-%s.md", seqNum, slug)
+	filename := slug + ".md"
 	bodyText := extract.FromMarkdown(bodyMD)
 
 	var supersededBy interface{}
 	result, err := ext.Exec(
-		`INSERT INTO learning_records (workspace_id, title, sequence_number, filename, path, status, superseded_by, summary, body_text, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
-		w.ws.ID, title, seqNum, filename, w.Layout().RecordRelPath(filename), supersededBy, summary, bodyText, now, now,
+		`INSERT INTO learning_records (workspace_id, title, sequence_number, slug, filename, path, status, superseded_by, summary, body_text, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+		w.ws.ID, title, seqNum, slug, filename, w.Layout().RecordRelPath(filename), supersededBy, summary, bodyText, now, now,
 	)
 	if err != nil {
 		return LearningRecord{}, fmt.Errorf("insert record: %w", err)
@@ -1196,7 +1314,7 @@ func (w *WorkspaceStore) insertRecord(ext sqlx.Ext, title, bodyMD, summary strin
 	id, _ := result.LastInsertId()
 	return LearningRecord{
 		ID: id, WorkspaceID: w.ws.ID, Title: title, SequenceNumber: seqNum,
-		Filename: filename, Path: w.Layout().RecordRelPath(filename),
+		Slug: slug, Filename: filename, Path: w.Layout().RecordRelPath(filename),
 		Status: "active", Summary: summary, BodyText: bodyText, CreatedAt: now, UpdatedAt: now,
 	}, nil
 }

@@ -24,21 +24,22 @@ func (w *WorkspaceStore) LessonContent() *LessonContentStore {
 	return &LessonContentStore{ws: w}
 }
 
-// SetQuizLesson links a quiz to a lesson by sequence number, making the quiz
-// practice that lesson's content. If the quiz is already linked to a different
-// lesson, the link is overwritten. Validates both exist before writing.
-func (l *LessonContentStore) SetQuizLesson(quizSlug string, lessonSeq int) error {
+// SetQuizLesson links a quiz to a lesson by slug, making the quiz practice
+// that lesson's content. If the quiz is already linked to a different lesson,
+// the link is overwritten. Validates both exist before writing. Unlike the old
+// seq-based link, slug links survive lesson reorder.
+func (l *LessonContentStore) SetQuizLesson(quizSlug string, lessonSlug string) error {
 	quiz, err := l.ws.GetQuizBySlug(quizSlug)
 	if err != nil {
 		return fmt.Errorf("set quiz lesson: %w", ErrQuizNotFound)
 	}
-	if _, err := l.ws.GetLessonBySeq(lessonSeq); err != nil {
-		return fmt.Errorf("set quiz lesson: lesson #%d: %w", lessonSeq, ErrLessonNotFound)
+	if _, err := l.ws.GetLessonBySlug(lessonSlug); err != nil {
+		return fmt.Errorf("set quiz lesson: lesson %q: %w", lessonSlug, ErrLessonNotFound)
 	}
 	now := nowTimestamp()
 	_, err = l.ws.db().Exec(
-		"UPDATE quizzes SET lesson_seq = ?, updated_at = ? WHERE id = ?",
-		lessonSeq, now, quiz.ID,
+		"UPDATE quizzes SET lesson_slug = ?, updated_at = ? WHERE id = ?",
+		lessonSlug, now, quiz.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("set quiz lesson: %w", err)
@@ -55,7 +56,7 @@ func (l *LessonContentStore) ClearQuizLesson(quizSlug string) error {
 	}
 	now := nowTimestamp()
 	_, err = l.ws.db().Exec(
-		"UPDATE quizzes SET lesson_seq = NULL, updated_at = ? WHERE id = ?",
+		"UPDATE quizzes SET lesson_slug = NULL, updated_at = ? WHERE id = ?",
 		now, quiz.ID,
 	)
 	if err != nil {
@@ -64,13 +65,13 @@ func (l *LessonContentStore) ClearQuizLesson(quizSlug string) error {
 	return nil
 }
 
-// QuizzesForLesson returns the quizzes linked to a lesson sequence, ordered
+// QuizzesForLesson returns the quizzes linked to a lesson by slug, ordered
 // by title. Returns an empty slice if the lesson has no linked quizzes
 // (no error — the caller may not know whether quizzes exist).
-func (l *LessonContentStore) QuizzesForLesson(lessonSeq int) ([]Quiz, error) {
+func (l *LessonContentStore) QuizzesForLesson(lessonSlug string) ([]Quiz, error) {
 	rows, err := l.ws.db().Query(
-		fmt.Sprintf("SELECT %s FROM quizzes WHERE workspace_id = ? AND lesson_seq = ? ORDER BY title ASC", quizColumns),
-		l.ws.ws.ID, lessonSeq,
+		fmt.Sprintf("SELECT %s FROM quizzes WHERE workspace_id = ? AND lesson_slug = ? ORDER BY title ASC", quizColumns),
+		l.ws.ws.ID, lessonSlug,
 	)
 	if err != nil {
 		return nil, err

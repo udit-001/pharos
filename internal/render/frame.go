@@ -67,8 +67,8 @@ func sidebarBody(f Frame) string {
 	if len(f.Sidebar.Lessons) > 0 {
 		var items strings.Builder
 		for _, l := range f.Sidebar.Lessons {
-			active := at == "lesson" && f.ActiveSeq == l.Seq
-			items.WriteString(sidebarLink(urls.Lesson(ws.Name, l.Seq), iconBook(), l.Title, active))
+			active := at == "lesson" && f.ActiveSlug == l.Slug
+			items.WriteString(sidebarLink(urls.Lesson(ws.Name, l.Slug), iconBook(), l.Title, active))
 		}
 		b.WriteString(sidebarSection(iconBook(), "Lessons", "lessons", items.String(), len(f.Sidebar.Lessons), at == "lesson"))
 	}
@@ -319,7 +319,7 @@ func (f Frame) PaletteDataScript() string {
 	if f.Sidebar.Workspace != nil {
 		ws := f.Sidebar.Workspace.Name
 		for _, l := range f.Sidebar.Lessons {
-			items = append(items, paletteItem{"lesson", l.Title, urls.Lesson(ws, l.Seq), ws, l.Seq})
+			items = append(items, paletteItem{"lesson", l.Title, urls.Lesson(ws, l.Slug), ws, l.Seq})
 		}
 		for _, r := range f.Sidebar.Records {
 			items = append(items, paletteItem{"record", r.Title, urls.Record(ws, r.Seq), ws, 0})

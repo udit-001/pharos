@@ -39,7 +39,7 @@ Examples:
 		fmt.Printf("  View quiz %s at: %s\n", slug, url)
 		// Surface the lesson link even though the dashboard doesn't render it yet.
 		if quiz, err := wsStore.GetQuizBySlug(slug); err == nil {
-			fmt.Printf("  Lesson: %s\n", lessonRef(quiz.LessonSeq))
+			fmt.Printf("  Lesson: %s\n", lessonRef(quiz.LessonSlug))
 		}
 		fmt.Printf("  Dashboard must be running (use 'pharos start').\n")
 		fmt.Println()

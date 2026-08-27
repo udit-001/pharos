@@ -25,12 +25,14 @@ type Workspace struct {
 // workspace page lists.
 type LessonEntry struct {
 	Seq   int
+	Slug  string
 	Title string
 }
 
 // RecordEntry is the render-owned projection of a learning record.
 type RecordEntry struct {
 	Seq     int
+	Slug    string
 	Title   string
 	Status  string
 	Summary string

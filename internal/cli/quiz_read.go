@@ -55,7 +55,7 @@ Examples:
 		if current.Description != "" {
 			fmt.Printf("  Description: %s\n", current.Description)
 		}
-		fmt.Printf("  Lesson: %s\n", lessonRef(current.LessonSeq))
+		fmt.Printf("  Lesson: %s\n", lessonRef(current.LessonSlug))
 		fmt.Printf("  Created: %s\n", current.CreatedAt)
 		fmt.Printf("  Updated: %s\n", current.UpdatedAt)
 		fmt.Printf("  Items: %d question(s)\n", len(items))

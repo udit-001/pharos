@@ -5,18 +5,13 @@ import (
 	"sort"
 )
 
-const quizColumns = `id, workspace_id, title, slug, description, items, lesson_seq, created_at, updated_at`
+const quizColumns = `id, workspace_id, title, slug, description, items, lesson_slug, created_at, updated_at`
 
-const quizColumnsQualified = `quizzes.id, quizzes.workspace_id, quizzes.title, quizzes.slug, quizzes.description, quizzes.items, quizzes.lesson_seq, quizzes.created_at, quizzes.updated_at`
+const quizColumnsQualified = `quizzes.id, quizzes.workspace_id, quizzes.title, quizzes.slug, quizzes.description, quizzes.items, quizzes.lesson_slug, quizzes.created_at, quizzes.updated_at`
 
 func scanQuiz(row interface{ Scan(...any) error }) (Quiz, error) {
 	var q Quiz
-	var lessonSeq *int64
-	err := row.Scan(&q.ID, &q.WorkspaceID, &q.Title, &q.Slug, &q.Description, &q.Items, &lessonSeq, &q.CreatedAt, &q.UpdatedAt)
-	if lessonSeq != nil {
-		s := int(*lessonSeq)
-		q.LessonSeq = &s
-	}
+	err := row.Scan(&q.ID, &q.WorkspaceID, &q.Title, &q.Slug, &q.Description, &q.Items, &q.LessonSlug, &q.CreatedAt, &q.UpdatedAt)
 	return q, err
 }
 

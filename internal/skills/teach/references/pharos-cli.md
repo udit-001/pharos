@@ -130,10 +130,10 @@ section per category. `--avoid` records synonyms or phrasing to steer away from 
 pharos lesson create "<title>" --body-file <path>  # Create a new lesson
 pharos lesson list                                  # List lessons
 pharos lesson list --search "<q>"                   # Search lessons
-pharos lesson revise <seq> [--body-file <path>] [--title ".."] [--summary ".."]  # Revise; ≥1 flag. Metadata-only keeps the body untouched
-pharos lesson show <seq>                            # Show in dashboard
-pharos lesson read <seq>                            # Read content + metadata
-pharos lesson read <seq> --meta-only                # Read metadata only
+pharos lesson revise <slug> [--body-file <path>] [--title ".."] [--summary ".."]  # Revise; ≥1 flag. Metadata-only keeps the body untouched
+pharos lesson show <slug>                           # Show in dashboard
+pharos lesson read <slug>                           # Read content + metadata
+pharos lesson read <slug> --meta-only               # Read metadata only
 ```
 
 Before creating, search for an existing lesson on the same topic. If one
@@ -142,7 +142,7 @@ exists, **revise** it with `pharos lesson revise` rather than create a duplicate
 After creating or revising a lesson, **present** it:
 
 ```bash
-pharos lesson show <seq>    # Starts dashboard if needed, opens in browser
+pharos lesson show <slug>   # Starts dashboard if needed, opens in browser
 ```
 
 ## Learning records
@@ -231,11 +231,11 @@ The slug is derived from the title and **stays stable** across `revise` (it is n
 ## Quizzes
 
 ```bash
-pharos quiz create "<title>" --items "slug1,slug2" [--description "..."] [--lesson <seq>]  # Create a quiz from question slugs (DB-only)
+pharos quiz create "<title>" --items "slug1,slug2" [--description "..."] [--lesson <slug>]  # Create a quiz from question slugs (DB-only)
 pharos quiz list                                                          # List quizzes (with best score + lesson link)
 pharos quiz list --weak                                                   # Sort by weakness: never-attempted first, then by best-score ratio ascending
 pharos quiz list --weak --limit 5 --json                                  # Top 5 weakest, machine-readable
-pharos quiz revise <slug> [--items "slug1,slug2"] [--lesson <seq>]        # Update items and/or lesson link (0 to unlink)
+pharos quiz revise <slug> [--items "slug1,slug2"] [--lesson <slug>]       # Update items and/or lesson link (--lesson "" to unlink)
 pharos quiz read <slug>                                                   # Print metadata + question slugs + lesson link
 pharos quiz attempts <slug>                                               # Completed-attempt history + trend (is accuracy improving?)
 pharos quiz show <slug>                                                    # Show in dashboard
@@ -244,7 +244,7 @@ pharos quiz delete <slug>                                                  # Del
 
 Quizzes are DB-only ordered lists of question slugs, grouped under a title. The learner takes them in the dashboard (library → attempt → review); the CLI only authors them. `--items` is a comma-separated slug list in presentation order. `quiz list` shows the best score from completed attempts per quiz.
 
-A quiz optionally links to the **lesson** whose skill it practices, via `--lesson <seq>` on `create` or `revise` (pass `0` to `revise` to unlink). The link is a soft reference by lesson sequence number (not a FK) — it is surfaced in `quiz read`, `quiz list`, `quiz attempts`, and `quiz show`, and in reverse via `lesson read` and `lesson list` (which show linked quiz slugs). See the [Skills](../SKILL.md#skills) section for why the link exists.
+A quiz optionally links to the **lesson** whose skill it practices, via `--lesson <slug>` on `create` or `revise` (pass `--lesson ""` to `revise` to unlink). The link is a soft reference by lesson slug (stable identity, not a FK) — it is surfaced in `quiz read`, `quiz list`, `quiz attempts`, and `quiz show`, and in reverse via `lesson read` and `lesson list` (which show linked quiz slugs). See the [Skills](../SKILL.md#skills) section for why the link exists.
 
 `quiz list --weak` is the skill-area weakness signal: never-attempted quizzes sort first (most urgent to assess), then by best-score ratio ascending — weakest skill area first. Use it alongside `question list --weak` (per-question) to decide what to practice or teach next.
 
@@ -286,7 +286,7 @@ The dashboard opens on the current workspace if one is set.
 
 `pharos nav` broadcasts a navigate event to all dashboard subscribers.
 Exit 0 = delivered, 1 = no server running, 2 = no tab open.
-The URL is a dashboard path (e.g. `/workspace/{ws}/lesson/{seq}`).
+The URL is a dashboard path (e.g. `/workspace/{ws}/lesson/{slug}`).
 
 ## Skills
 
@@ -320,20 +320,21 @@ the iframe to update the dashboard. Use an absolute route with
 | Glossary | `/workspace/{name}/glossary` | `/workspace/sql/glossary` |
 | Resources | `/workspace/{name}/resources` | `/workspace/sql/resources` |
 | Notes | `/workspace/{name}/notes` | `/workspace/sql/notes` |
-| Lesson | `/workspace/{name}/lesson/{seq}` | `/workspace/sql/lesson/1` |
+| Lesson | `/workspace/{name}/lesson/{slug}` | `/workspace/sql/lesson/sql-joins` |
 | Learning Record | `/workspace/{name}/record/{seq}` | `/workspace/sql/record/2` |
+| Quiz | `/workspace/{name}/quiz/{slug}` | `/workspace/sql/quiz/sql-basics` |
 | Reference | `/workspace/{name}/ref/{slug}` | `/workspace/sql/ref/join-syntax` |
 
 ```html
 <a href="/workspace/sql/glossary" target="_top">Review the glossary</a>
-<a href="/workspace/sql/lesson/3" target="_top">Next lesson</a>
+<a href="/workspace/sql/lesson/sql-joins" target="_top">Next lesson</a>
 <a href="/workspace/sql/ref/join-syntax" target="_top">SQL join cheat sheet</a>
 ```
 
 Key rules:
 - `{name}` is the workspace name (URL-encoded — spaces become `%20`)
 - `{seq}` is the sequence number (1, 2, 3…), not the filename
-- `{slug}` is the hyphenated reference slug (e.g. `sql-syntax`), not a number
+- `{slug}` is the hyphenated reference or lesson slug (e.g. `sql-syntax`, `sql-joins`), not a number
 - Never use relative links like `lessons/0002.html` — they load inside the iframe and lose the dashboard chrome
 
 ## Global flags
@@ -344,7 +345,7 @@ Key rules:
 
 ## File naming (generated by the CLI)
 
-- Lessons:    `0001-dash-case-name.html` (4-digit zero-padded sequence)
+- Lessons:    `slug.html` (slug derived from title)
 - Records:    `0001-dash-case-title.md`
 - References: `<slug>.html` (descriptive, e.g. `sql-syntax.html`)
 - Question stimuli: `<slug>.html` in `questions/` (optional; only when `--stimulus-file` is given)
