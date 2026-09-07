@@ -143,6 +143,39 @@ func TestSmokeAPIRoutes(t *testing.T) {
 	}
 }
 
+func TestHealthzProbe(t *testing.T) {
+	env := newTestEnv(t)
+
+	rec := env.get(t, "/healthz")
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("content-type = %q, want application/json", ct)
+	}
+	if cc := rec.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("cache-control = %q, want no-store (probe must never be served from cache)", cc)
+	}
+	if body := strings.TrimSpace(rec.Body.String()); body != `{"ok":true}` {
+		t.Errorf("body = %q, want {\"ok\":true}", body)
+	}
+}
+
+func TestPresenceJSBundle(t *testing.T) {
+	env := newTestEnv(t)
+
+	rec := env.get(t, "/js/presence.js")
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/javascript") {
+		t.Errorf("content-type = %q, want application/javascript", ct)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "pharosWatchServer") {
+		t.Errorf("body missing pharosWatchServer export")
+	}
+}
+
 func TestSmokePageRoutes(t *testing.T) {
 	env := newTestEnv(t)
 

@@ -95,6 +95,18 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 		w.Write(web.StoppedPage)
 	})
 
+	// Liveness probe for the client-side presence watcher (presence.js).
+	// Deliberately cheap: no DB, no template render. The stopped page and
+	// dashboard frame probe this to detect when the server comes back after
+	// being down — the only recovery signal that works while the server is
+	// off (the SSE broker at /api/events dies with the server, so it can't
+	// push a "back" event).
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Write([]byte(`{"ok":true}`))
+	})
+
 	// JS bundles for iframe injection — served from embedded bytes.
 	mux.HandleFunc("GET /js/{file}", handleJSBundle)
 
@@ -1528,6 +1540,7 @@ var jsBundles = map[string][]byte{
 	"pharos-highlights.js":    web.PharosHighlightsJS,
 	"pharos-scroll.js":        web.PharosScrollJS,
 	"glossary-tooltip.js":     web.GlossaryTooltipJS,
+	"presence.js":             web.PresenceJS,
 }
 
 func handleJSBundle(w http.ResponseWriter, r *http.Request) {

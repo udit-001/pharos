@@ -118,6 +118,16 @@
       </div>
     </div>
   </div>
+  <script src="/js/presence.js"></script>
+  <script>
+    // Auto-recover: the moment the server is reachable again, reload so the
+    // service worker serves the live app. The manual Retry button below
+    // remains as an immediate affordance, but this means the page can't
+    // miss the server coming back (presence.js probes /healthz with backoff).
+    window.pharosWatchServer && window.pharosWatchServer({
+      onUp: function () { window.location.reload(); }
+    });
+  </script>
   <script>
     window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', function() {
       if (localStorage.getItem('pharos_theme') === 'system' || !localStorage.getItem('pharos_theme')) {

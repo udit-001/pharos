@@ -386,6 +386,27 @@ templ document(f Frame, content string) {
 				}
 			});
 		</script>
+		<script src="/js/presence.js"></script>
+		<script>
+			// Server-presence recovery (shares presence.js with the stopped
+			// page). When the local server dies mid-session (e.g. pharos
+			// upgrade restarts it), show a reconnecting banner instead of
+			// silently going stale, and reload the moment it's back so the
+			// shell and its live-sync EventSource come up fresh.
+			(function() {
+				var banner = document.createElement('div');
+				banner.id = 'pharos-reconnecting';
+				banner.textContent = 'Pharos server unreachable — reconnecting…';
+				banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;' +
+					'background:#bf616a;color:#eceff4;font-size:0.8125rem;font-weight:600;' +
+					'text-align:center;padding:0.5rem 1rem;display:none;';
+				document.body.appendChild(banner);
+				window.pharosWatchServer && window.pharosWatchServer({
+					onDown: function() { banner.style.display = 'block'; },
+					onUp: function() { window.location.reload(); }
+				});
+			})();
+		</script>
 		<script>
 			// Live-sync: subscribe to mutation events from the dashboard
 			// server and refresh the displayed region in place.

@@ -1,10 +1,11 @@
 // Pharos service worker — caches the app shell + stopped page.
 // The app is server-backed (SQLite + Go), so "offline" means "server not
-// running," not "no network." The SW guards origin identity: if a foreign
-// app occupies the port, the sentinel check falls back to the cached
-// stopped page instead of rendering the foreign response.
+// running," not "no network." The SW's job: when a navigation can't
+// reach the server, serve the cached stopped page instead of the
+// browser's connection-error page. Successful responses pass through
+// untouched (no identity guard — see the navigation handler below).
 
-var CACHE = 'pharos-v3';
+var CACHE = 'pharos-v8';
 
 var PRECACHE = [
   '/css/app.css',
@@ -13,7 +14,8 @@ var PRECACHE = [
   '/favicon.ico',
   '/icon-192.png',
   '/icon-512.png',
-  '/stopped.html'
+  '/stopped.html',
+  '/js/presence.js'
 ];
 
 self.addEventListener('install', function(e) {
@@ -39,28 +41,24 @@ self.addEventListener('activate', function(e) {
   );
 });
 
-var SENTINEL = '<meta name="pharos-app" content="1">';
-
 self.addEventListener('fetch', function(e) {
   var req = e.request;
 
-  // Navigations: network-first with identity guard.
-  // Only applies to top-level document navigations — iframe loads
-  // (also mode: navigate) are passed through, since their content
-  // (lesson/reference HTML) doesn't carry the sentinel and shouldn't
-  // be replaced with the stopped page.
-  if (req.mode === 'navigate' && e.target instanceof WindowClient) {
+  // Navigations: network-first, stopped-page fallback on failure.
+  // There is deliberately no sentinel-based identity guard on success:
+  // the original `e.target instanceof WindowClient` gate can never match
+  // a fetch event (it targets the worker scope), so the guard never
+  // fired in production; and client-tree lookups cannot distinguish a
+  // fresh lesson iframe from a top-level launch — both arrive with an
+  // empty clientId, and the *resulting* client is still pending (a
+  // clients.get() on it hangs the navigation). Since sentinel-less
+  // 200s include every lesson/reference iframe body, swapping them to
+  // stopped.html breaks lessons. So: successful responses pass through
+  // untouched, connection failures serve the cached stopped page.
+  if (req.mode === 'navigate') {
     e.respondWith(
       fetch(req).then(function(resp) {
-        var clone = resp.clone();
-        return clone.text().then(function(body) {
-          if (body.indexOf(SENTINEL) !== -1) {
-            return resp;
-          }
-          return caches.match('/stopped.html').then(function(stopped) {
-            return stopped || resp;
-          });
-        });
+        return resp;
       }).catch(function() {
         return caches.match('/stopped.html').then(function(stopped) {
           return stopped || Response.error();
@@ -74,7 +72,8 @@ self.addEventListener('fetch', function(e) {
   var url = new URL(req.url);
   if (url.origin === self.location.origin) {
     if (req.destination === 'style' || req.destination === 'image' ||
-        req.destination === 'font' || url.pathname === '/css/app.css') {
+        req.destination === 'font' || url.pathname === '/css/app.css' ||
+        url.pathname === '/js/presence.js') {
       e.respondWith(
         caches.match(req).then(function(cached) {
           if (cached) return cached;

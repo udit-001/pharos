@@ -48,3 +48,6 @@ var PharosScrollJS []byte
 
 //go:embed glossary-tooltip.js
 var GlossaryTooltipJS []byte
+
+//go:embed presence.js
+var PresenceJS []byte
