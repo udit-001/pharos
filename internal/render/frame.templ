@@ -1,6 +1,10 @@
 package render
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/udit-001/pharos/internal/web"
+)
 
 // document renders the full HTML document: the frame (sidebar + topbar +
 // wrapper) wrapped around the given content HTML. It is the templ component
@@ -25,7 +29,7 @@ templ document(f Frame, content string) {
 	<link rel="preconnect" href="https://fonts.googleapis.com"/>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 			<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-			<link rel="stylesheet" href="/css/app.css?v=20"/>
+			<link rel="stylesheet" href={ web.CSSURL() }/>
 			<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t;var m=document.getElementById('theme-color');if(m)m.content=t==='dark'?'#2e3440':'#eceff4'})()</script>
 		</head>
 		<body class="font-sans" data-active-ws={ f.ActiveWS } data-active-type={ f.ActiveType } data-active-seq={ fmt.Sprintf("%d", f.ActiveSeq) } data-active-slug={ f.ActiveSlug }>
@@ -74,7 +78,7 @@ templ document(f Frame, content string) {
 				<div id="palette-results" class="palette-results" role="listbox"></div>
 			</div>
 		</div>
-		<script src="/js/pharos-theme.js?v=28"></script>
+		<script src={ web.JSBundleURL("pharos-theme.js") }></script>
 			<script>
 				function toggleSidebar() {
 					var sb = document.getElementById('sidebar');
@@ -386,7 +390,7 @@ templ document(f Frame, content string) {
 				}
 			});
 		</script>
-		<script src="/js/presence.js"></script>
+		<script src={ web.JSBundleURL("presence.js") }></script>
 		<script>
 			// Server-presence recovery (shares presence.js with the stopped
 			// page). When the local server dies mid-session (e.g. pharos

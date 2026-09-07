@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/udit-001/pharos/internal/db"
+	"github.com/udit-001/pharos/internal/web"
 )
 
 // testEnv bundles a store and mux for server tests. The store uses a real
@@ -767,5 +768,67 @@ func TestHighlightIframeConfigInjection(t *testing.T) {
 	body = rec.Body.String()
 	if strings.Contains(body, "window.__pharos") {
 		t.Error("question iframe should NOT have highlights config")
+	}
+}
+
+func TestVersionedAssetURLsInFrame(t *testing.T) {
+	env := newTestEnv(t)
+	body := env.get(t, "/").Body.String()
+
+	pres := web.JSBundleURL("presence.js")
+	theme := web.JSBundleURL("pharos-theme.js")
+	if pres == "" || theme == "" {
+		t.Fatal("expected registered bundles resolved")
+	}
+	for _, want := range []string{
+		`src="` + pres + `"`,
+		`src="` + theme + `"`,
+		`href="` + web.CSSURL() + `"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("frame body missing %s", want)
+		}
+	}
+	for _, stale := range []string{
+		`src="/js/presence.js"`, // must carry a version
+		"?v=20", "?v=28",        // old manual counters must be gone
+	} {
+		if strings.Contains(body, stale) {
+			t.Errorf("frame body still contains stale literal %q", stale)
+		}
+	}
+}
+
+func TestStoppedPageVersionedPresence(t *testing.T) {
+	env := newTestEnv(t)
+	body := env.get(t, "/stopped.html").Body.String()
+
+	pres := web.JSBundleURL("presence.js")
+	if pres == "" {
+		t.Fatal("presence.js not registered")
+	}
+	if want := `src="` + pres + `"`; !strings.Contains(body, want) {
+		t.Errorf("stopped page missing %s", want)
+	}
+	if strings.Contains(body, `src="/js/presence.js"`) {
+		t.Error("stopped page references unversioned presence.js")
+	}
+}
+
+func TestBundlesResolveVersioned(t *testing.T) {
+	env := newTestEnv(t)
+	for _, name := range []string{"presence.js", "pharos-theme.js", "pharos-toc.js", "glossary-tooltip.js"} {
+		url := web.JSBundleURL(name)
+		if url == "" {
+			t.Errorf("%s not registered", name)
+			continue
+		}
+		rec := env.get(t, url) // ?v= is a query — the route ignores it
+		if rec.Code != 200 {
+			t.Errorf("%s via %s: status = %d", name, url, rec.Code)
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/javascript") {
+			t.Errorf("%s: content-type = %q", name, ct)
+		}
 	}
 }

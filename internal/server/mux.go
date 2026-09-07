@@ -92,7 +92,14 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /stopped.html", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		w.Write(web.StoppedPage)
+		// Serve the stopped page with the same versioned presence.js URL the
+		// dashboard frame uses (the SW precache fetch of /stopped.html bakes
+		// it in); the SW keeps the unversioned /js/ precache floor for
+		// offline loads via an ignoreSearch fallback.
+		body := bytes.Replace(web.StoppedPage,
+			[]byte(`src="/js/presence.js"`),
+			[]byte(`src="`+web.JSBundleURL("presence.js")+`"`), 1)
+		w.Write(body)
 	})
 
 	// Liveness probe for the client-side presence watcher (presence.js).
@@ -1526,26 +1533,14 @@ func handleAssetFile(store *db.Store) http.HandlerFunc {
 
 // ── Shared JS bundle serving ──
 
-// jsBundles maps a filename (without path) to its embedded bytes.
-// Add new bundles here as they are created; the /js/{file} route
-// serves them at GET /js/{name}.
-//
-// jsVer is appended as a query parameter to script src tags for
-// cache-busting. Bump it whenever a bundle's content changes.
-var jsVer = "29"
-var jsBundles = map[string][]byte{
-	"pharos-theme.js":         web.PharosThemeJS,
-	"pharos-toc.js":           web.PharosTocJS,
-	"pharos-iframe-bridge.js": web.PharosIframeBridgeJS,
-	"pharos-highlights.js":    web.PharosHighlightsJS,
-	"pharos-scroll.js":        web.PharosScrollJS,
-	"glossary-tooltip.js":     web.GlossaryTooltipJS,
-	"presence.js":             web.PresenceJS,
-}
-
+// Bundles are registered in internal/web (jsBundles) — the single source
+// of truth for name → bytes → versioned URL. The /js/{file} route serves
+// them here; script tags reference them via web.JSBundleURL so the query
+// version (sha256 of the bytes) moves with every content change without
+// manual counters. Unknown names 404.
 func handleJSBundle(w http.ResponseWriter, r *http.Request) {
 	file := r.PathValue("file")
-	data, ok := jsBundles[file]
+	data, ok := web.JS(file)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -1557,19 +1552,18 @@ func handleJSBundle(w http.ResponseWriter, r *http.Request) {
 
 // ── Iframe script injection ──
 
-// injectFrameScripts injects <script src="/js/{name}"> tags before
-// </head> in an HTML document. Unknown script names are silently
-// dropped — only bundles registered in jsBundles are injected.
+// injectFrameScripts injects <script src="/js/{name}?v=..."> tags before
+// </head> in an HTML document. Unknown script names are silently dropped
+// — only bundles registered in internal/web's jsBundles are injected.
 func injectFrameScripts(html []byte, scripts ...string) []byte {
 	var buf bytes.Buffer
 	for _, name := range scripts {
-		if _, ok := jsBundles[name]; !ok {
+		url := web.JSBundleURL(name)
+		if url == "" {
 			continue
 		}
-		buf.WriteString(`<script src="/js/`)
-		buf.WriteString(name)
-		buf.WriteString(`?v=`)
-		buf.WriteString(jsVer)
+		buf.WriteString(`<script src="`)
+		buf.WriteString(url)
 		buf.WriteString(`"></script>`)
 	}
 	if buf.Len() == 0 {
