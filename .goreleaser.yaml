@@ -10,8 +10,8 @@
 # corresponding repos and setting the PAT secrets in GitHub.
 #
 # Winget publishing is a GoReleaser Pro feature and will not run on the OSS
-# binary this release workflow uses. It's handled instead by the
-# winget-releaser action in .github/workflows/release.yml.
+# binary this release workflow uses. It's handled instead by
+# .github/workflows/winget.yml.
 
 version: 2
 

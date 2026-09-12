@@ -1,0 +1,42 @@
+name: winget
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (e.g. v0.10.0)
+        required: true
+        type: string
+
+# Called from release.yml rather than triggered by `release: published`
+# because a release created by GoReleaser with GITHUB_TOKEN does not start
+# a new workflow run.
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+    steps:
+      - name: Publish to winget-pkgs
+        if: env.WINGET_TOKEN != ''
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: udit-001.Pharos
+          installers-regex: '\.exe$'
+          release-tag: ${{ inputs.tag }}
+          token: ${{ env.WINGET_TOKEN }}
+
+      - name: Explain skipped submission
+        if: env.WINGET_TOKEN == ''
+        run: |
+          {
+          echo "WINGET_TOKEN is not set — no winget-pkgs PR was opened."
+          echo "Set it (classic PAT, public_repo scope) or submit by hand with"
+          echo "\`wingetcreate submit\` pointing at the three manifest files."
+          } >> "$GITHUB_STEP_SUMMARY"
