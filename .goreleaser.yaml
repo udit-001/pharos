@@ -6,8 +6,12 @@
 # Full release:     triggered by `git tag v0.x.x && git push --tags`
 #
 # Publishing targets that need external repos + secrets (Homebrew tap,
-# Scoop bucket, winget) are commented out below — uncomment after creating
-# the corresponding repos and setting the PAT secrets in GitHub.
+# Scoop bucket) are commented out below — uncomment after creating the
+# corresponding repos and setting the PAT secrets in GitHub.
+#
+# Winget publishing is a GoReleaser Pro feature and will not run on the OSS
+# binary this release workflow uses. It's handled instead by the
+# winget-releaser action in .github/workflows/release.yml.
 
 version: 2
 
@@ -93,7 +97,9 @@ signs:
       - --yes
     artifacts: checksum
 
-# Linux packages (.deb, .rpm, .apk, .archlinux) attached to the GitHub release.
+# Linux packages (.deb, .rpm) attached to the GitHub release. The apk (Alpine)
+# and archlinux (.pkg.tar.zst) formats were dropped to slim the release —
+# re-add them to `formats` if you want them back.
 nfpms:
   - id: pharos
     package_name: pharos
@@ -105,8 +111,6 @@ nfpms:
     formats:
       - deb
       - rpm
-      - apk
-      - archlinux
     file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
 # --- Publishing targets (uncomment after creating the repos + secrets) -------
@@ -146,4 +150,4 @@ nfpms:
 #       owner: udit-001
 #       name: winget-pkgs
 #       branch: master
-#       token: '{{ .Env.WINGET_GITHUB_TOKEN }}'
+#       token: '{{ .Env.WINGET_TOKEN }}'
