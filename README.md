@@ -11,11 +11,19 @@ aimed at exactly those gaps.
 
 **1. Install Pharos**
 
+**macOS / Linux**
+
 ```bash
 curl -sfL https://raw.githubusercontent.com/udit-001/pharos/main/install.sh | sh
 ```
 
-(If you have Go installed, `go install github.com/udit-001/pharos/cmd/pharos@latest` works too.)
+**Windows**
+
+```powershell
+winget install udit-001.Pharos
+```
+
+(If you have Go installed, `go install github.com/udit-001/pharos/cmd/pharos@latest` works on any platform.)
 
 **2. Connect your AI**
 
@@ -35,7 +43,7 @@ pharos start    # opens the dashboard
 ```
 
 Take quizzes, review lessons, watch your progress. Update later with
-`pharos upgrade`.
+`pharos upgrade` (or `winget upgrade udit-001.Pharos` on Windows).
 
 ## What it does
 

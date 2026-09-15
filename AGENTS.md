@@ -24,7 +24,7 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 - Tag with `git tag v0.x.x && git push --tags` — triggers `.github/workflows/release.yml`.
 - GoReleaser config: `.goreleaser.yaml`. Cross-compiles linux/darwin/windows × amd64/arm64, produces archives + `checksums.txt` + Linux packages (deb/rpm/apk/archlinux).
 - Cosign keyless signing of `checksums.txt` is enabled (GitHub OIDC, no secrets). Verify command is in `.goreleaser.yaml`.
-- Homebrew/Scoop/winget manifests are commented out in `.goreleaser.yaml` — uncomment after creating the tap/bucket repos and setting PAT secrets.
+- Winget is published via `.github/workflows/winget.yml` (package `udit-001.Pharos`, portable .exe). Homebrew/Scoop manifests are still commented out in `.goreleaser.yaml` — uncomment after creating the tap/bucket repos and setting PAT secrets.
 - Local dry-run: `goreleaser release --snapshot --clean` (no upload). Validate: `goreleaser check`.
 
 ## Lessons learned
