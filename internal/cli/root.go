@@ -68,15 +68,19 @@ Most commands support --json for machine-readable output.
 When only one workspace exists, most commands use it automatically
 without needing --workspace.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "init" || cmd.Name() == "config" || cmd.Name() == "migrate" || cmd.Name() == "dev" || cmd.Name() == "upgrade" || cmd.Name() == "tailwind" || cmd.Name() == "build" {
+		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version" || cmd.Name() == "init" || cmd.Name() == "config" || cmd.Name() == "migrate" || cmd.Name() == "dev" || cmd.Name() == "upgrade" || cmd.Name() == "tailwind" || cmd.Name() == "build" || cmd.Name() == "autostart" || cmd.Name() == "setup" {
 			return nil
 		}
+
 		// Parent commands only ever print help or error on args — no DB needed.
 		if cmd.HasSubCommands() {
 			return nil
 		}
-		// Migrate and tailwind subcommands also handle their own DB
-		if cmd.Parent() != nil && (cmd.Parent().Name() == "migrate" || cmd.Parent().Name() == "tailwind" || cmd.Parent().Name() == "skills") {
+		// Migrate and tailwind subcommands also handle their own DB; autostart
+		// and setup are pure config-file operations (no workspace, no DB —
+		// LEARN-222/221). Their leaf commands carry their own names, so match
+		// on the parent too.
+		if cmd.Parent() != nil && (cmd.Parent().Name() == "migrate" || cmd.Parent().Name() == "tailwind" || cmd.Parent().Name() == "skills" || cmd.Parent().Name() == "autostart") {
 			return nil
 		}
 		// Load config with auto-migration for existing users

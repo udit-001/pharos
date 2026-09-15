@@ -24,7 +24,7 @@ func executeForTest(t *testing.T, args []string) error {
 }
 
 var parentCommands = []string{
-	"asset", "config", "document", "glossary", "lesson", "migrate", "mission", "notes",
+	"asset", "autostart", "config", "document", "glossary", "lesson", "migrate", "mission", "notes",
 	"question", "quiz", "record", "reference", "resources", "skills",
 	"tailwind", "workspace",
 }

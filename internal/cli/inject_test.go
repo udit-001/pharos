@@ -25,34 +25,38 @@ func newTestStore(t *testing.T) (*db.Store, func()) {
 	return store, func() { _ = store.Close() }
 }
 
+// captureStdout runs fn while capturing everything written to os.Stdout,
+// returning it as a string. Shared by runWithStore (store-backed commands)
+// and captureCLI (config-only commands).
+func captureStdout(t *testing.T, fn func() error) string {
+	t.Helper()
+	orig := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() { os.Stdout = orig }()
+	err := fn()
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	return buf.String()
+}
+
 // runWithStore executes the named cobra subcommand with the given store
 // injected via context (the seam created in LEARN-9). Captures stdout.
 func runWithStore(t *testing.T, args []string, store *db.Store) string {
 	t.Helper()
 	root := newRootForTest()
 	ctx := context.WithValue(context.Background(), ctxStore{}, store)
-
 	root.SetArgs(args)
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		cmd.SetContext(context.WithValue(cmd.Context(), ctxStore{}, store))
 		return nil
 	}
 	root.PersistentPostRunE = nil
-
-	// Commands print via fmt.Println to os.Stdout — redirect it.
-	orig := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	defer func() { os.Stdout = orig }()
-
-	err := root.ExecuteContext(ctx)
-	w.Close()
-	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
-	if err != nil {
-		t.Fatalf("execute %v: %v", args, err)
-	}
-	return buf.String()
+	return captureStdout(t, func() error { return root.ExecuteContext(ctx) })
 }
 
 // newRootForTest returns a fresh rootCmd instance. Because the package uses
