@@ -23,16 +23,13 @@ jobs:
     env:
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
     steps:
-      # winget-releaser's sync-fork reports success without syncing; a stale
-      # fork makes komac fail with a misleading "permissions to execute
-      # CreateRef" error. Merge upstream explicitly instead.
+      # komac branches from the fork's master; a stale fork fails with a
+      # misleading "permissions to execute CreateRef" error, so hard-sync
+      # the fork to upstream before submitting.
       - name: Sync winget-pkgs fork
-        run: |
-          curl -fsS -X POST \
-            -H "Authorization: token $WINGET_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/udit-001/winget-pkgs/merge-upstream \
-            -d '{"branch":"master"}' || true
+        env:
+          GH_TOKEN: ${{ env.WINGET_TOKEN }}
+        run: gh repo sync udit-001/winget-pkgs --source microsoft/winget-pkgs --branch master --force
 
       - name: Publish to winget-pkgs
         if: env.WINGET_TOKEN != ''
