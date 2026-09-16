@@ -27,7 +27,9 @@ func decodeAutostartJSON(t *testing.T, out string) map[string]any {
 
 func writeConfigWithPort(t *testing.T, port int) {
 	t.Helper()
-	if err := config.Save(&config.Config{Port: port}); err != nil {
+	// DataDir is set to a per-test temp dir so commands that must open the
+	// DB (e.g. `pharos start`) stay hermetic.
+	if err := config.Save(&config.Config{Port: port, DataDir: t.TempDir()}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
 }

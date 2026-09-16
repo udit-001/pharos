@@ -73,6 +73,17 @@ Examples:
 				printJSON(map[string]any{"url": url, "running": true, "port": info.Port})
 				return nil
 			}
+			if info.Port != configPort() {
+				// LEARN-219 D3: the running server's port differs from the
+				// configured port (e.g. an older daemon started before a
+				// port change). `pharos setup` is the single restore command.
+				fmt.Println()
+				fmt.Printf("  Pharos running on %d, config says %d.\n", info.Port, configPort())
+				fmt.Println("  Fix: pharos setup")
+				fmt.Printf("  Dashboard: %s\n", url)
+				fmt.Println()
+				return nil
+			}
 			fmt.Println()
 			fmt.Printf("  Pharos dashboard already running (%s)\n", version.DisplayVersion())
 			fmt.Printf("  %s\n", url)
@@ -138,6 +149,13 @@ func resolvePort(cmd *cobra.Command) int {
 	if cmd.Flags().Changed("port") {
 		return startFlags.port
 	}
+	return configPort()
+}
+
+// configPort returns the port recorded in the config file (or the default).
+// Unlike resolvePort it ignores --port: the "config says N" warning
+// (LEARN-219 D3) compares against what the config file actually holds.
+func configPort() int {
 	cfg, err := config.Load()
 	if err == nil && cfg != nil && cfg.Port != 0 {
 		return cfg.Port

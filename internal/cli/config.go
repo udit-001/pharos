@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"github.com/udit-001/pharos/internal/autostart"
 	"github.com/udit-001/pharos/internal/config"
 	"github.com/udit-001/pharos/internal/db"
 )
@@ -135,29 +136,67 @@ Examples:
 			if err != nil || p < 1 || p > 65535 {
 				return fmt.Errorf("invalid value %q for %s: use a port number 1-65535", value, key)
 			}
+			oldPort := cfg.Port
 			cfg.Port = p
+			if err := config.Save(cfg); err != nil {
+				return fmt.Errorf("save config: %w", err)
+			}
+			if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
+				return fmt.Errorf("create data directory: %w", err)
+			}
+			// LEARN-219: port is an identity — a pinned PWA records the old
+			// origin and goes stale on change (LEARN-163 limits: the server
+			// can't see browser pins, so the warning is unconditional on an
+			// actual change). `pharos setup` is the single restore command.
+			// Never auto-restart, never open anything (D1).
+			if oldPort != p {
+				healAutostartPort(p)
+				fmt.Println()
+				fmt.Printf("  OK: port %d\n", p)
+				fmt.Printf("  PWA pinned to %d is now stale.\n", oldPort)
+				fmt.Println("  Fix: pharos setup")
+				fmt.Println()
+			} else {
+				fmt.Println()
+				fmt.Printf("  OK: port %d\n", p)
+				fmt.Println()
+			}
+			return nil
 		default:
 			return fmt.Errorf("unknown config key: %s", key)
 		}
 
+		// data_dir (port returns above): save + print.
 		if err := config.Save(cfg); err != nil {
 			return fmt.Errorf("save config: %w", err)
 		}
-
-		// Ensure the new data directory exists
 		if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
 			return fmt.Errorf("create data directory: %w", err)
 		}
-
 		fmt.Println()
 		fmt.Printf("  ✓ %s set to %s\n", key, value)
 		fmt.Printf("    Config: %s\n", config.Path())
-		if key == "port" {
-			fmt.Println("    Note: if you've pinned Pharos, re-create the shortcut so it points at the new port.")
-		}
 		fmt.Println()
 		return nil
 	},
+}
+
+// healAutostartPort silently rewrites the startup entry to the new port when
+// one exists (LEARN-219 decision 4: self-healing, `autostart status` always
+// reports the correct port). A disabled state is left alone — the user
+// deliberately turned it off; a port change must not resurrect it.
+func healAutostartPort(port int) {
+	probe, err := autostart.New(autostart.Options{})
+	if err != nil {
+		return // platform can't autostart — nothing to heal
+	}
+	switch probe.Status().Status {
+	case autostart.StatusEnabled, autostart.StatusStalePort:
+		am, err := autostart.New(autostart.Options{Port: port})
+		if err == nil {
+			_, _ = am.Enable()
+		}
+	}
 }
 
 func init() {
