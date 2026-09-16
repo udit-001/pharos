@@ -48,7 +48,7 @@ func Start(cfg Config) error {
 
 	if !cfg.NoOpen && !cfg.Silent {
 		url := fmt.Sprintf("http://127.0.0.1:%d", cfg.Port)
-		if err := openBrowser(url); err != nil {
+		if err := OpenBrowser(url); err != nil {
 			log.Printf("  Open %s in your browser", url)
 		}
 	}
@@ -88,8 +88,10 @@ func newServer(mux *http.ServeMux) *http.Server {
 	}
 }
 
-// openBrowser launches the OS default browser at the given URL.
-func openBrowser(url string) error {
+// OpenBrowser launches the OS default browser at the given URL — the tier-2
+// fallback of `pharos setup`'s browser ladder (LEARN-170) and the classic
+// start-time open.
+func OpenBrowser(url string) error {
 	var cmd string
 	var args []string
 	switch runtime.GOOS {
