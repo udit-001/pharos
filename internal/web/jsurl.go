@@ -32,6 +32,7 @@ var jsBundles = map[string][]byte{
 	"pharos-scroll.js":        PharosScrollJS,
 	"glossary-tooltip.js":     GlossaryTooltipJS,
 	"presence.js":             PresenceJS,
+	"pwa-install.bundle.js":   PWAInstallBundleJS,
 }
 
 var (

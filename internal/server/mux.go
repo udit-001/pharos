@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"bytes"
+	"github.com/udit-001/pharos/internal/config"
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/docutil"
 	"github.com/udit-001/pharos/internal/markdown"
@@ -101,6 +103,25 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 			[]byte(`src="`+web.JSBundleURL("presence.js")+`"`), 1)
 		w.Write(body)
 	})
+
+	// PWA install wizard (LEARN-220): frameless setup card that installs
+	// the dashboard as a desktop PWA.  Served as a plain HTML page (no
+	// sidebar, no templ render) so the browser can apply standalone-
+	// display detection before the card shows.
+	mux.HandleFunc("GET /setup", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		body := bytes.Replace(web.SetupPage,
+			[]byte(`src="/js/pwa-install.bundle.js"`),
+			[]byte(`src="`+web.JSBundleURL("pwa-install.bundle.js")+`"`), 1)
+		w.Write(body)
+	})
+
+	// PWA install record (LEARN-220): the /setup wizard POSTs here on
+	// successful PWA installation; the orchestrator reads it to skip
+	// re-opening the install page.
+	mux.HandleFunc("GET /api/pwa/installed", handlePWAInstalledGet())
+	mux.HandleFunc("POST /api/pwa/installed", jsonHandler(handlePWAInstalledPost()))
 
 	// Liveness probe for the client-side presence watcher (presence.js).
 	// Deliberately cheap: no DB, no template render. The stopped page and
@@ -1614,4 +1635,69 @@ func serveIframeHTML(w http.ResponseWriter, path, kind, file string, cfg iframeC
 	}
 	data = injectIframeConfig(data, cfg)
 	w.Write(injectFrameScripts(data, scripts...))
+}
+
+// ── PWA install record (LEARN-220) ─────────────────────────────────────
+
+// handlePWAInstalledGet returns the pwa.json record written by the /setup
+// wizard.  The orchestrator (pharos setup) uses this to confirm installation.
+func handlePWAInstalledGet() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		rec, err := config.ReadPWAFile()
+		if err != nil || rec == nil {
+			jsonError(w, "not installed", http.StatusNotFound)
+			return
+		}
+		jsonResponse(w, rec)
+	}
+}
+
+// handlePWAInstalledPost accepts {"origin":"http://..."} from the /setup
+// wizard after a successful PWA install and writes the pwa.json record.
+func handlePWAInstalledPost() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Origin string `json:"origin"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			jsonError(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		u, err := url.Parse(body.Origin)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			jsonError(w, "invalid origin", http.StatusBadRequest)
+			return
+		}
+		rec := config.PWAInstalled{
+			Installed: true,
+			Origin:    body.Origin,
+			Browser:   detectBrowser(r.UserAgent()),
+			At:        time.Now().UTC().Format(time.RFC3339),
+		}
+		if err := config.WritePWAFile(rec); err != nil {
+			jsonError(w, "write failed", http.StatusInternalServerError)
+			return
+		}
+		jsonResponse(w, rec)
+	}
+}
+
+// detectBrowser returns a human-readable browser name from a User-Agent
+// string.  Order matters: Edge contains "Chrome/" and "Edg/"; Chrome
+// on iOS contains "CriOS/" and "Safari/"; Safari on Mac contains
+// "Safari/" without "Chrome/" or "Firefox/".
+func detectBrowser(ua string) string {
+	if strings.Contains(ua, "Edg/") {
+		return "Edge"
+	}
+	if strings.Contains(ua, "CriOS/") || strings.Contains(ua, "Chrome/") || strings.Contains(ua, "Chromium/") {
+		return "Chrome"
+	}
+	if strings.Contains(ua, "Firefox/") {
+		return "Firefox"
+	}
+	if strings.Contains(ua, "Safari/") {
+		return "Safari"
+	}
+	return "browser"
 }

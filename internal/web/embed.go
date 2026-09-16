@@ -29,6 +29,14 @@ var ServiceWorker []byte
 //go:embed stopped.html
 var StoppedPage []byte
 
+// Vendored PWA install wizard component (UMD classic-script bundle, offline-safe).
+//
+//go:embed pwa-install.bundle.js
+var PWAInstallBundleJS []byte
+
+//go:embed setup.html
+var SetupPage []byte
+
 // JS bundles served via /js/{file} for iframe injection.
 //
 //go:embed pharos-theme.js

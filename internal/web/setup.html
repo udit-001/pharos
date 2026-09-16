@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Install Pharos</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #eceff4;
+    --card: #ffffff;
+    --border: #e5e9f0;
+    --ink: #2e3440;
+    --muted: #4c566a;
+    --blue: #5e81ac;
+    --blue-ink: #ffffff;
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #2e3440;
+    --card: #3b4252;
+    --border: #434c5e;
+    --ink: #eceff4;
+    --muted: #81a1c1;
+    --blue: #88c0d0;
+    --blue-ink: #2e3440;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(46, 52, 64, 0.04), 0 8px 24px rgba(46, 52, 64, 0.06);
+    max-width: 26rem;
+    width: 100%;
+    padding: 2rem 2rem 1.6rem;
+    text-align: center;
+  }
+  .mark { width: 3.2rem; height: 3.2rem; margin: 0.7rem auto 1.4rem; }
+  .mark svg { width: 100%; height: 100%; display: block; }
+  h1 { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.01em; line-height: 1.3; }
+  .lede { font-size: 0.85rem; color: var(--muted); margin-top: 0.45rem; line-height: 1.55; }
+  .action {
+    margin-top: 1.4rem;
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    background: var(--blue);
+    color: var(--blue-ink);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition: filter 0.15s;
+  }
+  .action:hover { filter: brightness(1.08); }
+  .action.quiet {
+    margin-top: 1.2rem;
+    background: none;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 0.8rem;
+  }
+  .action.quiet:hover { color: var(--ink); filter: none; }
+</style>
+</head>
+<body>
+<pwa-install
+  id="pwa-install"
+  manifest-url="/manifest.webmanifest"
+  manual-chrome
+  manual-apple
+  disable-screenshots
+></pwa-install>
+
+<main class="card">
+  <div class="mark" aria-hidden="true"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#2E3440"/><g stroke="#ECEFF4" stroke-width="2.5" stroke-linecap="round" fill="none"><line x1="50" y1="50" x2="28" y2="28"/><line x1="50" y1="50" x2="74" y2="30"/><line x1="50" y1="50" x2="26" y2="70"/><line x1="50" y1="50" x2="74" y2="72"/></g><g fill="#ECEFF4"><circle cx="28" cy="28" r="4.5"/><circle cx="74" cy="30" r="4.5"/><circle cx="26" cy="70" r="4.5"/><circle cx="74" cy="72" r="4.5"/></g><circle cx="50" cy="50" r="9" fill="#ECEFF4"/></svg></div>
+  <h1 id="headline"></h1>
+  <p class="lede" id="lede" hidden></p>
+  <button class="action" id="action" hidden></button>
+</main>
+
+<script src="/js/pwa-install.bundle.js"></script>
+<script>
+(function () {
+  'use strict';
+  var pi = document.getElementById('pwa-install');
+  var headline = document.getElementById('headline');
+  var lede = document.getElementById('lede');
+  var action = document.getElementById('action');
+
+  var STATES = {
+    // 1 Installable — pwa-install's own dialog owns the benefit copy.
+    1: { h: 'Install Pharos', lede: '', btn: 'Install', quiet: false, fn: function () { pi.install(); } },
+    // 2 Installed — Chromium fell through without a beforeinstallprompt.
+    2: { h: 'Pharos is installed', lede: 'Launch it from the taskbar or Start menu.', btn: 'Reinstall', quiet: true, fn: function () { pi.install(); } },
+    // 3 Firefox — manual navigation only (the CLI never opens /setup here).
+    3: { h: "Pharos can't be installed in Firefox", lede: 'Run pharos setup -- it detects your browser and creates a desktop shortcut instead.', btn: 'Keep using Pharos in this tab', quiet: true, fn: function () { location.href = '/'; } },
+    // 4 Safari — pwa-install's how-to dialog owns the steps (Dock / Home Screen).
+    4: { h: 'Add Pharos to your Dock', lede: '', btn: 'Add to Dock', quiet: false, fn: function () { pi.showDialog(true); pi.install(); } },
+    // 5 Done — appinstalled / pwa-install-success-event fired.
+    5: { h: 'Pharos is installed', lede: 'Close this tab, then launch Pharos from your taskbar anytime.', btn: 'Open Pharos', quiet: true, fn: function () { location.href = '/'; } }
+  };
+
+  function show(n) {
+    var s = STATES[n];
+    if (!s) return;
+    headline.textContent = s.h;
+    if (s.lede) {
+      lede.textContent = s.lede;
+      lede.hidden = false;
+    } else {
+      lede.hidden = true;
+    }
+    action.textContent = s.btn;
+    action.className = 'action' + (s.quiet ? ' quiet' : '');
+    action.hidden = false;
+    action.onclick = s.fn;
+  }
+
+  // Dev override: /setup?state=1..5 forces a state for manual smoke.
+  var q = new URLSearchParams(location.search).get('state');
+  if (q && STATES[q]) { show(Number(q)); return; }
+
+  // 1. Already running in the installed app (standalone / minimal-ui /
+  //    fullscreen / window-controls-overlay) — nothing to set up here.
+  if (navigator.standalone === true || (window.matchMedia && !window.matchMedia('(display-mode: browser)').matches)) {
+    location.replace('/');
+    return;
+  }
+
+  // 2. beforeinstallprompt captured (Chromium) -> state 1. The pwa-install
+  //    component retains the prompt itself; we only switch the card.
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    show(1);
+  });
+
+  // 3-5. No BIP: fall back to the UA family. Chromium without a prompt
+  //      means the app is already installed. Unknown non-Chromium,
+  //      non-Firefox, non-Apple browsers get the "can't install" card
+  //      (they're a manual visit; pharos setup is the fix either way).
+  (function () {
+    var ua = navigator.userAgent;
+    var chromium = /Chrome\/|Chromium\/|Edg\/|CriOS\//.test(ua);
+    var firefox = /Firefox\//.test(ua);
+    var apple = !chromium && !firefox && /iPhone|iPad|iPod|Macintosh/.test(ua);
+    if (chromium) show(2);
+    else if (firefox) show(3);
+    else if (apple) show(4);
+    else show(3);
+  })();
+
+  // 5. appinstalled + pwa-install success -> card 5 and record the install.
+  var recorded = false;
+  function record() {
+    if (recorded) return;
+    recorded = true;
+    fetch('/api/pwa/installed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origin: location.origin })
+    }).catch(function () {});
+  }
+  function done() { show(5); record(); }
+  window.addEventListener('appinstalled', done);
+  pi.addEventListener('pwa-install-success-event', done);
+})();
+</script>
+</body>
+</html>
