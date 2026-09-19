@@ -3,7 +3,8 @@ function resolveTheme(mode) {
 		? (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light')
 		: mode;
 }
-function applyTheme(mode) {
+function applyTheme(mode, opts) {
+	var keepMode = opts && opts.keepMode;
 	var html = document.documentElement;
 	var actual = resolveTheme(mode);
 	document.querySelectorAll('iframe').forEach(function(f) {
@@ -15,7 +16,7 @@ function applyTheme(mode) {
 		try { f.contentWindow.postMessage({type: 'theme', theme: actual}, '*'); } catch(e) {}
 	});
 	html.dataset.theme = actual;
-	localStorage.setItem('pharos_theme', mode);
+	if (!keepMode) localStorage.setItem('pharos_theme', mode);
 	var m = document.getElementById('theme-color');
 	if (m) m.content = actual === 'dark' ? '#2e3440' : '#eceff4';
 	var sunIcon = document.querySelector('[data-theme-icon=sun]');
@@ -37,5 +38,15 @@ function toggleTheme() {
 	applyTheme(t);
 	window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', function() {
 		applyTheme(localStorage.getItem('pharos_theme') || 'system');
+	});
+	// Relay: when a parent frame relays a resolved theme (dashboard -> lesson),
+	// re-apply it here and forward to OUR child frames (nested assets like
+	// sql-workbench). keepMode: the message carries a resolved theme, not the
+	// user's mode — never write it over a stored 'system' preference.
+	window.addEventListener('message', function(e) {
+		var d = e && e.data;
+		if (!d || d.type !== 'theme') return;
+		if (d.theme !== 'light' && d.theme !== 'dark') return;
+		applyTheme(d.theme, { keepMode: true });
 	});
 })();
