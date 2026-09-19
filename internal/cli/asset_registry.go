@@ -59,6 +59,15 @@ var knownAssets = map[string]db.AssetSpec{
 			"mermaid-lightbox.css": mermaidLightboxCSS,
 		},
 	},
+	// sql-workbench: single-file web component (LEARN-194). Self-contained —
+	// worker + wasm inlined, no companion files; theming follows the host
+	// page, so no theme script is needed here.
+	"sql-workbench": {
+		Source:         "vendored",
+		Filename:       "sql-workbench.js",
+		DefaultVersion: "v0.2.6",
+		URLTemplate:    "https://cdn.jsdelivr.net/gh/udit-001/sql-workbench@{{VERSION}}/dist/sql-workbench.js",
+	},
 	"highlightjs": {
 		Source:         "vendored",
 		Filename:       "highlight.min.js",
