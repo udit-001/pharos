@@ -16,7 +16,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Shared styles | `assets/style.css` (variables, typography, layout, and component classes — quiz `.q`, `.callout`, `.source-box`); no per-page stylesheet needed for these |
 | Quiz interactivity | Inline `<script>` before `</body>` — binds to `.q` elements |
 | Font delivery | `@font-face` in `assets/style.css` → `assets/fonts/inter-latin.woff2` (vendored — works offline, no CDN) |
-| Copy code | `assets/copy-code.js` — adds copy button to `<pre>` on hover; opt-out per block via `data-no-copy` |
+| Copy code | add `data-copy` to a `<pre>` block — the server detects it and auto-injects the copy-button logic (no script tag needed) |
 
 ---
 
@@ -114,7 +114,6 @@ Every HTML page — lessons and references alike — starts with this boilerplat
   });
 })();
 </script>
-<script src="assets/copy-code.js"></script>
 <script>window.addEventListener('message',function(e){if(e.data&&e.data.type==='theme')document.documentElement.dataset.theme=e.data.theme})</script>
 </body>
 </html>
@@ -122,7 +121,7 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 
 Key rules:
 - **No `data-theme` on `<html>`** — the blocking script sets it dynamically
-- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), `<script src="assets/copy-code.js">`, and postMessage listener. Glossary tooltip is auto-injected by the server when `glossary-term` classes are present — no manual script tag needed.
+- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), and postMessage listener. Auto-injected by the server when detected: glossary tooltip (`glossary-term` classes) and copy buttons (`data-copy` on `<pre>`) — no manual script tags needed.
 - **CSS links are root-relative** — no `../`; see [references/pharos-cli.md](references/pharos-cli.md#links-inside-lesson-html-iframe-escape) for why
 
 ---
@@ -377,12 +376,15 @@ response drives muscle growth.
 
 ## Copy Code
 
-Every `<pre>` block gets a copy button on hover (auto-seeded `assets/copy-code.js`, no extra step needed).
-
-Blocks where typing builds storage strength — skill-phase exercise code — use `data-no-copy` to preserve desirable difficulty:
+Copy buttons are **opt-in per block**: add `data-copy` to a `<pre>` and the server auto-injects the copy-button logic for that page (blocks without it get nothing).
 
 ```html
-<pre data-no-copy><code class="language-go">...</code></pre>
+<pre data-copy><code class="language-sql">SELECT * FROM customers;</code></pre>
+```
+
+Blocks where typing builds storage strength — skill-phase exercise code — simply omit `data-copy` to preserve desirable difficulty:
+```html
+<pre><code class="language-go">...</code></pre>
 ```
 
 ---

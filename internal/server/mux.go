@@ -1633,6 +1633,10 @@ func serveIframeHTML(w http.ResponseWriter, path, kind, file string, cfg iframeC
 	if bytes.Contains(data, []byte("glossary-term")) {
 		scripts = append(scripts, "glossary-tooltip.js")
 	}
+	// Auto-inject copy buttons when the content marks code blocks data-copy.
+	if bytes.Contains(data, []byte("data-copy")) {
+		scripts = append(scripts, "copy-code.js")
+	}
 	data = injectIframeConfig(data, cfg)
 	w.Write(injectFrameScripts(data, scripts...))
 }

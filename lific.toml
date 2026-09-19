@@ -1,0 +1,19 @@
+[server]
+host = "0.0.0.0"
+port = 3456
+cors_origins = []
+
+[database]
+path = "lific.db"
+
+[backup]
+enabled = true
+dir = "backups"
+interval_minutes = 60
+retain = 24
+
+[log]
+level = "info"
+
+[auth]
+allow_signup = true

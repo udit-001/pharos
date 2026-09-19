@@ -65,7 +65,7 @@ var knownAssets = map[string]db.AssetSpec{
 	"sql-workbench": {
 		Source:         "vendored",
 		Filename:       "sql-workbench.js",
-		DefaultVersion: "v0.2.6",
+		DefaultVersion: "v0.2.8",
 		URLTemplate:    "https://cdn.jsdelivr.net/gh/udit-001/sql-workbench@{{VERSION}}/dist/sql-workbench.js",
 	},
 	"highlightjs": {
@@ -94,10 +94,6 @@ var knownAssets = map[string]db.AssetSpec{
 	"style": {
 		Source: "seeded",
 		Files:  map[string][]byte{"style.css": []byte(db.SeedStyleCSS)},
-	},
-	"copy-code": {
-		Source: "seeded",
-		Files:  map[string][]byte{"copy-code.js": []byte(db.SeedCopyCodeJS)},
 	},
 	"inter-font": {
 		Source: "seeded",

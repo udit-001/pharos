@@ -54,6 +54,12 @@ var PharosHighlightsJS []byte
 //go:embed pharos-scroll.js
 var PharosScrollJS []byte
 
+// Copy-button logic for lesson code blocks marked `data-copy`. Injected on
+// detection (see server/mux.go serveIframeHTML) — lessons never link it.
+//
+//go:embed copy-code.js
+var CopyCodeJS []byte
+
 //go:embed glossary-tooltip.js
 var GlossaryTooltipJS []byte
 

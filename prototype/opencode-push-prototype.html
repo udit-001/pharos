@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pharos → OpenCode Push Prototype</title>
+<style>
+  :root { --bg:#eceff4; --card:#fff; --border:#d8dee9; --muted:#6b7280; --text:#2e3440; --accent:#5e81ac; }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; min-height:100vh; padding:2rem; font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--text); display:flex; justify-content:center;
+  }
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:1.75rem; max-width:38rem; width:100%; box-shadow:0 1px 2px rgba(0,0,0,0.04);
+  }
+  h1 { margin:0 0 0.25rem; font-size:1.15rem; font-weight:600; }
+  .lede { margin:0 0 1.25rem; font-size:0.85rem; color:var(--muted); line-height:1.5; }
+  label { display:block; font-size:0.75rem; font-weight:500; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); margin:0.9rem 0 0.3rem; }
+  input, textarea {
+    width:100%; border:1px solid var(--border); border-radius:8px; padding:0.55rem 0.7rem;
+    font:inherit; font-size:0.9rem; background:#fff; color:var(--text);
+  }
+  textarea { min-height:6rem; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:0.82rem; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
+  button {
+    margin-top:1.25rem; width:100%; border:none; border-radius:8px; padding:0.7rem 1rem;
+    background:var(--accent); color:#fff; font-weight:600; font-size:0.92rem; cursor:pointer;
+  }
+  button:hover:not(:disabled) { filter:brightness(1.08); }
+  button:disabled { opacity:0.6; cursor:not-allowed; }
+  .status {
+    margin-top:1rem; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:0.8rem;
+    background:#f3f4f6; border:1px solid var(--border); border-radius:8px; padding:0.75rem;
+    white-space:pre-wrap; min-height:3rem; color:var(--text);
+  }
+  .status.idle { color:var(--muted); font-style:italic; }
+  .status.ok { color:#3b6e4f; }
+  .status.err { color:#b04a4a; background:#fdf2f2; }
+  details { margin-top:1rem; font-size:0.78rem; color:var(--muted); }
+  details summary { cursor:pointer; }
+</style>
+</head>
+<body>
+<form class="card" id="form">
+  <h1>Push to OpenCode TUI</h1>
+  <p class="lede">PROTOTYPE. Sends a message via <code>POST /session/:id/prompt_async</code> to a running opencode server. The TUI (as a client of its own server) renders the message and the agent's streamed reply live. Start opencode with <code>--port 4096 --cors &lt;this origin&gt;</code>.</p>
+
+  <div class="row">
+    <div>
+      <label for="url">OpenCode server URL</label>
+      <input id="url" type="text" value="http://127.0.0.1:4096" required>
+    </div>
+    <div>
+      <label for="session">Session</label>
+      <select id="session" disabled>
+        <option value="">Enter server URL…</option>
+      </select>
+    </div>
+  </div>
+
+  <label for="msg">Message</label>
+  <textarea id="msg" placeholder="Message to push into the TUI conversation...">Quiz "SQL Joins" completed: 3/5. Weakest items: covering-index, left-join.</textarea>
+
+  <button type="submit" id="send">Send to OpenCode</button>
+
+  <div class="status idle" id="status">Ready.</div>
+
+  <details>
+    <summary>Request being sent</summary>
+    <pre id="dbg"></pre>
+  </details>
+</form>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status');
+
+function setStatus(text, cls) {
+  statusEl.textContent = text;
+  statusEl.className = 'status ' + (cls || '');
+}
+
+// Persist fields across reloads for convenience.
+['url','msg'].forEach(k => {
+  const el = $(k);
+  const saved = localStorage.getItem('proto_' + k);
+  if (saved) el.value = saved;
+  el.addEventListener('input', () => localStorage.setItem('proto_' + k, el.value));
+});
+
+const sessionSelect = $('session');
+const savedSession = localStorage.getItem('proto_session');
+
+async function loadSessions() {
+  const base = $('url').value.trim().replace(/\/$/, '');
+  if (!base) return;
+  sessionSelect.disabled = true;
+  sessionSelect.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const res = await fetch(`${base}/session`, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const sessions = await res.json();
+    if (!Array.isArray(sessions) || sessions.length === 0) {
+      sessionSelect.innerHTML = '<option value="">No sessions found</option>';
+      return;
+    }
+    // Sort newest-updated first (time.updated is epoch ms). Fall back to created.
+    sessions.sort((a, b) => {
+      const ta = (a.time && (a.time.updated || a.time.created)) || 0;
+      const tb = (b.time && (b.time.updated || b.time.created)) || 0;
+      return tb - ta;
+    });
+    sessionSelect.innerHTML = sessions.map(s => {
+      const title = s.title || s.id;
+      const updated = s.time && s.time.updated ? new Date(s.time.updated).toLocaleString() : '';
+      return `<option value="${s.id}">${title}${updated ? '  ·  ' + updated : ''}</option>`;
+    }).join('');
+    sessionSelect.disabled = false;
+    // Restore saved selection if still present, else default to most recent.
+    if (savedSession && sessions.some(s => s.id === savedSession)) {
+      sessionSelect.value = savedSession;
+    } else {
+      sessionSelect.selectedIndex = 0;
+      localStorage.setItem('proto_session', sessionSelect.value);
+    }
+  } catch (err) {
+    sessionSelect.innerHTML = `<option value="">Failed to load: ${err.message}</option>`;
+  }
+}
+sessionSelect.addEventListener('change', () => localStorage.setItem('proto_session', sessionSelect.value));
+$('url').addEventListener('blur', loadSessions);
+$('url').addEventListener('change', loadSessions);
+loadSessions();
+
+$('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const base = $('url').value.trim().replace(/\/$/, '');
+  const sid = $('session').value;
+  const text = $('msg').value;
+  if (!base || !sid || !text) {
+    setStatus('Pick a session and enter a message.', 'err');
+    return;
+  }
+
+  const endpoint = `${base}/session/${encodeURIComponent(sid)}/prompt_async`;
+  const body = { parts: [ { type: 'text', text } ] };
+  $('dbg').textContent = `POST ${endpoint}\n\n` + JSON.stringify(body, null, 2);
+
+  $('send').disabled = true;
+  setStatus('Sending…');
+  const t0 = performance.now();
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const ms = Math.round(performance.now() - t0);
+    if (res.status === 204) {
+      setStatus(`Sent in ${ms}ms (204 No Content). Check the open TUI — message and agent reply should stream live there.`, 'ok');
+    } else if (res.ok) {
+      setStatus(`Sent in ${ms}ms (HTTP ${res.status}).`, 'ok');
+    } else {
+      const txt = await res.text().catch(() => '');
+      setStatus(`HTTP ${res.status} ${res.statusText}\n${txt.slice(0, 500)}`, 'err');
+    }
+  } catch (err) {
+    setStatus(`Network error: ${err.message}\n\nIs opencode running on ${base}? Did you pass --cors ${location.origin} ?`, 'err');
+  } finally {
+    $('send').disabled = false;
+  }
+});
+</script>
+</body>
+</html>
