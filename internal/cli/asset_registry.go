@@ -65,7 +65,7 @@ var knownAssets = map[string]db.AssetSpec{
 	"sql-workbench": {
 		Source:         "vendored",
 		Filename:       "sql-workbench.js",
-		DefaultVersion: "v0.2.8",
+		DefaultVersion: "v0.2.9",
 		URLTemplate:    "https://cdn.jsdelivr.net/gh/udit-001/sql-workbench@{{VERSION}}/dist/sql-workbench.js",
 	},
 	"highlightjs": {
