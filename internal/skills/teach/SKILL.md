@@ -83,6 +83,10 @@ pharos workspace create "sql-joins" --topic "SQL Joins"  # same, but explicit to
 
 A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and identified by a **slug** derived from its title. If a lesson already covers the topic, **read** it with `pharos lesson read <slug>`, then **revise** with `pharos lesson revise <slug> --body-file <path>` instead of creating a duplicate.
 
+**Workbench first.** When the lesson involves SQL practice or database queries, read [references/BENCH.md](references/BENCH.md) before scaffolding — it covers fixture authoring, the web-component embed pattern, drill-block templates, and journal interpretation.
+
+Before creating any new lesson, read the workbench journal to see what the learner has already practiced; scaffold forward from there, not backward into repetition.
+
 A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Asset and link paths follow the [iframe escape rules](references/pharos-cli.md#links-inside-lesson-html-iframe-escape).
 
 The lesson should be short, and completable very quickly. Learners' working memory is very small, and we need to stay within it. But each lesson should give the user a single tangible win that they can build on. It should be directly tied to the mission, and should be in the user's zone of proximal development.
