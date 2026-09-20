@@ -422,6 +422,33 @@ func TestGlossaryTooltipAutoInjection(t *testing.T) {
 	}
 }
 
+func TestCopyCodeAutoInjection(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Lesson WITH data-copy — copy-code bundle should be injected.
+	withCopy := `<html><head></head><body><pre data-copy><code>SELECT 1;</code></pre></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "copy-lesson.html"), []byte(withCopy), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "Copy", Filename: "copy-lesson.html"})
+
+	rec := env.get(t, "/api/lesson-html/alpha/copy-lesson.html")
+	body := rec.Body.String()
+	if !strings.Contains(body, "copy-code.js") {
+		t.Error("lesson with pre[data-copy] should auto-inject copy-code.js")
+	}
+
+	// Lesson WITHOUT data-copy — copy-code bundle should NOT be injected.
+	withoutCopy := `<html><head></head><body><pre><code>SELECT 1;</code></pre></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "nocopy-lesson.html"), []byte(withoutCopy), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "NoCopy", Filename: "nocopy-lesson.html"})
+
+	rec = env.get(t, "/api/lesson-html/alpha/nocopy-lesson.html")
+	body = rec.Body.String()
+	if strings.Contains(body, "copy-code.js") {
+		t.Error("lesson without data-copy should NOT inject copy-code.js")
+	}
+}
+
 func TestDashboardContinueCard(t *testing.T) {
 	env := newTestEnv(t)
 
@@ -830,5 +857,135 @@ func TestBundlesResolveVersioned(t *testing.T) {
 		if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/javascript") {
 			t.Errorf("%s: content-type = %q", name, ct)
 		}
+	}
+}
+
+// ── Workbench Handlers ──
+
+func TestIngestWorkbenchEvents_HappyPath(t *testing.T) {
+	env := newTestEnv(t)
+
+	body := `{"events":[{"id":"ev-1","namespace":"default","type":"query","ts":"2026-01-01T00:00:00Z","payload":{"sql":"SELECT 1","ok":true}}]}`
+	rec := env.post(t, "/api/workspaces/name/alpha/workbench-events", body)
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+	var result map[string]int
+	json.Unmarshal(rec.Body.Bytes(), &result)
+	if result["accepted"] != 1 {
+		t.Errorf("accepted = %d, want 1", result["accepted"])
+	}
+}
+
+func TestIngestWorkbenchEvents_EmptyBatch(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.post(t, "/api/workspaces/name/alpha/workbench-events", `{"events":[]}`)
+	if rec.Code != 400 {
+		t.Errorf("empty batch should 400; got %d", rec.Code)
+	}
+}
+
+func TestIngestWorkbenchEvents_BatchOverCap(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Build 51 events.
+	events := make([]string, 51)
+	for i := range events {
+		events[i] = `{"id":"ev-` + itoa(i) + `","namespace":"default","type":"info","ts":"2026-01-01T00:00:00Z","payload":{}}`
+	}
+	body := `{"events":[` + strings.Join(events, ",") + `]}`
+	rec := env.post(t, "/api/workspaces/name/alpha/workbench-events", body)
+	if rec.Code != 400 {
+		t.Errorf("batch over cap should 400; got %d; body: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestIngestWorkbenchEvents_ValidationFailure(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Missing "type" field.
+	body := `{"events":[{"id":"ev-1","ts":"2026-01-01T00:00:00Z","payload":{}}]}`
+	rec := env.post(t, "/api/workspaces/name/alpha/workbench-events", body)
+	if rec.Code != 400 {
+		t.Errorf("validation failure should 400; got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `event[0]`) {
+		t.Errorf("error should mention event[0], got: %s", rec.Body.String())
+	}
+}
+
+func TestIngestWorkbenchEvents_IdempotentRetry(t *testing.T) {
+	env := newTestEnv(t)
+
+	body := `{"events":[{"id":"ev-1","namespace":"default","type":"query","ts":"2026-01-01T00:00:00Z","payload":{"sql":"SELECT 1","ok":true}}]}`
+	env.post(t, "/api/workspaces/name/alpha/workbench-events", body)
+
+	// Retry same batch → accepted=0 (idempotent)
+	rec := env.post(t, "/api/workspaces/name/alpha/workbench-events", body)
+	var result map[string]int
+	json.Unmarshal(rec.Body.Bytes(), &result)
+	if result["accepted"] != 0 {
+		t.Errorf("retry accepted = %d, want 0", result["accepted"])
+	}
+}
+
+func TestIngestWorkbenchEvents_UnknownWorkspace(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.post(t, "/api/workspaces/name/nonexistent/workbench-events",
+		`{"events":[{"id":"ev-1","type":"info","ts":"2026-01-01T00:00:00Z","payload":{}}]}`)
+	if rec.Code != 404 {
+		t.Errorf("unknown workspace should 404; got %d", rec.Code)
+	}
+}
+
+func TestIngestWorkbenchEvents_InvalidJSON(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.post(t, "/api/workspaces/name/alpha/workbench-events", `not json`)
+	if rec.Code != 400 {
+		t.Errorf("invalid JSON should 400; got %d", rec.Code)
+	}
+}
+
+func TestGetDataset_HappyPath(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Write a dataset file.
+	datasetsDir := filepath.Join(env.wsDir, "datasets")
+	os.MkdirAll(datasetsDir, 0755)
+	os.WriteFile(filepath.Join(datasetsDir, "sample-data.json"), []byte(`{"rows":[1,2,3]}`), 0644)
+
+	rec := env.get(t, "/api/workspaces/name/alpha/datasets/sample-data")
+	if rec.Code != 200 {
+		t.Fatalf("status = %d; body: %s", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("content-type = %q, want application/json", ct)
+	}
+	if !strings.Contains(rec.Body.String(), `"rows"`) {
+		t.Error("dataset body missing expected content")
+	}
+}
+
+func TestGetDataset_NotFound(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.get(t, "/api/workspaces/name/alpha/datasets/nonexistent")
+	if rec.Code != 404 {
+		t.Errorf("missing dataset should 404; got %d", rec.Code)
+	}
+}
+
+func TestGetDataset_InvalidID(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.get(t, "/api/workspaces/name/alpha/datasets/UPPER-CASE")
+	if rec.Code != 400 {
+		t.Errorf("invalid dataset id should 400; got %d", rec.Code)
+	}
+}
+
+func TestGetDataset_UnknownWorkspace(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.get(t, "/api/workspaces/name/nonexistent/datasets/sample")
+	if rec.Code != 404 {
+		t.Errorf("unknown workspace should 404; got %d", rec.Code)
 	}
 }

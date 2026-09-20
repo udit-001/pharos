@@ -2299,3 +2299,109 @@ func TestGetRefByFilename(t *testing.T) {
 		t.Error("expected error for nonexistent filename, got nil")
 	}
 }
+
+// ── Workbench Events ──
+
+func TestAddWorkbenchEvent(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "ws1")
+
+	payload := `{"sql":"SELECT 1","ok":true}`
+	count, err := ws.AddWorkbenchEvent("ev-1", "default", "query", "2026-01-01T00:00:00Z", payload)
+	if err != nil {
+		t.Fatalf("AddWorkbenchEvent: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("count = %d, want 1", count)
+	}
+}
+
+func TestAddWorkbenchEvent_Idempotent(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "ws1")
+
+	payload := `{"sql":"SELECT 1","ok":true}`
+	ws.AddWorkbenchEvent("ev-1", "default", "query", "2026-01-01T00:00:00Z", payload)
+
+	// Re-post same id → no-op
+	count, err := ws.AddWorkbenchEvent("ev-1", "default", "query", "2026-01-01T00:00:00Z", payload)
+	if err != nil {
+		t.Fatalf("AddWorkbenchEvent (retry): %v", err)
+	}
+	if count != 0 {
+		t.Errorf("count = %d, want 0 (idempotent no-op)", count)
+	}
+}
+
+func TestGetWorkbenchEvents(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "ws1")
+
+	// Empty → returns empty slice, not nil
+	events, err := ws.GetWorkbenchEvents("", "", 0)
+	if err != nil {
+		t.Fatalf("GetWorkbenchEvents: %v", err)
+	}
+	if len(events) != 0 {
+		t.Errorf("expected empty, got %d", len(events))
+	}
+
+	// Add two events
+	ws.AddWorkbenchEvent("ev-1", "default", "query", "2026-01-01T00:00:00Z", `{"sql":"SELECT 1","ok":true}`)
+	ws.AddWorkbenchEvent("ev-2", "other", "info", "2026-01-02T00:00:00Z", `{}`)
+
+	// All events
+	events, err = ws.GetWorkbenchEvents("", "", 0)
+	if err != nil {
+		t.Fatalf("GetWorkbenchEvents: %v", err)
+	}
+	if len(events) != 2 {
+		t.Errorf("expected 2, got %d", len(events))
+	}
+
+	// Filter by namespace
+	events, err = ws.GetWorkbenchEvents("default", "", 0)
+	if err != nil {
+		t.Fatalf("GetWorkbenchEvents ns: %v", err)
+	}
+	if len(events) != 1 {
+		t.Errorf("expected 1, got %d", len(events))
+	}
+
+	// Filter by type
+	events, err = ws.GetWorkbenchEvents("", "info", 0)
+	if err != nil {
+		t.Fatalf("GetWorkbenchEvents type: %v", err)
+	}
+	if len(events) != 1 {
+		t.Errorf("expected 1, got %d", len(events))
+	}
+
+	// Limit
+	events, err = ws.GetWorkbenchEvents("", "", 1)
+	if err != nil {
+		t.Fatalf("GetWorkbenchEvents limit: %v", err)
+	}
+	if len(events) != 1 {
+		t.Errorf("expected 1, got %d", len(events))
+	}
+}
+
+func TestGetWorkbenchEvents_NewestFirst(t *testing.T) {
+	store := newTestStore(t)
+	ws := seedWorkspace(t, store, "ws1")
+
+	ws.AddWorkbenchEvent("ev-1", "default", "query", "2026-01-01T00:00:00Z", `{}`)
+	ws.AddWorkbenchEvent("ev-2", "default", "query", "2026-01-02T00:00:00Z", `{}`)
+
+	events, err := ws.GetWorkbenchEvents("", "", 0)
+	if err != nil {
+		t.Fatalf("GetWorkbenchEvents: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("expected 2, got %d", len(events))
+	}
+	if events[0].ID != "ev-2" {
+		t.Errorf("first event = %s, want ev-2 (newest first)", events[0].ID)
+	}
+}

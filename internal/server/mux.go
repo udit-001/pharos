@@ -146,6 +146,8 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /api/workspaces/{id}/refs", jsonHandler(handleListRefs(store)))
 	mux.HandleFunc("GET /api/workspaces/{id}/glossary-terms", jsonHandler(handleGetGlossaryTerms(store)))
 	mux.HandleFunc("GET /api/workspaces/name/{name}/glossary-terms", jsonHandler(handleGetGlossaryTermsByName(store)))
+	mux.HandleFunc("POST /api/workspaces/name/{name}/workbench-events", jsonHandler(handleIngestWorkbenchEvents(store)))
+	mux.HandleFunc("GET /api/workspaces/name/{name}/datasets/{id}", jsonHandler(handleGetDataset(store)))
 	mux.HandleFunc("GET /api/workspaces/name/{name}/highlights", jsonHandler(handleListHighlights(store)))
 	mux.HandleFunc("POST /api/workspaces/name/{name}/highlights", jsonHandler(handleCreateHighlight(store)))
 	mux.HandleFunc("DELETE /api/workspaces/name/{name}/highlights/{id}", jsonHandler(handleDeleteHighlight(store)))
@@ -1634,6 +1636,9 @@ func serveIframeHTML(w http.ResponseWriter, path, kind, file string, cfg iframeC
 		scripts = append(scripts, "glossary-tooltip.js")
 	}
 	// Auto-inject copy buttons when the content marks code blocks data-copy.
+	// Substring match on purpose (same tradeoff as the glossary check): a
+	// false positive only over-injects a few KB of inert script, and the
+	// bundle itself no-ops on pages without pre[data-copy].
 	if bytes.Contains(data, []byte("data-copy")) {
 		scripts = append(scripts, "copy-code.js")
 	}

@@ -1816,3 +1816,80 @@ func (w *WorkspaceStore) IndexRecords() (int, error) {
 		id:       func(r LearningRecord) int64 { return r.ID },
 	})
 }
+
+// ── Workbench Events ──
+
+// WorkbenchEvent is a single row from the workbench_events table.
+type WorkbenchEvent struct {
+	ID          string `db:"id"`
+	WorkspaceID int64  `db:"workspace_id"`
+	Namespace   string `db:"namespace"`
+	Type        string `db:"type"`
+	Ts          string `db:"ts"`
+	Payload     string `db:"payload"`
+}
+
+// workbenchEventColumns is the column list for SELECT queries.
+const workbenchEventColumns = "id, workspace_id, namespace, type, ts, payload"
+
+// AddWorkbenchEvent inserts a workbench event. Uses INSERT OR IGNORE so
+// re-POSTed events (same id) are idempotent no-ops (decision 2). Returns
+// the count of newly-stored rows (0 = duplicate/ignored, 1 = new).
+func (w *WorkspaceStore) AddWorkbenchEvent(id, namespace, eventType, ts, payload string) (int64, error) {
+	result, err := w.db().Exec(
+		`INSERT OR IGNORE INTO workbench_events (id, workspace_id, namespace, type, ts, payload)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		id, w.ws.ID, namespace, eventType, ts, payload,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("add workbench event: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	return rows, nil
+}
+
+// GetWorkbenchEvents returns workbench events for this workspace, ordered
+// by timestamp descending (newest first). Optional filters: namespace
+// (empty = all), eventType (empty = all), limit (0 = default 200).
+func (w *WorkspaceStore) GetWorkbenchEvents(namespace, eventType string, limit int) ([]WorkbenchEvent, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+
+	query := fmt.Sprintf(
+		"SELECT %s FROM workbench_events WHERE workspace_id = ?",
+		workbenchEventColumns,
+	)
+	args := []interface{}{w.ws.ID}
+
+	if namespace != "" {
+		query += " AND namespace = ?"
+		args = append(args, namespace)
+	}
+	if eventType != "" {
+		query += " AND type = ?"
+		args = append(args, eventType)
+	}
+
+	query += " ORDER BY ts DESC LIMIT ?"
+	args = append(args, limit)
+
+	rows, err := w.db().Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get workbench events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []WorkbenchEvent
+	for rows.Next() {
+		var ev WorkbenchEvent
+		if err := rows.Scan(&ev.ID, &ev.WorkspaceID, &ev.Namespace, &ev.Type, &ev.Ts, &ev.Payload); err != nil {
+			return nil, fmt.Errorf("scan workbench event: %w", err)
+		}
+		events = append(events, ev)
+	}
+	if events == nil {
+		events = []WorkbenchEvent{}
+	}
+	return events, rows.Err()
+}
