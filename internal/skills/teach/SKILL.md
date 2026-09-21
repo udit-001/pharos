@@ -225,7 +225,7 @@ Lessons will rarely be revisited later - reference documents will be. They shoul
 
 References are addressed by **slug** (descriptive name derived from the title), not sequence numbers. If a reference needs updating, **read** it with `pharos reference read <slug>`, then **revise**: `pharos reference revise <slug> --body-file <path>`.
 
-References are HTML files that render in the same iframe as lessons — they must link `assets/style.css` and follow the [PAGE-THEME.md](./PAGE-THEME.md) boilerplate (theme sync, root-relative asset paths, FOUC prevention). A reference that omits the stylesheet renders unstyled.
+References are HTML files that render in the same iframe as lessons — semantic markup plus the [PAGE-THEME.md](./PAGE-THEME.md) conventions; the server injects the stylesheet, theme sync, and any library a marker triggers. A page needs no scripts and no stylesheet links.
 
 When writing a lesson, fetch glossary terms with `pharos glossary list --json` and wrap matching terms with `<span class="glossary-term" data-term="...">` for inline tooltip previews — the server auto-injects the tooltip script. See [PAGE-THEME.md](./PAGE-THEME.md) for the convention.
 

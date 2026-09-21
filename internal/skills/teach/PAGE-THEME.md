@@ -2,7 +2,7 @@
 
 Lessons and references render inside an iframe within the Pharos dashboard. They must match the dashboard's Nord-inspired palette so they feel integral to the app, not embedded.
 
-The dashboard controls theme via `data-theme` attribute on `<html>` — light or dark. HTML pages sync by reading `localStorage` on load and listening for `postMessage` theme events at runtime.
+The dashboard controls theme via `data-theme` attribute on `<html>` — light or dark. The server injects `pharos-theme.js` into every page before `</head>`: it sets `data-theme` before first paint and keeps the iframe in sync when the user toggles.
 
 ---
 
@@ -11,10 +11,9 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Concern | Mechanism |
 |---|---|
 | Palette | CSS custom properties on `:root` / `[data-theme="dark"]` |
-| FOUC prevention | Blocking `<script>` in `<head>` reads `localStorage('pharos_theme')`, resolves `'system'`/`null` via `prefers-color-scheme`, sets `data-theme` |
-| Runtime theme sync | `postMessage` listener — dashboard sends `{type:'theme', theme:'dark'|'light'}` to iframes on toggle |
-| Shared styles | `assets/style.css` (variables, typography, layout, and component classes — quiz `.q`, `.callout`, `.source-box`); no per-page stylesheet needed for these |
-| Quiz interactivity | Inline `<script>` before `</body>` — binds to `.q` elements |
+| Theme sync | injected `pharos-theme.js` — sets `data-theme` before first paint (FOUC-safe) and applies dashboard toggles live |
+| Shared styles | `assets/style.css`, injected by the server into lessons and references (variables, typography, layout, and component classes — quiz `.q`, `.callout`, `.source-box`) |
+| Quiz interactivity | embedded `pharos-quiz.js`, injected when `.q` elements are detected |
 | Font delivery | `@font-face` in `assets/style.css` → `assets/fonts/inter-latin.woff2` (vendored — works offline, no CDN) |
 | Copy code | add `data-copy` to a `<pre>` block — the server detects it and auto-injects the copy-button logic (no script tag needed) |
 
@@ -68,9 +67,11 @@ Reverse the luminance: backgrounds become dark, text becomes light, keeping Nord
 
 ---
 
-## Required Boilerplate
+## Page Skeleton
 
-Every HTML page — lessons and references alike — starts with this boilerplate. It links the shared stylesheet, prevents theme flash, and wires up runtime theme sync. A reference that omits it renders unstyled.
+Pages are **semantic HTML only — the server owns the chrome**. Before `</head>` it injects the shared stylesheet (lessons and references), theme sync, and — when a marker triggers it — the quiz binder, glossary tooltips, copy buttons, and library stacks. Hand-written `<script>` or stylesheet `<link>` tags for any of this duplicate server-owned behavior; the only script a page ever carries is a vega JSON spec (content, not wiring).
+
+Every HTML page — lessons and references alike — is:
 
 ```html
 <!DOCTYPE html>
@@ -79,50 +80,23 @@ Every HTML page — lessons and references alike — starts with this boilerplat
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Page Title</title>
-<link rel="stylesheet" href="assets/style.css">
-<script>(function(){var t=localStorage.getItem('pharos_theme');if(!t||t==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t})()</script>
 </head>
 <body>
 
 <div class="container">
 
-  <!-- lesson content -->
+  <!-- lesson content: semantic markup + markers -->
 
 </div>
 
-<script>
-(function(){
-  document.querySelectorAll('.q').forEach(function(q){
-    var answer = q.getAttribute('data-answer');
-    var buttons = q.querySelectorAll('button');
-    var fb = q.querySelector('.fb');
-    buttons.forEach(function(btn){
-      btn.addEventListener('click', function(){
-        buttons.forEach(function(b){ b.disabled = true; });
-        if (btn.textContent.trim() === answer){
-          btn.classList.add('correct');
-          fb.textContent = 'Correct.';
-        } else {
-          btn.classList.add('incorrect');
-          buttons.forEach(function(b){
-            if (b.textContent.trim() === answer) b.classList.add('correct');
-          });
-          fb.textContent = 'Not quite — the right one is highlighted.';
-        }
-      });
-    });
-  });
-})();
-</script>
-<script>window.addEventListener('message',function(e){if(e.data&&e.data.type==='theme')document.documentElement.dataset.theme=e.data.theme})</script>
 </body>
 </html>
 ```
 
 Key rules:
-- **No `data-theme` on `<html>`** — the blocking script sets it dynamically
-- **Scripts in order**: FOUC prevention in `<head>`, then before `</body>`: quiz logic (lessons only), and postMessage listener. Auto-injected by the server when detected: glossary tooltip (`glossary-term` classes) and copy buttons (`data-copy` on `<pre>`) — no manual script tags needed.
-- **CSS links are root-relative** — no `../`; see [references/pharos-cli.md](references/pharos-cli.md#links-inside-lesson-html-iframe-escape) for why
+- **No scripts, no stylesheet links** — everything behavioral is injected; a full document with `</head>` is required for injection to land
+- **No `data-theme` on `<html>`** — the injected theme script sets it
+- **Asset paths are root-relative** — no `../`; see [references/pharos-cli.md](references/pharos-cli.md#links-inside-lesson-html-iframe-escape) for why
 
 ---
 
@@ -229,7 +203,7 @@ An inline knowledge check. Structure: a container `.q` with `data-answer` attrib
 </div>
 ```
 
-**Styles are seeded in `assets/style.css`** — `.q`, `.q p`, `.q .options`, `.q button` (incl. `.correct`/`.incorrect`/`:disabled`), and `.q .fb`. Do not author a separate `quiz.css` or per-page `<style>` for the quiz; the question `<p>` goes *inside* `.q`, and buttons go inside `.options`. The interactivity JS (boilerplate before `</body>`) is fixed and binds to `.q` / `.fb`.
+**Styles are seeded in `assets/style.css`** — `.q`, `.q p`, `.q .options`, `.q button` (incl. `.correct`/`.incorrect`/`:disabled`), and `.q .fb`. Do not author a separate `quiz.css` or per-page `<style>` for the quiz; the question `<p>` goes *inside* `.q`, and buttons go inside `.options`. The binder is injected by the server when it detects `.q` elements — the page ships no JavaScript.
 
 The `.fb` element is hidden by default via `.fb:empty{display:none}` in `style.css` — it only reserves space once text is set on click.
 
@@ -330,4 +304,4 @@ Blocks where typing builds storage strength — skill-phase exercise code — si
 2. **Dark mode is free** — switching `data-theme` toggles all variable values; using variables makes it work automatically
 3. **No dashboard chrome in pages** — the dashboard owns navigation
 4. **Reusable components live in `assets/`** — extract shared CSS with `pharos asset create`
-5. **Do not repeat FOUC-prevention or postMessage logic** across assets — it exists in the boilerplate; `assets/style.css` should be purely presentational/behavioural, not theme-detection
+5. **Theme and behavior are server-owned** — pages and assets never contain FOUC prevention, postMessage listeners, or quiz binding; `assets/style.css` stays purely presentational

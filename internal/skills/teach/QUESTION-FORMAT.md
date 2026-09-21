@@ -26,10 +26,10 @@ Questions are the item bank a workspace's quizzes draw from, managed via the CLI
 
 A question may carry a **stimulus** — a standalone HTML file (a chart, diagram, table, or passage) the question refers to, shown in an iframe above the answer controls during the attempt and review. It's optional: most questions are text-only and have none.
 
-`--stimulus-file <path>` reads a full HTML document — the same boilerplate as a reference (`assets/style.css`, [PAGE-THEME.md](./PAGE-THEME.md) theme sync, root-relative asset paths, any vendored libs in `<head>`). The CLI writes it to `questions/<slug>.html`; it is not a reference and doesn't live in `reference/`.
+`--stimulus-file <path>` reads a full HTML document following the [PAGE-THEME.md](./PAGE-THEME.md) conventions — semantic markup plus markers; the server injects theme sync and any library the markers trigger. Stimuli don't get the shared stylesheet injected — link `assets/style.css` when the stimulus uses its component styles. The CLI writes it to `questions/<slug>.html`; it is not a reference and doesn't live in `reference/`.
 
 - **`--body-file` is the answer config; `--stimulus-file` is the visual stimulus.** Two files, two roles — never inline the chart in the config.
-- **Full document, not a fragment.** The iframe serves the file as-is; a bare `<svg>` or `<div class="mermaid">` without the `<head>` boilerplate renders unstyled and without the charting libs. Mirror the reference contract.
+- **Full document, not a fragment.** The iframe serves the file as-is and injects scripts before `</head>` — a fragment with no `<head>` gets nothing injected. Follow the [PAGE-THEME.md](./PAGE-THEME.md) page skeleton.
 - **For recall, the stimulus must not reveal the answer.** Recall forces free retrieval — a chart that shows the trend the learner must recall turns recall into recognition. Use a stimulus that supplies context (a structure to label, a process to name), not the answer itself.
 - **Don't share a stimulus across questions.** Each question has its own `questions/<slug>.html`; if two questions need the same chart, write it to each — duplication is expected.
 

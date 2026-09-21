@@ -297,15 +297,11 @@ pharos skills check   # Check if installed skills are current
 A lesson renders inside an **iframe** at `/api/lesson-html/<workspace>/<file>`,
 so two link types resolve differently:
 
-**Asset references** (stylesheets, scripts, images) resolve against the
-iframe's URL — use a **root-relative** path:
-
-```html
-<link rel="stylesheet" href="assets/style.css">
-```
-
-Never use `../assets/style.css` — the `../` climbs above the iframe's
-document root and returns a 404.
+**Asset references** (images, stylesheets, scripts) resolve against the
+iframe's URL — use a **root-relative** path (`assets/…`). Never use `../` —
+it climbs above the iframe's document root and returns a 404. The shared
+stylesheet and vendored libraries are injected by the server — no link or
+script tags for them.
 
 **Contextual links** (clicking to another dashboard page) must escape
 the iframe to update the dashboard. Use an absolute route with

@@ -22,9 +22,10 @@ A fixture is a self-contained practice environment: a database state, a starter 
 The workbench is a web component, not an iframe:
 
 ```html
-<script src="/path/to/sql-workbench.js"></script>
 <sql-workbench namespace="lesson-N" mode="card"></sql-workbench>
 ```
+
+The server injects the component script when it sees the `<sql-workbench>` element — no `<script src>` tag needed.
 
 **Attributes:**
 - `namespace`: isolates per-lesson journals (each lesson gets its own namespace)
