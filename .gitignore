@@ -56,3 +56,6 @@ dist/
 
 # Local lific DB backups
 backups/
+
+# UI prototypes
+prototype/
