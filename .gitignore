@@ -62,3 +62,6 @@ prototype/
 
 # Pharos runtime data (SQLite DB)
 .pharos/
+
+# lific project association
+.lific.json

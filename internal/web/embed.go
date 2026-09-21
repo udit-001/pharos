@@ -63,5 +63,18 @@ var CopyCodeJS []byte
 //go:embed glossary-tooltip.js
 var GlossaryTooltipJS []byte
 
+// Behavior glue for features the server detects in lesson/reference/stimulus
+// HTML (see server/detect.go). Idempotent — safe next to legacy lessons that
+// still hand-wire their own copies.
+
+//go:embed pharos-quiz.js
+var PharosQuizJS []byte
+
+//go:embed pharos-mermaid.js
+var PharosMermaidJS []byte
+
+//go:embed pharos-hljs.js
+var PharosHljsJS []byte
+
 //go:embed presence.js
 var PresenceJS []byte

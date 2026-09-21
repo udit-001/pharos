@@ -420,6 +420,16 @@ func TestGlossaryTooltipAutoInjection(t *testing.T) {
 	if strings.Contains(body, "glossary-tooltip.js") {
 		t.Error("lesson without glossary-term should NOT inject glossary-tooltip.js")
 	}
+
+	// Prose MENTIONING glossary-term (no such class) — no injection.
+	prose := `<html><head></head><body><p>Wrap terms in a span with the glossary-term class.</p></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "prose-glossary.html"), []byte(prose), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "ProseGlossary", Filename: "prose-glossary.html"})
+
+	rec = env.get(t, "/api/lesson-html/alpha/prose-glossary.html")
+	if strings.Contains(rec.Body.String(), "glossary-tooltip.js") {
+		t.Error("prose mentioning glossary-term must NOT inject glossary-tooltip.js (token match)")
+	}
 }
 
 func TestCopyCodeAutoInjection(t *testing.T) {
@@ -446,6 +456,295 @@ func TestCopyCodeAutoInjection(t *testing.T) {
 	body = rec.Body.String()
 	if strings.Contains(body, "copy-code.js") {
 		t.Error("lesson without data-copy should NOT inject copy-code.js")
+	}
+}
+
+func TestCopyCodeDetectionIsTokenBased(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Prose MENTIONING data-copy (no actual attribute) — no injection.
+	// The old bytes.Contains check false-positived on this.
+	prose := `<html><head></head><body><p>Mark snippets with the data-copy attribute.</p><pre><code>SELECT 1;</code></pre></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "prose-copy.html"), []byte(prose), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "ProseCopy", Filename: "prose-copy.html"})
+
+	rec := env.get(t, "/api/lesson-html/alpha/prose-copy.html")
+	if strings.Contains(rec.Body.String(), "copy-code.js") {
+		t.Error("prose mentioning data-copy must NOT inject copy-code.js (token match, not substring)")
+	}
+
+	// A real pre[data-copy] attribute still injects.
+	real := `<html><head></head><body><pre data-copy><code>SELECT 1;</code></pre></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "real-copy.html"), []byte(real), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "RealCopy", Filename: "real-copy.html"})
+
+	rec = env.get(t, "/api/lesson-html/alpha/real-copy.html")
+	if !strings.Contains(rec.Body.String(), "copy-code.js") {
+		t.Error("pre[data-copy] should inject copy-code.js")
+	}
+}
+
+func TestQuizBinderInjection(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// Lesson with .q quiz blocks — quiz binder injected.
+	withQuiz := `<html><head></head><body><div class="q" data-answer="Bar chart"><p>Pick one</p><div class="options"><button>Bar chart</button></div><div class="fb"></div></div></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "quiz-lesson.html"), []byte(withQuiz), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "Quiz", Filename: "quiz-lesson.html"})
+
+	rec := env.get(t, "/api/lesson-html/alpha/quiz-lesson.html")
+	if !strings.Contains(rec.Body.String(), "pharos-quiz.js") {
+		t.Error("lesson with .q blocks should auto-inject pharos-quiz.js")
+	}
+
+	// Lesson without .q — no quiz binder.
+	withoutQuiz := `<html><head></head><body><p>No quiz here</p></body></html>`
+	os.WriteFile(filepath.Join(env.wsDir, "lessons", "noquiz-lesson.html"), []byte(withoutQuiz), 0644)
+	wsStore.AddLesson(db.Lesson{Title: "NoQuiz", Filename: "noquiz-lesson.html"})
+
+	rec = env.get(t, "/api/lesson-html/alpha/noquiz-lesson.html")
+	if strings.Contains(rec.Body.String(), "pharos-quiz.js") {
+		t.Error("lesson without .q should NOT inject pharos-quiz.js")
+	}
+}
+
+func TestMermaidStackInjection(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	mk := func(name, html string) {
+		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0644)
+		wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
+	}
+	lesson := `<html><head></head><body><div class="mermaid">graph TD; A-->B;</div></body></html>`
+
+	// No vendored lib yet — no injection, no garbage tags.
+	mk("mermaid-nolib.html", lesson)
+	rec := env.get(t, "/api/lesson-html/alpha/mermaid-nolib.html")
+	body := rec.Body.String()
+	if strings.Contains(body, "mermaid.min.js") || strings.Contains(body, "pharos-mermaid.js") {
+		t.Error(".mermaid without vendored lib must not inject the mermaid stack")
+	}
+
+	// After vendoring — full stack in order, glue last.
+	os.WriteFile(filepath.Join(env.wsDir, "assets", "mermaid.min.js"), []byte("/* lib */"), 0644)
+	os.WriteFile(filepath.Join(env.wsDir, "assets", "mermaid-theme.js"), []byte("/* theme */"), 0644)
+	mk("mermaid-yes.html", lesson)
+
+	rec = env.get(t, "/api/lesson-html/alpha/mermaid-yes.html")
+	body = rec.Body.String()
+	for _, want := range []string{"assets/mermaid.min.js", "assets/mermaid-theme.js", "/js/pharos-mermaid.js"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("mermaid stack missing %s", want)
+		}
+	}
+	if strings.LastIndex(body, "assets/mermaid-theme.js") > strings.LastIndex(body, "pharos-mermaid.js") {
+		t.Error("glue bundle must load after mermaid-theme.js")
+	}
+
+	// Lightbox vendored separately — included when present.
+	os.WriteFile(filepath.Join(env.wsDir, "assets", "mermaid-lightbox.js"), []byte("/* lb */"), 0644)
+	os.WriteFile(filepath.Join(env.wsDir, "assets", "mermaid-lightbox.css"), []byte("/* css */"), 0644)
+	mk("mermaid-lb.html", lesson)
+	rec = env.get(t, "/api/lesson-html/alpha/mermaid-lb.html")
+	body = rec.Body.String()
+	if !strings.Contains(body, "assets/mermaid-lightbox.js") || !strings.Contains(body, `href="assets/mermaid-lightbox.css"`) {
+		t.Error("lightbox assets should join the mermaid stack when present")
+	}
+
+	// Non-mermaid lesson — nothing injected.
+	mk("plain.html", `<html><head></head><body><p>plain</p></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/plain.html")
+	if strings.Contains(rec.Body.String(), "pharos-mermaid.js") {
+		t.Error("plain lesson should not inject mermaid glue")
+	}
+}
+
+func TestKatexStackInjection(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	vendKatex := func() {
+		os.MkdirAll(filepath.Join(env.wsDir, "assets", "contrib"), 0755)
+		os.WriteFile(filepath.Join(env.wsDir, "assets", "katex.min.js"), []byte("/* lib */"), 0644)
+		os.WriteFile(filepath.Join(env.wsDir, "assets", "katex.min.css"), []byte("/* css */"), 0644)
+		os.WriteFile(filepath.Join(env.wsDir, "assets", "katex-render.js"), []byte("/* render */"), 0644)
+		os.WriteFile(filepath.Join(env.wsDir, "assets", "contrib", "auto-render.min.js"), []byte("/* ar */"), 0644)
+	}
+	mk := func(name, html string) {
+		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0644)
+		wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
+	}
+
+	// Currency in prose — no math, no injection (digit guard).
+	money := `<html><head></head><body><p>The plan costs $5 per month, or $50 per year.</p></body></html>`
+	vendKatex()
+	mk("money.html", money)
+	rec := env.get(t, "/api/lesson-html/alpha/money.html")
+	if strings.Contains(rec.Body.String(), "katex") {
+		t.Error("currency prose must not inject katex (digit guard)")
+	}
+
+	// Real inline math — full stack.
+	math := `<html><head></head><body><p>The energy $E = mc^2$ is famous.</p></body></html>`
+	mk("math.html", math)
+	rec = env.get(t, "/api/lesson-html/alpha/math.html")
+	body := rec.Body.String()
+	for _, want := range []string{`href="assets/katex.min.css"`, "assets/katex.min.js", "assets/katex-render.js", "assets/contrib/auto-render.min.js"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("katex stack missing %s", want)
+		}
+	}
+
+	// Unambiguous delimiters also fire.
+	mk("delim.html", `<html><head></head><body><p>\(\alpha\) and $$\beta$$</p></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/delim.html")
+	if !strings.Contains(rec.Body.String(), "assets/katex.min.js") {
+		t.Error("\\( \\[ $$ delimiters should inject katex")
+	}
+
+	// Math inside pre/code is ignored (auto-render ignores those tags too).
+	vendKatex()
+	mk("code-money.html", `<html><head></head><body><pre data-copy><code>echo $$; # costs $5 and $10</code></pre></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/code-money.html")
+	if strings.Contains(rec.Body.String(), "assets/katex.min.js") {
+		t.Error("dollar signs inside pre/code must not inject katex")
+	}
+}
+
+func TestVegaHighlightWorkbenchInjection(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	mk := func(name, html string) {
+		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0644)
+		wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
+	}
+	vendoredFiles := func(names ...string) {
+		for _, n := range names {
+			os.WriteFile(filepath.Join(env.wsDir, "assets", n), []byte("/* "+n+" */"), 0644)
+		}
+	}
+
+	// Vega: detected only with data-vega; stack gated on vega.min.js.
+	mk("vega-nolib.html", `<html><head></head><body><div class="chart" data-vega="c1"></div></body></html>`)
+	rec := env.get(t, "/api/lesson-html/alpha/vega-nolib.html")
+	if strings.Contains(rec.Body.String(), "assets/vega") {
+		t.Error("data-vega without vendored vega must not inject the stack")
+	}
+
+	vendoredFiles("vega.min.js", "vega-lite.min.js", "vega-embed.min.js", "vega-theme.js")
+	mk("vega.html", `<html><head></head><body><div class="chart" data-vega="c1"></div><script type="application/json" id="c1">{}</script></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/vega.html")
+	body := rec.Body.String()
+	for _, want := range []string{"assets/vega.min.js", "assets/vega-lite.min.js", "assets/vega-embed.min.js", "assets/vega-theme.js"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("vega stack missing %s", want)
+		}
+	}
+	if strings.Index(body, "assets/vega.min.js") > strings.Index(body, "assets/vega-theme.js") {
+		// order check: vega.min.js must appear before vega-theme.js
+		if strings.LastIndex(body, "assets/vega-theme.js") < strings.LastIndex(body, "assets/vega.min.js") {
+			t.Error("vega-theme.js must load after vega.min.js")
+		}
+	}
+
+	// Highlight: opt-in via language-* marker.
+	mk("hl-no.html", `<html><head></head><body><pre><code>SELECT 1;</code></pre></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/hl-no.html")
+	if strings.Contains(rec.Body.String(), "assets/highlight.min.js") || strings.Contains(rec.Body.String(), "pharos-hljs.js") {
+		t.Error("plain pre>code must not inject highlight.js")
+	}
+
+	mk("hl-nolib.html", `<html><head></head><body><pre><code class="language-js">var x;</code></pre></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/hl-nolib.html")
+	if strings.Contains(rec.Body.String(), "/js/pharos-hljs.js") {
+		t.Error("language-* without vendored hljs must not inject")
+	}
+
+	vendoredFiles("highlight.min.js", "highlight.css")
+	mk("hl.html", `<html><head></head><body><pre><code class="language-js">var x;</code></pre></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/hl.html")
+	body = rec.Body.String()
+	for _, want := range []string{`href="assets/highlight.css"`, "assets/highlight.min.js", "/js/pharos-hljs.js"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("hljs stack missing %s", want)
+		}
+	}
+
+	// Workbench: custom element detection.
+	mk("wb-nolib.html", `<html><head></head><body><sql-workbench namespace="l1" mode="card"></sql-workbench></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/wb-nolib.html")
+	if strings.Contains(rec.Body.String(), "assets/sql-workbench.js") {
+		t.Error("workbench element without vendored lib must not inject")
+	}
+
+	vendoredFiles("sql-workbench.js")
+	mk("wb.html", `<html><head></head><body><sql-workbench namespace="l1" mode="card"></sql-workbench></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/wb.html")
+	if !strings.Contains(rec.Body.String(), "assets/sql-workbench.js") {
+		t.Error("<sql-workbench> should inject the workbench lib")
+	}
+}
+
+func TestStyleAutoInjection(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+
+	// style.css is seeded into every real workspace at creation; the test
+	// env skips the seed, so write it (its absence = degrade-skip path).
+	os.WriteFile(filepath.Join(env.wsDir, "assets", "style.css"), []byte("/* base */"), 0644)
+
+	mk := func(dir, name, html string) {
+		os.WriteFile(filepath.Join(env.wsDir, dir, name), []byte(html), 0644)
+		if dir == "lessons" {
+			wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
+		} else {
+			wsStore.AddRef(db.Reference{Title: name, Slug: name, Filename: name, Path: "reference/" + name})
+		}
+	}
+
+	// Lesson without the stylesheet link — server injects it.
+	mk("lessons", "no-style.html", `<html><head><title>T</title></head><body><p>lean</p></body></html>`)
+	rec := env.get(t, "/api/lesson-html/alpha/no-style.html")
+	if !strings.Contains(rec.Body.String(), `href="assets/style.css"`) {
+		t.Error("lesson without style.css link should get it injected")
+	}
+
+	// Legacy lesson already linking it — no duplicate.
+	mk("lessons", "has-style.html", `<html><head><link rel="stylesheet" href="assets/style.css"></head><body><p>legacy</p></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/has-style.html")
+	if strings.Count(rec.Body.String(), `href="assets/style.css"`) != 1 {
+		t.Error("legacy lesson linking style.css must not get a duplicate")
+	}
+
+	// References get it too.
+	mk("reference", "style-ref.html", `<html><head><title>R</title></head><body><p>ref</p></body></html>`)
+	rec = env.get(t, "/api/ref-html/alpha/style-ref.html")
+	if !strings.Contains(rec.Body.String(), `href="assets/style.css"`) {
+		t.Error("reference without style.css link should get it injected")
+	}
+
+	// Question stimuli keep today's look — no stylesheet injection.
+	os.MkdirAll(filepath.Join(env.wsDir, "questions"), 0755)
+	os.WriteFile(filepath.Join(env.wsDir, "questions", "stim.html"), []byte(`<html><head></head><body><p>stimulus</p></body></html>`), 0644)
+	rec = env.get(t, "/api/question-html/alpha/stim.html")
+	if strings.Contains(rec.Body.String(), `href="assets/style.css"`) {
+		t.Error("question stimuli must not get style.css injected")
+	}
+
+	// ...but feature injection DOES apply to stimuli (data-vis stimuli use
+	// mermaid today).
+	vend2 := map[string]string{"mermaid.min.js": "/* lib */", "mermaid-theme.js": "/* theme */"}
+	for n, c := range vend2 {
+		os.WriteFile(filepath.Join(env.wsDir, "assets", n), []byte(c), 0644)
+	}
+	os.WriteFile(filepath.Join(env.wsDir, "questions", "mermaid-stim.html"), []byte(`<html><head></head><body><div class="mermaid">graph TD; A-->B;</div></body></html>`), 0644)
+	rec = env.get(t, "/api/question-html/alpha/mermaid-stim.html")
+	if !strings.Contains(rec.Body.String(), "assets/mermaid.min.js") || !strings.Contains(rec.Body.String(), "pharos-mermaid.js") {
+		t.Error("question stimulus with .mermaid should get the mermaid stack")
 	}
 }
 

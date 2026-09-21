@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -1478,11 +1479,11 @@ func handleLessonHTML(store *db.Store) http.HandlerFunc {
 		}
 		if lesson != nil {
 			cfg = iframeConfig{workspace: name, docType: "lesson", docID: lesson.ID}
-			serveIframeHTML(w, filepath.Join(ws.Path, "lessons", lesson.Filename), "lesson", lesson.Filename, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
+			serveIframeHTML(w, wsStore, filepath.Join(ws.Path, "lessons", lesson.Filename), "lesson", lesson.Filename, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
 			return
 		}
 		// Fallback: try as raw filename.
-		serveIframeHTML(w, filepath.Join(ws.Path, "lessons", id), "lesson", id, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
+		serveIframeHTML(w, wsStore, filepath.Join(ws.Path, "lessons", id), "lesson", id, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js", "pharos-scroll.js")
 	}
 }
 
@@ -1500,7 +1501,7 @@ func handleRefHTML(store *db.Store) http.HandlerFunc {
 		if ref, err := wsStore.GetRefByFilename(file); err == nil {
 			cfg = iframeConfig{workspace: name, docType: "ref", docID: ref.ID}
 		}
-		serveIframeHTML(w, filepath.Join(ws.Path, "reference", file), "reference", file, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js")
+		serveIframeHTML(w, wsStore, filepath.Join(ws.Path, "reference", file), "reference", file, cfg, "pharos-theme.js", "pharos-toc.js", "pharos-iframe-bridge.js", "pharos-highlights.js")
 	}
 }
 
@@ -1514,7 +1515,7 @@ func handleQuestionHTML(store *db.Store) http.HandlerFunc {
 			return
 		}
 		ws := wsStore.Workspace()
-		serveIframeHTML(w, filepath.Join(ws.Path, "questions", file), "question", file, iframeConfig{}, "pharos-theme.js", "pharos-iframe-bridge.js")
+		serveIframeHTML(w, wsStore, filepath.Join(ws.Path, "questions", file), "question", file, iframeConfig{}, "pharos-theme.js", "pharos-iframe-bridge.js")
 	}
 }
 
@@ -1575,19 +1576,26 @@ func handleJSBundle(w http.ResponseWriter, r *http.Request) {
 
 // ── Iframe script injection ──
 
-// injectFrameScripts injects <script src="/js/{name}?v=..."> tags before
-// </head> in an HTML document. Unknown script names are silently dropped
-// — only bundles registered in internal/web's jsBundles are injected.
-func injectFrameScripts(html []byte, scripts ...string) []byte {
+// bundleTag returns the versioned <script src="/js/{name}?v=..."> tag for a
+// registered bundle, or "" for unknown names.
+func bundleTag(name string) string {
+	url := web.JSBundleURL(name)
+	if url == "" {
+		return ""
+	}
+	return `<script src="` + url + `"></script>`
+}
+
+// injectFrameTags injects raw tags before </head> in an HTML document.
+// Callers build the tag list — from registered bundles (bundleTag) and
+// workspace-relative asset tags — so serving and referencing can never drift.
+func injectFrameTags(html []byte, tags ...string) []byte {
 	var buf bytes.Buffer
-	for _, name := range scripts {
-		url := web.JSBundleURL(name)
-		if url == "" {
+	for _, tag := range tags {
+		if tag == "" {
 			continue
 		}
-		buf.WriteString(`<script src="`)
-		buf.WriteString(url)
-		buf.WriteString(`"></script>`)
+		buf.WriteString(tag)
 	}
 	if buf.Len() == 0 {
 		return html
@@ -1620,9 +1628,48 @@ func injectIframeConfig(html []byte, cfg iframeConfig) []byte {
 	return bytes.Replace(html, []byte("</head>"), append(tag, []byte("</head>")...), 1)
 }
 
-// serveIframeHTML reads an HTML file from disk, injects the iframe config
-// and script tags before </head>, and writes the result to the response.
-func serveIframeHTML(w http.ResponseWriter, path, kind, file string, cfg iframeConfig, scripts ...string) {
+// assetScriptTag returns a workspace-relative <script> tag for an asset file,
+// or "" when the file is absent. Relative srcs resolve against the iframe URL
+// on all three iframe routes (lesson-html/ref-html/question-html), which each
+// serve /assets/* — so one tag shape works everywhere. The file-existence
+// check is the missing-lib degrade: content using a feature whose lib was
+// never fetched simply renders without it (logged, not fatal).
+func assetScriptTag(wsStore *db.WorkspaceStore, name string) string {
+	if !assetFileExists(wsStore, name) {
+		log.Printf("[frame] %s: content uses a feature needing assets/%s but the file is absent; skipping injection", wsStore.Workspace().Name, name)
+		return ""
+	}
+	return `<script src="assets/` + name + `"></script>`
+}
+
+// assetStyleTag is assetScriptTag for stylesheets.
+func assetStyleTag(wsStore *db.WorkspaceStore, name string) string {
+	if !assetFileExists(wsStore, name) {
+		log.Printf("[frame] %s: assets/%s absent; skipping stylesheet injection", wsStore.Workspace().Name, name)
+		return ""
+	}
+	return `<link rel="stylesheet" href="assets/` + name + `">`
+}
+
+// assetFileExists reports whether an asset file is present in the workspace.
+// This is the byte-source seam: LEARN-230 swaps vendored libs to the global
+// vendor cache by replacing this lookup, without touching injection logic.
+func assetFileExists(wsStore *db.WorkspaceStore, name string) bool {
+	path, err := wsStore.AssetPath(name)
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(path)
+	return err == nil
+}
+
+// serveIframeHTML reads an HTML file from disk, detects what the content
+// uses (detectFrameFeatures), and injects everything it needs before </head>:
+// the always-on base bundles, the shared stylesheet, behavior bundles
+// (quiz/glossary/copy), and the third-party library stacks for detected
+// features. Injection is additive and every bundle is idempotent, so legacy
+// lessons that hand-wire their own includes are unharmed.
+func serveIframeHTML(w http.ResponseWriter, wsStore *db.WorkspaceStore, path, kind, file string, cfg iframeConfig, baseScripts ...string) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		iframeNotFound(w, kind, file)
@@ -1631,19 +1678,89 @@ func serveIframeHTML(w http.ResponseWriter, path, kind, file string, cfg iframeC
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// Don't cache HTML files that may change via injection configuration.
 	w.Header().Set("Cache-Control", "no-cache")
-	// Auto-inject glossary tooltip when the content uses glossary-term classes.
-	if bytes.Contains(data, []byte("glossary-term")) {
-		scripts = append(scripts, "glossary-tooltip.js")
+
+	feat := detectFrameFeatures(data)
+	var tags []string
+
+	for _, name := range baseScripts {
+		tags = append(tags, bundleTag(name))
 	}
-	// Auto-inject copy buttons when the content marks code blocks data-copy.
-	// Substring match on purpose (same tradeoff as the glossary check): a
-	// false positive only over-injects a few KB of inert script, and the
-	// bundle itself no-ops on pages without pre[data-copy].
-	if bytes.Contains(data, []byte("data-copy")) {
-		scripts = append(scripts, "copy-code.js")
+
+	// Shared stylesheet: lessons and references only — question stimuli keep
+	// today's look. FOUC/theme needs nothing here: the injected pharos-theme.js
+	// runs before </head> and sets data-theme before first paint.
+	if (kind == "lesson" || kind == "reference") && !feat.StyleLinked {
+		tags = append(tags, assetStyleTag(wsStore, "style.css"))
 	}
+
+	// Behavior bundles — marker-driven, lessons never link them by hand.
+	if feat.Glossary {
+		tags = append(tags, bundleTag("glossary-tooltip.js"))
+	}
+	if feat.CopyCode {
+		tags = append(tags, bundleTag("copy-code.js"))
+	}
+	if feat.Quiz {
+		tags = append(tags, bundleTag("pharos-quiz.js"))
+	}
+
+	// Vendored library stacks — detected features pull their stack from the
+	// workspace assets via the byte-source seam (assetFileExists); absent libs
+	// degrade to skip (logged) instead of dead tags.
+	tags = append(tags, vendoredStacks(wsStore, feat)...)
+
 	data = injectIframeConfig(data, cfg)
-	w.Write(injectFrameScripts(data, scripts...))
+	w.Write(injectFrameTags(data, tags...))
+}
+
+// vendoredStacks returns the workspace-relative tags for each detected
+// feature's third-party stack. Each stack gates on its primary lib: absent,
+// nothing is injected for that feature (partial stacks render worse than
+// none — e.g. mermaid without its theme companion). Files are included only
+// when present, so a workspace that never vendored the lightbox simply gets
+// the plain stack.
+func vendoredStacks(wsStore *db.WorkspaceStore, feat frameFeatures) []string {
+	var tags []string
+
+	if feat.Mermaid && assetFileExists(wsStore, "mermaid.min.js") {
+		tags = append(tags,
+			assetScriptTag(wsStore, "mermaid.min.js"),
+			assetScriptTag(wsStore, "mermaid-theme.js"),
+			assetStyleTag(wsStore, "mermaid-lightbox.css"),
+			assetScriptTag(wsStore, "mermaid-lightbox.js"),
+			bundleTag("pharos-mermaid.js"))
+	}
+
+	if feat.Katex && assetFileExists(wsStore, "katex.min.js") {
+		// auto-render ships under contrib/ (vendored layout).
+		tags = append(tags,
+			assetStyleTag(wsStore, "katex.min.css"),
+			assetScriptTag(wsStore, "katex.min.js"),
+			assetScriptTag(wsStore, "contrib/auto-render.min.js"),
+			assetScriptTag(wsStore, "katex-render.js"))
+	}
+
+	if feat.Vega && assetFileExists(wsStore, "vega.min.js") {
+		// Order matters: vega -> vega-lite -> vega-embed -> theme.
+		tags = append(tags,
+			assetScriptTag(wsStore, "vega.min.js"),
+			assetScriptTag(wsStore, "vega-lite.min.js"),
+			assetScriptTag(wsStore, "vega-embed.min.js"),
+			assetScriptTag(wsStore, "vega-theme.js"))
+	}
+
+	if feat.Highlight && assetFileExists(wsStore, "highlight.min.js") {
+		tags = append(tags,
+			assetStyleTag(wsStore, "highlight.css"),
+			assetScriptTag(wsStore, "highlight.min.js"),
+			bundleTag("pharos-hljs.js"))
+	}
+
+	if feat.Workbench && assetFileExists(wsStore, "sql-workbench.js") {
+		tags = append(tags, assetScriptTag(wsStore, "sql-workbench.js"))
+	}
+
+	return tags
 }
 
 // ── PWA install record (LEARN-220) ─────────────────────────────────────
