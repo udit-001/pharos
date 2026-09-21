@@ -132,11 +132,20 @@ The server detects which libraries a page needs from the markup conventions
 below and loads them itself. Author semantic content; the server wires
 everything else.
 
+Pick by content kind:
+
+- Structure and relationships (flowcharts, mindmaps, sequences) → mermaid
+- Quantities on axes (comparisons, distributions, trends) → vega chart
+- Math notation → katex delimiters
+- Code → fenced blocks with an explicit language marker
+
 ### Mermaid
 
-For flowcharts, sequence diagrams, and other diagrams in lessons. Put each
-diagram in a `<div class="mermaid">` with the diagram text inside — the
-server loads and themes mermaid for any page containing one.
+For flowcharts, sequence diagrams, mindmaps, and other structure diagrams in
+lessons — relationships between things, not quantities. Data comparisons
+belong in a vega chart. Put each diagram in a `<div class="mermaid">` with
+the diagram text inside — the server loads and themes mermaid for any page
+containing one.
 
 Container background styles (rounded, padded, dark/light swap) are seeded in
 `assets/style.css`. Diagrams cap at `max-height: 65vh`; the expand button
