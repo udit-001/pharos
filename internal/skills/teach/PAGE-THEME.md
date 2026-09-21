@@ -155,7 +155,7 @@ For mathematical notation (equations, formulas, proofs) in lessons. Write
 math with the delimiters below in body text; the server loads KaTeX when it
 sees them.
 
-**Delimiters** (handled by `katex-render.js`):
+**Delimiters**:
 
 | Syntax | Mode | Example |
 |--------|------|---------|
