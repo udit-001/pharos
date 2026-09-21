@@ -136,86 +136,19 @@ The Inter variable font (latin subset, weight range 100–900) is bundled as `as
 
 ### Mermaid (on-demand)
 
-For flowcharts, sequence diagrams, and other diagrams in lessons. Not auto-seeded — add it when needed:
-
-```
-pharos asset add mermaid
-```
-
-`pharos asset add mermaid` writes `mermaid.min.js` (downloaded from CDN) and `mermaid-theme.js` (Nord dark/light theme support) to `assets/`. Add the lightbox separately:
-
-```
-pharos asset add mermaid-lightbox
-```
-
-Include in the lesson `<head>`:
-
-```html
-<script src="assets/mermaid.min.js"></script>
-<script src="assets/mermaid-theme.js"></script>
-<link rel="stylesheet" href="assets/mermaid-lightbox.css">
-<script src="assets/mermaid-lightbox.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  window.mermaid.initialize({startOnLoad:false,theme:'base',themeVariables:window.mermaidTheme.themeVars()});
-  window.mermaid.run({
-    querySelector: '.mermaid',
-    postRenderCallback: function(id) {
-      var svg = document.getElementById(id);
-      var el = svg && svg.closest ? svg.closest('.mermaid') : null;
-      if (!el && svg) {
-        var p = svg.parentNode;
-        while (p && p !== document.body) {
-          if (p.classList && p.classList.contains('mermaid')) { el = p; break; }
-          p = p.parentNode;
-        }
-      }
-      if (el && window.mermaidLightbox) window.mermaidLightbox.addToolbar(el);
-    }
-  });
-});
-</script>
-```
-
-> **Why `theme: 'base'`?** The `base` theme lets `themeVariables` control all diagram colors, enabling dark/light mode switching. On theme toggle, `mermaid-theme.js` re-renders each diagram to a throwaway via `mermaid.render` and copies only its `<style>` (and gradient stops) into the live SVG — this *retints* without re-running the layout, so the diagram doesn't jump size. (A plain hex string-swap can't retint mindmap nodes, which mermaid emits as `hsl()` derived from `primaryColor`; the dark palette also pins `cScale0..12` + `git0` to Nord frost/aurora hues so each mindmap branch is a distinct colour instead of collapsing to near-black.)
-> **Why the `<script>` is wrapped in `DOMContentLoaded`?** `mermaid-theme.js` reads `document.documentElement.dataset.theme` on load to pick the correct initial color palette. Wrapping in `DOMContentLoaded` ensures the FOUC-prevention script (which sets `data-theme`) has already run. `mermaid-theme.js` also captures each `.mermaid` div's source into `data-mermaid-src` before mermaid replaces it, so retint can re-render later.
+For flowcharts, sequence diagrams, and other diagrams in lessons. The server injects the mermaid stack (library, theme, lightbox, init) from the global vendor cache whenever a lesson contains a `.mermaid` block — nothing to install, no includes to wire.
 
 Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. Container background styles (rounded, padded, dark/light swap) are auto-seeded in `assets/style.css` — no extra `<style>` needed. Diagrams are capped at `max-height: 65vh` so tall vertical flowcharts don't consume the whole page; the expand button (lightbox) opens them full-size for readable detail.
 
 ### Highlight.js (on-demand)
 
-For syntax highlighting in code blocks. Add it once — the command downloads the JS and generates `highlight.css` (token colors using Nord variables that switch with light/dark mode):
-
-```
-pharos asset add highlightjs
-```
-
-Include in the lesson `<head>`:
-
-```html
-<link rel="stylesheet" href="assets/highlight.css">
-<script src="assets/highlight.min.js"></script>
-<script>hljs.highlightAll();</script>
-```
+For syntax highlighting in code blocks. The server injects the highlighter from the global vendor cache when a lesson contains `<pre><code class="language-…">` — nothing to install, no includes to wire.
 
 Code block language is auto-detected, but explicit `<pre><code class="language-js">` is recommended for accuracy.
 
 ### KaTeX math rendering (on-demand)
 
-For mathematical notation (equations, formulas, proofs) in lessons. Add it once:
-
-```
-pharos asset add katex
-```
-
-This downloads the KaTeX library, CSS, and woff2 fonts, and writes `katex-render.js` (auto-renders math on load). Include in the lesson `<head>`:
-
-```html
-<link rel="stylesheet" href="assets/katex.min.css">
-<script src="assets/katex.min.js"></script>
-<script src="assets/contrib/auto-render.min.js"></script>
-<script src="assets/katex-render.js"></script>
-```
+For mathematical notation (equations, formulas, proofs) in lessons. The server injects the KaTeX stack (library, fonts, auto-render) from the global vendor cache when it detects math delimiters in body text — nothing to install, no includes to wire.
 
 **Delimiters** (handled by `katex-render.js`):
 
@@ -230,22 +163,7 @@ This downloads the KaTeX library, CSS, and woff2 fonts, and writes `katex-render
 
 ### Vega-Lite charts (on-demand)
 
-For **charts** — quantitative data on axes (bar, line, scatter, histogram, area). Not for diagrams (use mermaid) or equations (use katex). Add it once:
-
-```
-pharos asset add vega
-```
-
-`pharos asset add vega` writes four files to `assets/`: `vega.min.js`, `vega-lite.min.js`, `vega-embed.min.js` (downloaded from CDN), and `vega-theme.js` (embedded Nord theming companion).
-
-Include in the lesson `<head>` — **order matters** (vega → vega-lite → vega-embed → theme):
-
-```html
-<script src="assets/vega.min.js"></script>
-<script src="assets/vega-lite.min.js"></script>
-<script src="assets/vega-embed.min.js"></script>
-<script src="assets/vega-theme.js"></script>
-```
+For **charts** — quantitative data on axes (bar, line, scatter, histogram, area). Not for diagrams (use mermaid) or equations (use katex). The server injects the vega stack (vega, vega-lite, vega-embed, theme) from the global vendor cache when it sees `data-vega` — nothing to install, no includes to wire.
 
 **Convention — pure JSON, zero JS.** Write the chart spec as a JSON object inside a `<script type="application/json" id="my-chart">` tag, then place a `<div class="chart" data-vega="my-chart"></div>` where the chart should appear. The companion auto-discovers the pair, renders via `vegaEmbed` with Nord theming, and re-renders on theme toggle:
 

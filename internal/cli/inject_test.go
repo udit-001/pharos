@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -107,6 +108,22 @@ func newRootForTest() *cobra.Command {
 	// Executes on the shared command tree).
 	for _, cmd := range []*cobra.Command{lessonCreateCmd, lessonReviseCmd, refCreateCmd, refReviseCmd} {
 		_ = cmd.Flags().Set("force", "false")
+	}
+	// start flags leak the same way (a foreground test start would make the
+	// next test's start boot a real blocking server).
+	for _, f := range []string{"foreground", "no-open", "daemon", "dev-css"} {
+		_ = startCmd.Flags().Set(f, "false")
+		if fl := startCmd.Flags().Lookup(f); fl != nil {
+			fl.Changed = false
+		}
+	}
+	_ = startCmd.Flags().Set("background", "true")
+	if fl := startCmd.Flags().Lookup("background"); fl != nil {
+		fl.Changed = false
+	}
+	if fl := startCmd.Flags().Lookup("port"); fl != nil {
+		_ = fl.Value.Set(strconv.Itoa(defaultPort))
+		fl.Changed = false
 	}
 	return rootCmd
 }

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/udit-001/pharos/internal/db"
+	"github.com/udit-001/pharos/internal/vendor"
 	"github.com/udit-001/pharos/internal/web"
 )
 
@@ -60,6 +61,33 @@ func newTestEnv(t *testing.T) *testEnv {
 	os.WriteFile(filepath.Join(wsDir, "NOTES.md"), []byte("# Notes\n\nReal notes"), 0644)
 
 	return &testEnv{store: store, mux: NewMux(store, false), wsDir: wsDir}
+}
+
+// seedVendor fills a temp global vendor cache with the given files (keys are
+// "lib/file" pairs that must exist in the vendor manifest) and points the
+// serving seam at it until the test ends. The cache layout mirrors sync:
+// <lib>@<version>/<file>.
+func (e *testEnv) seedVendor(t *testing.T, files map[string]string) {
+	t.Helper()
+	vdir := filepath.Join(t.TempDir(), "vendor")
+	for key, content := range files {
+		lib, file, _ := strings.Cut(key, "/")
+		var version string
+		for _, entry := range vendor.Manifest {
+			if entry.Lib == lib && entry.File == file {
+				version = entry.Version
+				break
+			}
+		}
+		if version == "" {
+			t.Fatalf("no vendor manifest entry for %s", key)
+		}
+		p := filepath.Join(vdir, lib+"@"+version, filepath.FromSlash(file))
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(content), 0o644)
+	}
+	vendor.SetDir(vdir)
+	t.Cleanup(func() { vendor.SetDir("") })
 }
 
 func (e *testEnv) get(t *testing.T, target string) *httptest.ResponseRecorder {
@@ -515,43 +543,42 @@ func TestMermaidStackInjection(t *testing.T) {
 	wsStore, _ := env.store.Workspace("alpha")
 
 	mk := func(name, html string) {
-		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0644)
+		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0o644)
 		wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
 	}
 	lesson := `<html><head></head><body><div class="mermaid">graph TD; A-->B;</div></body></html>`
 
-	// No vendored lib yet — no injection, no garbage tags.
+	// No lib in the vendor cache yet — no injection, no garbage tags.
 	mk("mermaid-nolib.html", lesson)
 	rec := env.get(t, "/api/lesson-html/alpha/mermaid-nolib.html")
 	body := rec.Body.String()
 	if strings.Contains(body, "mermaid.min.js") || strings.Contains(body, "pharos-mermaid.js") {
-		t.Error(".mermaid without vendored lib must not inject the mermaid stack")
+		t.Error(".mermaid without cached lib must not inject the mermaid stack")
 	}
 
-	// After vendoring — full stack in order, glue last.
-	os.WriteFile(filepath.Join(env.wsDir, "assets", "mermaid.min.js"), []byte("/* lib */"), 0644)
-	os.WriteFile(filepath.Join(env.wsDir, "assets", "mermaid-theme.js"), []byte("/* theme */"), 0644)
+	// After sync fills the cache — full stack in order, glue last. The
+	// lightbox and theme companion are embedded in the binary, so the stack
+	// is complete as soon as the primary lib is cached.
+	env.seedVendor(t, map[string]string{
+		"mermaid/mermaid.min.js": "/* lib */",
+	})
 	mk("mermaid-yes.html", lesson)
 
 	rec = env.get(t, "/api/lesson-html/alpha/mermaid-yes.html")
 	body = rec.Body.String()
-	for _, want := range []string{"assets/mermaid.min.js", "assets/mermaid-theme.js", "/js/pharos-mermaid.js"} {
+	for _, want := range []string{
+		"/vendor/mermaid/mermaid.min.js?v=",
+		"/vendor/mermaid/mermaid-theme.js?v=",
+		`href="/vendor/mermaid/mermaid-lightbox.css?v=`,
+		"/vendor/mermaid/mermaid-lightbox.js?v=",
+		"/js/pharos-mermaid.js",
+	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("mermaid stack missing %s", want)
 		}
 	}
-	if strings.LastIndex(body, "assets/mermaid-theme.js") > strings.LastIndex(body, "pharos-mermaid.js") {
+	if strings.LastIndex(body, "mermaid-theme.js") > strings.LastIndex(body, "pharos-mermaid.js") {
 		t.Error("glue bundle must load after mermaid-theme.js")
-	}
-
-	// Lightbox vendored separately — included when present.
-	os.WriteFile(filepath.Join(env.wsDir, "assets", "mermaid-lightbox.js"), []byte("/* lb */"), 0644)
-	os.WriteFile(filepath.Join(env.wsDir, "assets", "mermaid-lightbox.css"), []byte("/* css */"), 0644)
-	mk("mermaid-lb.html", lesson)
-	rec = env.get(t, "/api/lesson-html/alpha/mermaid-lb.html")
-	body = rec.Body.String()
-	if !strings.Contains(body, "assets/mermaid-lightbox.js") || !strings.Contains(body, `href="assets/mermaid-lightbox.css"`) {
-		t.Error("lightbox assets should join the mermaid stack when present")
 	}
 
 	// Non-mermaid lesson — nothing injected.
@@ -566,33 +593,39 @@ func TestKatexStackInjection(t *testing.T) {
 	env := newTestEnv(t)
 	wsStore, _ := env.store.Workspace("alpha")
 
-	vendKatex := func() {
-		os.MkdirAll(filepath.Join(env.wsDir, "assets", "contrib"), 0755)
-		os.WriteFile(filepath.Join(env.wsDir, "assets", "katex.min.js"), []byte("/* lib */"), 0644)
-		os.WriteFile(filepath.Join(env.wsDir, "assets", "katex.min.css"), []byte("/* css */"), 0644)
-		os.WriteFile(filepath.Join(env.wsDir, "assets", "katex-render.js"), []byte("/* render */"), 0644)
-		os.WriteFile(filepath.Join(env.wsDir, "assets", "contrib", "auto-render.min.js"), []byte("/* ar */"), 0644)
+	seed := func() {
+		env.seedVendor(t, map[string]string{
+			"katex/katex.min.js":               "/* lib */",
+			"katex/katex.min.css":              "/* css */",
+			"katex/contrib/auto-render.min.js": "/* ar */",
+		})
 	}
 	mk := func(name, html string) {
-		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0644)
+		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0o644)
 		wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
 	}
 
 	// Currency in prose — no math, no injection (digit guard).
 	money := `<html><head></head><body><p>The plan costs $5 per month, or $50 per year.</p></body></html>`
-	vendKatex()
+	seed()
 	mk("money.html", money)
 	rec := env.get(t, "/api/lesson-html/alpha/money.html")
 	if strings.Contains(rec.Body.String(), "katex") {
 		t.Error("currency prose must not inject katex (digit guard)")
 	}
 
-	// Real inline math — full stack.
+	// Real inline math — full stack (katex-render.js is an embedded companion).
 	math := `<html><head></head><body><p>The energy $E = mc^2$ is famous.</p></body></html>`
 	mk("math.html", math)
-	rec = env.get(t, "/api/lesson-html/alpha/math.html")
 	body := rec.Body.String()
-	for _, want := range []string{`href="assets/katex.min.css"`, "assets/katex.min.js", "assets/katex-render.js", "assets/contrib/auto-render.min.js"} {
+	rec = env.get(t, "/api/lesson-html/alpha/math.html")
+	body = rec.Body.String()
+	for _, want := range []string{
+		`href="/vendor/katex/katex.min.css?v=`,
+		"/vendor/katex/katex.min.js?v=",
+		"/vendor/katex/katex-render.js?v=",
+		"/vendor/katex/contrib/auto-render.min.js?v=",
+	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("katex stack missing %s", want)
 		}
@@ -601,15 +634,15 @@ func TestKatexStackInjection(t *testing.T) {
 	// Unambiguous delimiters also fire.
 	mk("delim.html", `<html><head></head><body><p>\(\alpha\) and $$\beta$$</p></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/delim.html")
-	if !strings.Contains(rec.Body.String(), "assets/katex.min.js") {
+	if !strings.Contains(rec.Body.String(), "/vendor/katex/katex.min.js") {
 		t.Error("\\( \\[ $$ delimiters should inject katex")
 	}
 
 	// Math inside pre/code is ignored (auto-render ignores those tags too).
-	vendKatex()
+	seed()
 	mk("code-money.html", `<html><head></head><body><pre data-copy><code>echo $$; # costs $5 and $10</code></pre></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/code-money.html")
-	if strings.Contains(rec.Body.String(), "assets/katex.min.js") {
+	if strings.Contains(rec.Body.String(), "katex.min.js") {
 		t.Error("dollar signs inside pre/code must not inject katex")
 	}
 }
@@ -619,56 +652,61 @@ func TestVegaHighlightWorkbenchInjection(t *testing.T) {
 	wsStore, _ := env.store.Workspace("alpha")
 
 	mk := func(name, html string) {
-		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0644)
+		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0o644)
 		wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
-	}
-	vendoredFiles := func(names ...string) {
-		for _, n := range names {
-			os.WriteFile(filepath.Join(env.wsDir, "assets", n), []byte("/* "+n+" */"), 0644)
-		}
 	}
 
 	// Vega: detected only with data-vega; stack gated on vega.min.js.
 	mk("vega-nolib.html", `<html><head></head><body><div class="chart" data-vega="c1"></div></body></html>`)
 	rec := env.get(t, "/api/lesson-html/alpha/vega-nolib.html")
-	if strings.Contains(rec.Body.String(), "assets/vega") {
-		t.Error("data-vega without vendored vega must not inject the stack")
+	if strings.Contains(rec.Body.String(), "/vendor/vega") {
+		t.Error("data-vega without cached vega must not inject the stack")
 	}
 
-	vendoredFiles("vega.min.js", "vega-lite.min.js", "vega-embed.min.js", "vega-theme.js")
+	env.seedVendor(t, map[string]string{
+		"vega/vega.min.js":       "/* vega */",
+		"vega/vega-lite.min.js":  "/* vega-lite */",
+		"vega/vega-embed.min.js": "/* embed */",
+	})
 	mk("vega.html", `<html><head></head><body><div class="chart" data-vega="c1"></div><script type="application/json" id="c1">{}</script></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/vega.html")
 	body := rec.Body.String()
-	for _, want := range []string{"assets/vega.min.js", "assets/vega-lite.min.js", "assets/vega-embed.min.js", "assets/vega-theme.js"} {
+	for _, want := range []string{
+		"/vendor/vega/vega.min.js?v=",
+		"/vendor/vega/vega-lite.min.js?v=",
+		"/vendor/vega/vega-embed.min.js?v=",
+		"/vendor/vega/vega-theme.js?v=",
+	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("vega stack missing %s", want)
 		}
 	}
-	if strings.Index(body, "assets/vega.min.js") > strings.Index(body, "assets/vega-theme.js") {
-		// order check: vega.min.js must appear before vega-theme.js
-		if strings.LastIndex(body, "assets/vega-theme.js") < strings.LastIndex(body, "assets/vega.min.js") {
-			t.Error("vega-theme.js must load after vega.min.js")
-		}
+	if strings.LastIndex(body, "vega-theme.js") < strings.LastIndex(body, "vega.min.js") {
+		t.Error("vega-theme.js must load after vega.min.js")
 	}
 
 	// Highlight: opt-in via language-* marker.
 	mk("hl-no.html", `<html><head></head><body><pre><code>SELECT 1;</code></pre></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/hl-no.html")
-	if strings.Contains(rec.Body.String(), "assets/highlight.min.js") || strings.Contains(rec.Body.String(), "pharos-hljs.js") {
+	if strings.Contains(rec.Body.String(), "highlight.min.js") || strings.Contains(rec.Body.String(), "pharos-hljs.js") {
 		t.Error("plain pre>code must not inject highlight.js")
 	}
 
 	mk("hl-nolib.html", `<html><head></head><body><pre><code class="language-js">var x;</code></pre></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/hl-nolib.html")
 	if strings.Contains(rec.Body.String(), "/js/pharos-hljs.js") {
-		t.Error("language-* without vendored hljs must not inject")
+		t.Error("language-* without cached hljs must not inject")
 	}
 
-	vendoredFiles("highlight.min.js", "highlight.css")
+	env.seedVendor(t, map[string]string{"highlightjs/highlight.min.js": "/* hljs */"})
 	mk("hl.html", `<html><head></head><body><pre><code class="language-js">var x;</code></pre></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/hl.html")
 	body = rec.Body.String()
-	for _, want := range []string{`href="assets/highlight.css"`, "assets/highlight.min.js", "/js/pharos-hljs.js"} {
+	for _, want := range []string{
+		`href="/vendor/highlightjs/highlight.css?v=`,
+		"/vendor/highlightjs/highlight.min.js?v=",
+		"/js/pharos-hljs.js",
+	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("hljs stack missing %s", want)
 		}
@@ -677,15 +715,15 @@ func TestVegaHighlightWorkbenchInjection(t *testing.T) {
 	// Workbench: custom element detection.
 	mk("wb-nolib.html", `<html><head></head><body><sql-workbench namespace="l1" mode="card"></sql-workbench></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/wb-nolib.html")
-	if strings.Contains(rec.Body.String(), "assets/sql-workbench.js") {
-		t.Error("workbench element without vendored lib must not inject")
+	if strings.Contains(rec.Body.String(), "sql-workbench.js") {
+		t.Error("workbench element without cached lib must not inject")
 	}
 
-	vendoredFiles("sql-workbench.js")
+	env.seedVendor(t, map[string]string{"sql-workbench/sql-workbench.js": "/* wb */"})
 	mk("wb.html", `<html><head></head><body><sql-workbench namespace="l1" mode="card"></sql-workbench></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/wb.html")
-	if !strings.Contains(rec.Body.String(), "assets/sql-workbench.js") {
-		t.Error("<sql-workbench> should inject the workbench lib")
+	if !strings.Contains(rec.Body.String(), "/vendor/sql-workbench/sql-workbench.js?v=") {
+		t.Error("<sql-workbench> should inject the workbench lib from the cache")
 	}
 }
 
@@ -736,14 +774,12 @@ func TestStyleAutoInjection(t *testing.T) {
 	}
 
 	// ...but feature injection DOES apply to stimuli (data-vis stimuli use
-	// mermaid today).
-	vend2 := map[string]string{"mermaid.min.js": "/* lib */", "mermaid-theme.js": "/* theme */"}
-	for n, c := range vend2 {
-		os.WriteFile(filepath.Join(env.wsDir, "assets", n), []byte(c), 0644)
-	}
+	// mermaid today). Lib bytes come from the vendor cache; the theme
+	// companion is embedded.
+	env.seedVendor(t, map[string]string{"mermaid/mermaid.min.js": "/* lib */"})
 	os.WriteFile(filepath.Join(env.wsDir, "questions", "mermaid-stim.html"), []byte(`<html><head></head><body><div class="mermaid">graph TD; A-->B;</div></body></html>`), 0644)
 	rec = env.get(t, "/api/question-html/alpha/mermaid-stim.html")
-	if !strings.Contains(rec.Body.String(), "assets/mermaid.min.js") || !strings.Contains(rec.Body.String(), "pharos-mermaid.js") {
+	if !strings.Contains(rec.Body.String(), "/vendor/mermaid/mermaid.min.js") || !strings.Contains(rec.Body.String(), "pharos-mermaid.js") {
 		t.Error("question stimulus with .mermaid should get the mermaid stack")
 	}
 }
@@ -1286,5 +1322,46 @@ func TestGetDataset_UnknownWorkspace(t *testing.T) {
 	rec := env.get(t, "/api/workspaces/name/nonexistent/datasets/sample")
 	if rec.Code != 404 {
 		t.Errorf("unknown workspace should 404; got %d", rec.Code)
+	}
+}
+
+// TestVendorRouteServesCacheBytes: the /vendor/{lib}/{file} route serves
+// bytes from the global cache (with a versioned-URL cache header) and 404s
+// files that aren't pinned or aren't in the cache.
+func TestVendorRouteServesCacheBytes(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Seed the cache the way sync would: mermaid@11.17.2/mermaid.min.js.
+	vdir := filepath.Join(t.TempDir(), "vendor")
+	vendor.SetDir(vdir)
+	t.Cleanup(func() { vendor.SetDir("") })
+	os.MkdirAll(filepath.Join(vdir, "mermaid@11.17.2"), 0o755)
+	os.WriteFile(filepath.Join(vdir, "mermaid@11.17.2", "mermaid.min.js"), []byte("/* lib */"), 0o644)
+
+	// Known lib+file, cached → 200 with the pinned bytes.
+	rec := env.get(t, "/vendor/mermaid/mermaid.min.js?v=abc")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("cached vendor file: got %d, want 200", rec.Code)
+	}
+	if got := rec.Body.String(); got != "/* lib */" {
+		t.Errorf("body = %q, want pinned bytes", got)
+	}
+	if cc := rec.Header().Get("Cache-Control"); !strings.Contains(cc, "max-age") {
+		t.Errorf("vendor responses should be cacheable; Cache-Control = %q", cc)
+	}
+
+	// Pinned but not in cache (offline sync) → 404, no garbage.
+	rec = env.get(t, "/vendor/katex/katex.min.js")
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("uncached vendor file: got %d, want 404", rec.Code)
+	}
+
+	// Unknown lib, and a traversal attempt (mux cleans + redirects, never
+	// serves it) → must not serve bytes.
+	for _, target := range []string{"/vendor/nope/mermaid.min.js", "/vendor/mermaid/../../etc/passwd"} {
+		rec = env.get(t, target)
+		if rec.Code == http.StatusOK {
+			t.Errorf("%s: must not be served", target)
+		}
 	}
 }

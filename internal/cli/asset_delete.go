@@ -11,15 +11,12 @@ var assetDeleteCmd = &cobra.Command{
 	Use:   "delete <filename>",
 	Short: "Remove an asset file",
 	Long: `Remove a file from the workspace's assets/ directory. No prompt —
-assets have no database cascade and recreate cheaply (re-add or re-create).
+assets have no database cascade and recreate cheaply (re-create).
 
-Filename-based, like 'create' — not name-based. To remove a whole vendored
-asset set, delete each file; 'pharos asset redeploy' self-heals a partial
-state if you only meant to refresh.
+Filename-based, like 'create' — not name-based.
 
 Examples:
-  pharos asset delete quiz-widget.js
-  pharos asset delete mermaid.min.js`,
+  pharos asset delete quiz-widget.js`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)

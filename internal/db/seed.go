@@ -13,9 +13,9 @@ import (
 // See PAGE-THEME.md in the teach skill for the design conventions these
 // files follow.
 //
-// The four asset embeds are exported so the CLI's asset registry can offer
-// them via `pharos asset add <name>` (install-if-absent) and `redeploy`
-// (force-sync) — see internal/cli/asset_add.go.
+// The asset embeds are the universal defaults every new workspace gets —
+// seeded at creation, user-editable in place. Vendored third-party libraries
+// are not seeded: they live in the global vendor cache (internal/vendor).
 
 //go:embed seed/style.css
 var SeedStyleCSS string

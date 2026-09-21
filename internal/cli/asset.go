@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/spf13/cobra"
-	"github.com/udit-001/pharos/internal/db"
 )
 
 var assetCmd = &cobra.Command{
@@ -17,8 +16,10 @@ var assetCmd = &cobra.Command{
 	Long: `Manage reusable components (stylesheets, scripts, images) in the
 workspace's assets/ directory.
 
-Assets are raw files with no database tracking — they're referenced
-by lessons and references via root-relative URLs (assets/style.css).
+Assets are user-authored files with no database tracking — they're
+referenced by lessons and references via root-relative URLs
+(assets/style.css). Third-party libraries are not assets: they live in
+the global vendor cache (see 'pharos vendor sync').
 
 Examples:
   pharos asset list --workspace "sql-for-research"
@@ -27,17 +28,11 @@ Examples:
 
 var assetListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List workspace assets (seeded, vendored, user)",
-	Long: `List assets in the workspace's assets/ directory, grouped by source:
-
-  Seeded   — universal defaults every workspace starts with (style.css,
-             copy-code.js, the Inter font).
-   Vendored — third-party libraries added on demand (mermaid, highlightjs,
-              katex, vega, mermaid-lightbox).
-  User     — components authored with 'pharos asset create'.
-
-Each row shows whether the asset is fully present and the command that acts
-on it: 'pharos asset add' when absent, 'pharos asset redeploy' when present.`,
+	Short: "List the workspace's user components",
+	Long: `List files in the workspace's assets/ directory. These are user
+components — stylesheets, scripts, images authored with
+'pharos asset create'. Vendored third-party libraries are not listed
+here; they live in the global vendor cache (see 'pharos vendor sync').`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := mustStore(cmd)
@@ -52,61 +47,10 @@ on it: 'pharos asset add' when absent, 'pharos asset redeploy' when present.`,
 		if err != nil {
 			return formatError("failed to list assets", err)
 		}
-		presentSet := make(map[string]bool, len(present))
-		for _, f := range present {
-			presentSet[f] = true
-		}
-
-		// Registry names sorted, split by source.
-		names := make([]string, 0, len(knownAssets))
-		for k := range knownAssets {
-			names = append(names, k)
-		}
-		sort.Strings(names)
-
-		// owned = every file the registry claims (lib Filename + embedded
-		// Files), so present files left over are user-authored.
-		owned := make(map[string]bool)
-		for _, spec := range knownAssets {
-			if spec.Filename != "" {
-				owned[spec.Filename] = true
-			}
-			for f := range spec.Files {
-				owned[f] = true
-			}
-		}
-
-		seeded := make([]regEntry, 0, len(names))
-		vendored := make([]regEntry, 0, len(names))
-		for _, n := range names {
-			spec := knownAssets[n]
-			p := specPresent(spec, presentSet)
-			hint := "pharos asset redeploy " + n
-			if !p {
-				hint = "pharos asset add " + n
-			}
-			entry := regEntry{Name: n, Present: p, Hint: hint}
-			if spec.Source == "seeded" {
-				seeded = append(seeded, entry)
-			} else {
-				vendored = append(vendored, entry)
-			}
-		}
-
-		user := make([]string, 0, len(present))
-		for _, f := range present {
-			if !owned[f] {
-				user = append(user, f)
-			}
-		}
-		sort.Strings(user)
+		sort.Strings(present)
 
 		if jsonEnabled(cmd) {
-			printJSON(map[string]any{
-				"seeded":   seeded,
-				"vendored": vendored,
-				"user":     user,
-			})
+			printJSON(map[string]any{"assets": present})
 			return nil
 		}
 
@@ -114,70 +58,20 @@ on it: 'pharos asset add' when absent, 'pharos asset redeploy' when present.`,
 		fmt.Printf("  Assets for %s:\n", ws.DisplayName())
 		fmt.Println()
 
-		fmt.Println("  Seeded assets:")
-		fmt.Print(formatTable([]string{"Name", "Status", "Command"}, regRows(seeded)))
-		fmt.Println()
-
-		fmt.Println("  Vendored assets:")
-		fmt.Print(formatTable([]string{"Name", "Status", "Command"}, regRows(vendored)))
-		fmt.Println()
-
-		if len(user) > 0 {
-			fmt.Println("  User assets:")
-			userRows := make([][]string, 0, len(user))
-			for _, f := range user {
-				userRows = append(userRows, []string{f, filepath.Join("assets", f)})
+		if len(present) > 0 {
+			rows := make([][]string, 0, len(present))
+			for _, f := range present {
+				rows = append(rows, []string{f, filepath.Join("assets", f)})
 			}
-			fmt.Print(formatTable([]string{"Name", "Path"}, userRows))
+			fmt.Print(formatTable([]string{"Name", "Path"}, rows))
 			fmt.Println()
-		}
-
-		if len(seeded)+len(vendored)+len(user) == 0 {
+		} else {
 			fmt.Printf("  No assets yet.\n")
 			fmt.Printf("  Use 'pharos asset create <filename> --body-file <path>' to add one.\n")
 			fmt.Println()
 		}
 		return nil
 	},
-}
-
-// regEntry is a registry asset row in the list output (seeded or vendored).
-type regEntry struct {
-	Name    string `json:"name"`
-	Present bool   `json:"present"`
-	Hint    string `json:"hint"`
-}
-
-// specPresent reports whether every file a spec owns (its lib Filename,
-// embedded Files, and Downloads) is present on disk.
-func specPresent(spec db.AssetSpec, presentSet map[string]bool) bool {
-	if spec.Filename != "" && !presentSet[spec.Filename] {
-		return false
-	}
-	for f := range spec.Files {
-		if !presentSet[f] {
-			return false
-		}
-	}
-	for f := range spec.Downloads {
-		if !presentSet[f] {
-			return false
-		}
-	}
-	return true
-}
-
-// regRows builds table rows for a slice of registry entries.
-func regRows(entries []regEntry) [][]string {
-	rows := make([][]string, 0, len(entries))
-	for _, e := range entries {
-		status := "absent"
-		if e.Present {
-			status = "present"
-		}
-		rows = append(rows, []string{e.Name, status, e.Hint})
-	}
-	return rows
 }
 
 var assetCreateCmd = &cobra.Command{

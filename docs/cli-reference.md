@@ -116,11 +116,16 @@ pharos glossary delete "<term>" -w "<workspace>"                      # Remove a
 ## Assets
 
 ```bash
-pharos asset list -w "<workspace>"                  # List workspace assets (seeded, vendored, user)
+pharos asset list -w "<workspace>"                  # List user components in assets/
 pharos asset create <filename> -w "<workspace>" --body-file <path>  # Create or overwrite asset file
-pharos asset add <name> -w "<workspace>"            # Install a vendored/seeded asset (skips if present)
-pharos asset redeploy <name> -w "<workspace>"       # Force-sync asset to current binary version
 pharos asset delete <filename> -w "<workspace>"     # Remove an asset file
+```
+
+Third-party libraries (mermaid, katex, vega, highlight.js, sql-workbench) are
+not assets — they live in a global cache the server fills and serves:
+
+```bash
+pharos vendor sync                                  # Fill/verify the vendor cache (run by 'pharos start')
 ```
 
 ## Questions

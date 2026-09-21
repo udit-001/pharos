@@ -105,24 +105,16 @@ Every external link in a lesson must use `target="_blank" rel="noopener noreferr
 ## Assets
 
 HTML pages (lessons and references) are built from reusable **assets** in
-`./assets/`. Two kinds:
+`./assets/`:
 
 - **User components** — stylesheets, inline quiz widgets, simulators you author with
-  `pharos asset create <filename> --body-file <path>`.
-- **Vendored or seeded assets** — third-party libraries: **mermaid** for
-  **diagrams** (flowcharts, mindmaps, sequence — relational structure, not
-  data on axes), **vega** for **charts** (bar, line, scatter, histogram —
-  quantitative data plotted on axes), **highlightjs** for code highlighting
-  (plus mermaid-lightbox for full-size diagram view), **katex** for math
-  notation; and the framework's universal files (style.css,
-  copy-code.js, the Inter font). Install with
-  `pharos asset add <name>`; force-sync to the current binary with
-  `pharos asset redeploy <name>`. See [references/chart.md](references/chart.md)
+  `pharos asset create <filename> --body-file <path>`. Run `pharos asset list`
+  before authoring; reuse an existing asset for every shared concern.
+- **Third-party libraries** — mermaid (diagrams), vega (charts), highlightjs
+  (code), katex (math) — are not assets. The server injects them from the
+  global vendor cache automatically when your markup uses the feature
+  conventions. Nothing to install or wire. See [references/chart.md](references/chart.md)
   for the chart authoring recipe.
-
-Reuse is the default, not the exception. Before authoring a lesson or
-reference, run `pharos asset list` and reuse an existing asset for every
-shared concern rather than inlining code a second page would duplicate.
 
 A shared stylesheet ships with every workspace (`assets/style.css`, seeded) —
 extend it rather than creating per-page styles. See [PAGE-THEME.md](./PAGE-THEME.md)

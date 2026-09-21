@@ -18,7 +18,7 @@
 // content changes never require a bump — versioned URLs make each build
 // self-consistent, so a stale SW still fetches fresh bytes for new URLs.
 
-var CACHE = 'pharos-v9';
+var CACHE = 'pharos-v10';
 
 // Precache is deliberately tiny: the stopped page (self-contained HTML +
 // inline styles) and its only external dependency, presence.js — kept
@@ -78,12 +78,13 @@ self.addEventListener('fetch', function(e) {
     return;
   }
 
-  // Registered /js/ bundles (immutable content-hash URLs, universe A).
-  // Tiers: exact (versioned) cache key → network (fresh; uploads the new
-  // key) → unversioned precache floor (offline). ignoreSearch is ONLY the
-  // last resort: used first, it would collapse every version into one slot
-  // and defeat the versioning scheme.
-  if (url.origin === self.location.origin && url.pathname.indexOf('/js/') === 0) {
+  // Registered /js/ bundles and /vendor/ library files (immutable
+  // content-hash URLs, universe A). Tiers: exact (versioned) cache key →
+  // network (fresh; uploads the new key) → unversioned precache floor
+  // (offline). ignoreSearch is ONLY the last resort: used first, it would
+  // collapse every version into one slot and defeat the versioning scheme.
+  if (url.origin === self.location.origin &&
+      (url.pathname.indexOf('/js/') === 0 || url.pathname.indexOf('/vendor/') === 0)) {
     e.respondWith(
       caches.match(req).then(function(cached) {
         if (cached) return cached;

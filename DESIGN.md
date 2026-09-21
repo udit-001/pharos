@@ -377,10 +377,10 @@ iframes. The rendering stack is **on-demand and vendored per-workspace**:
 |---|---|---|---|
 | Base styles | `assets/style.css` (seeded) | CSS vars (auto) | (auto) |
 | Inter font | `assets/fonts/inter-latin.woff2` | — | (auto) |
-| Code highlight | `highlight.min.js` + `highlight.css` | Nord token CSS vars | `pharos asset add highlightjs` |
-| Math (KaTeX) | `katex.*` + `katex-render.js` | inherits `currentColor` | `pharos asset add katex` |
-| Diagrams (mermaid) | `mermaid.min.js` + `mermaid-theme.js` + lightbox | retint on toggle | `pharos asset add mermaid` |
-| Charts (vega-lite) | `vega*.min.js` + `vega-theme.js` | re-render from JSON | `pharos asset add vega` |
+| Code highlight | `highlight.min.js` + `highlight.css` | Nord token CSS vars | auto — global vendor cache |
+| Math (KaTeX) | `katex.*` + `katex-render.js` | inherits `currentColor` | auto — global vendor cache |
+| Diagrams (mermaid) | `mermaid.min.js` + `mermaid-theme.js` + lightbox | retint on toggle | auto — global vendor cache |
+| Charts (vega-lite) | `vega*.min.js` + `vega-theme.js` | re-render from JSON | auto — global vendor cache |
 | Copy code | `copy-code.js` (seeded) | — | (auto) |
 | Glossary tooltips | `glossary-tooltip.js` (seeded) | CSS vars | (auto) |
 

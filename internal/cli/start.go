@@ -14,6 +14,7 @@ import (
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/server"
 	"github.com/udit-001/pharos/internal/urls"
+	"github.com/udit-001/pharos/internal/vendor"
 	"github.com/udit-001/pharos/internal/version"
 )
 
@@ -131,6 +132,15 @@ Examples:
 		// The server will write the actual port to the PID file
 		// after it binds. For now, write a placeholder.
 		_ = os.WriteFile(pidPath, []byte(fmt.Sprintf(`{"port":%d,"pid":%d}`, port, os.Getpid())), 0o644)
+
+		// Vendor cache fill/verify runs synchronously before the server
+		// boots: this is the only code path every install channel is
+		// guaranteed to execute, so the guarantee lives here. Degrades are
+		// non-fatal — offline or a bad cache dir logs and continues, and
+		// features whose libs are missing simply don't render.
+		if _, err := vendor.Sync(vendorSyncOpts()); err != nil {
+			fmt.Printf("  [vendor] sync failed; continuing: %v\n", err)
+		}
 
 		return server.Start(server.Config{
 			Port:   port,

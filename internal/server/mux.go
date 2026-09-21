@@ -20,6 +20,7 @@ import (
 	"github.com/udit-001/pharos/internal/markdown"
 	"github.com/udit-001/pharos/internal/render"
 	"github.com/udit-001/pharos/internal/urls"
+	"github.com/udit-001/pharos/internal/vendor"
 	"github.com/udit-001/pharos/internal/web"
 )
 
@@ -138,6 +139,10 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 
 	// JS bundles for iframe injection — served from embedded bytes.
 	mux.HandleFunc("GET /js/{file}", handleJSBundle)
+
+	// Vendored third-party libraries — served from the global cache
+	// (internal/vendor); versioned URLs, bytes verified at sync time.
+	mux.HandleFunc("GET /vendor/{lib}/{file...}", handleVendorFile)
 
 	// JSON API
 	mux.HandleFunc("GET /api/workspaces", jsonHandler(handleListWorkspaces(store)))
@@ -1628,12 +1633,14 @@ func injectIframeConfig(html []byte, cfg iframeConfig) []byte {
 	return bytes.Replace(html, []byte("</head>"), append(tag, []byte("</head>")...), 1)
 }
 
-// assetScriptTag returns a workspace-relative <script> tag for an asset file,
-// or "" when the file is absent. Relative srcs resolve against the iframe URL
-// on all three iframe routes (lesson-html/ref-html/question-html), which each
-// serve /assets/* — so one tag shape works everywhere. The file-existence
-// check is the missing-lib degrade: content using a feature whose lib was
-// never fetched simply renders without it (logged, not fatal).
+// assetScriptTag returns a workspace-relative <script> tag for a user asset
+// file, or "" when the file is absent. Relative srcs resolve against the
+// iframe URL on all three iframe routes (lesson-html/ref-html/question-html),
+// which each serve /assets/* — so one tag shape works everywhere. The
+// file-existence check is the missing-file degrade: content referencing a
+// user component that was deleted simply renders without it (logged, not
+// fatal). Only user components flow through here — vendored libraries are
+// served from the global cache via vendorScript/vendorStyle.
 func assetScriptTag(wsStore *db.WorkspaceStore, name string) string {
 	if !assetFileExists(wsStore, name) {
 		log.Printf("[frame] %s: content uses a feature needing assets/%s but the file is absent; skipping injection", wsStore.Workspace().Name, name)
@@ -1651,9 +1658,9 @@ func assetStyleTag(wsStore *db.WorkspaceStore, name string) string {
 	return `<link rel="stylesheet" href="assets/` + name + `">`
 }
 
-// assetFileExists reports whether an asset file is present in the workspace.
-// This is the byte-source seam: LEARN-230 swaps vendored libs to the global
-// vendor cache by replacing this lookup, without touching injection logic.
+// assetFileExists reports whether a user asset file is present in the
+// workspace. User components only — vendored libs moved to the global cache
+// (LEARN-230) and are looked up through internal/vendor instead.
 func assetFileExists(wsStore *db.WorkspaceStore, name string) bool {
 	path, err := wsStore.AssetPath(name)
 	if err != nil {
@@ -1661,6 +1668,55 @@ func assetFileExists(wsStore *db.WorkspaceStore, name string) bool {
 	}
 	_, err = os.Stat(path)
 	return err == nil
+}
+
+// ── Vendored library serving (global cache) ─────────────────────────
+
+// handleVendorFile serves vendored library bytes from the global cache
+// (internal/vendor): downloaded pinned files from the cache dir, companions
+// (theme glue, lightbox, render helpers) from embedded bytes. URLs are
+// versioned with a sha256 query (vendor.URL), so responses are safely
+// cacheable. Unknown lib/file pairs, and pinned files the cache lacks
+// (offline first run), 404.
+func handleVendorFile(w http.ResponseWriter, r *http.Request) {
+	lib, file := r.PathValue("lib"), r.PathValue("file")
+	data, ok := vendor.Open(lib, file)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	switch filepath.Ext(file) {
+	case ".js":
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	case ".css":
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	case ".woff2":
+		w.Header().Set("Content-Type", "font/woff2")
+	}
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Write(data)
+}
+
+// vendorScript returns the versioned <script src="/vendor/..."> tag for a
+// vendored file, or "" (logged) when the cache lacks it — the missing-lib
+// degrade for offline first runs.
+func vendorScript(lib, file string) string {
+	url := vendor.URL(lib, file)
+	if url == "" {
+		log.Printf("[vendor] %s/%s not in cache; skipping injection (run 'pharos vendor sync' while online)", lib, file)
+		return ""
+	}
+	return `<script src="` + url + `"></script>`
+}
+
+// vendorStyle is vendorScript for stylesheets.
+func vendorStyle(lib, file string) string {
+	url := vendor.URL(lib, file)
+	if url == "" {
+		log.Printf("[vendor] %s/%s not in cache; skipping stylesheet injection (run 'pharos vendor sync' while online)", lib, file)
+		return ""
+	}
+	return `<link rel="stylesheet" href="` + url + `">`
 }
 
 // serveIframeHTML reads an HTML file from disk, detects what the content
@@ -1705,59 +1761,60 @@ func serveIframeHTML(w http.ResponseWriter, wsStore *db.WorkspaceStore, path, ki
 	}
 
 	// Vendored library stacks — detected features pull their stack from the
-	// workspace assets via the byte-source seam (assetFileExists); absent libs
-	// degrade to skip (logged) instead of dead tags.
-	tags = append(tags, vendoredStacks(wsStore, feat)...)
+	// global vendor cache (internal/vendor); absent libs degrade to skip
+	// (logged) instead of dead tags.
+	tags = append(tags, vendoredStacks(feat)...)
 
 	data = injectIframeConfig(data, cfg)
 	w.Write(injectFrameTags(data, tags...))
 }
 
-// vendoredStacks returns the workspace-relative tags for each detected
-// feature's third-party stack. Each stack gates on its primary lib: absent,
-// nothing is injected for that feature (partial stacks render worse than
-// none — e.g. mermaid without its theme companion). Files are included only
-// when present, so a workspace that never vendored the lightbox simply gets
-// the plain stack.
-func vendoredStacks(wsStore *db.WorkspaceStore, feat frameFeatures) []string {
+// vendoredStacks returns the /vendor tags for each detected feature's
+// third-party stack, from the global vendor cache. Each stack gates on its
+// primary lib: absent from the cache, nothing is injected for that feature
+// (partial stacks render worse than none — e.g. mermaid without its theme
+// companion). Companions are embedded in the binary, so a stack is complete
+// whenever its primary lib is cached.
+func vendoredStacks(feat frameFeatures) []string {
 	var tags []string
 
-	if feat.Mermaid && assetFileExists(wsStore, "mermaid.min.js") {
+	if feat.Mermaid && vendor.Available("mermaid", "mermaid.min.js") {
 		tags = append(tags,
-			assetScriptTag(wsStore, "mermaid.min.js"),
-			assetScriptTag(wsStore, "mermaid-theme.js"),
-			assetStyleTag(wsStore, "mermaid-lightbox.css"),
-			assetScriptTag(wsStore, "mermaid-lightbox.js"),
+			vendorScript("mermaid", "mermaid.min.js"),
+			vendorScript("mermaid", "mermaid-theme.js"),
+			vendorStyle("mermaid", "mermaid-lightbox.css"),
+			vendorScript("mermaid", "mermaid-lightbox.js"),
 			bundleTag("pharos-mermaid.js"))
 	}
 
-	if feat.Katex && assetFileExists(wsStore, "katex.min.js") {
-		// auto-render ships under contrib/ (vendored layout).
+	if feat.Katex && vendor.Available("katex", "katex.min.js") {
+		// auto-render ships under contrib/ (cache layout mirrors the old
+		// vendored layout).
 		tags = append(tags,
-			assetStyleTag(wsStore, "katex.min.css"),
-			assetScriptTag(wsStore, "katex.min.js"),
-			assetScriptTag(wsStore, "contrib/auto-render.min.js"),
-			assetScriptTag(wsStore, "katex-render.js"))
+			vendorStyle("katex", "katex.min.css"),
+			vendorScript("katex", "katex.min.js"),
+			vendorScript("katex", "contrib/auto-render.min.js"),
+			vendorScript("katex", "katex-render.js"))
 	}
 
-	if feat.Vega && assetFileExists(wsStore, "vega.min.js") {
+	if feat.Vega && vendor.Available("vega", "vega.min.js") {
 		// Order matters: vega -> vega-lite -> vega-embed -> theme.
 		tags = append(tags,
-			assetScriptTag(wsStore, "vega.min.js"),
-			assetScriptTag(wsStore, "vega-lite.min.js"),
-			assetScriptTag(wsStore, "vega-embed.min.js"),
-			assetScriptTag(wsStore, "vega-theme.js"))
+			vendorScript("vega", "vega.min.js"),
+			vendorScript("vega", "vega-lite.min.js"),
+			vendorScript("vega", "vega-embed.min.js"),
+			vendorScript("vega", "vega-theme.js"))
 	}
 
-	if feat.Highlight && assetFileExists(wsStore, "highlight.min.js") {
+	if feat.Highlight && vendor.Available("highlightjs", "highlight.min.js") {
 		tags = append(tags,
-			assetStyleTag(wsStore, "highlight.css"),
-			assetScriptTag(wsStore, "highlight.min.js"),
+			vendorStyle("highlightjs", "highlight.css"),
+			vendorScript("highlightjs", "highlight.min.js"),
 			bundleTag("pharos-hljs.js"))
 	}
 
-	if feat.Workbench && assetFileExists(wsStore, "sql-workbench.js") {
-		tags = append(tags, assetScriptTag(wsStore, "sql-workbench.js"))
+	if feat.Workbench && vendor.Available("sql-workbench", "sql-workbench.js") {
+		tags = append(tags, vendorScript("sql-workbench", "sql-workbench.js"))
 	}
 
 	return tags

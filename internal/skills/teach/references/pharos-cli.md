@@ -261,15 +261,15 @@ pharos quiz show <slug>    # Opens the quiz intro page; the learner starts when 
 ## Assets
 
 ```bash
-pharos asset list                      # seeded / vendored / user, with add/redeploy hints
+pharos asset list                      # user components in assets/
 pharos asset create <filename> --body-file <path>  # author or overwrite a user component
-pharos asset add <name>                # install a vendored or seeded asset (skip if present)
-pharos asset redeploy <name>           # force-sync to the binary (overwrites)
 pharos asset delete <filename>         # remove a file (no prompt)
 ```
 
 Assets are raw files (CSS, JS, images, fonts) with no database tracking.
-`redeploy` overwrites user edits to a file.
+Third-party libraries are not assets: the server injects them from the
+global vendor cache automatically (filled by `pharos start` via
+`pharos vendor sync`).
 
 ## Dashboard
 
