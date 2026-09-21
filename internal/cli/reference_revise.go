@@ -35,6 +35,12 @@ Examples:
 			return err
 		}
 
+		if in.body != nil {
+			if force, _ := cmd.Flags().GetBool("force"); !force {
+				printLintWarnings(lintFrameBody(wsStore, []byte(*in.body)))
+			}
+		}
+
 		if err := wsStore.ReviseRef(slug, in.body, in.title, in.summary); err != nil {
 			return formatError("failed to revise reference", err)
 		}
@@ -61,4 +67,5 @@ func init() {
 	refReviseCmd.Flags().String("body-file", "", "Read reference HTML content from a file (replaces the existing body)")
 	refReviseCmd.Flags().String("title", "", "Update the reference title")
 	refReviseCmd.Flags().String("summary", "", "Update the reference summary")
+	refReviseCmd.Flags().Bool("force", false, "Silence authoring-lint warnings")
 }

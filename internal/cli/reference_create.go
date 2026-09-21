@@ -40,6 +40,10 @@ Examples:
 		}
 		html := string(data)
 
+		if force, _ := cmd.Flags().GetBool("force"); !force {
+			printLintWarnings(lintFrameBody(wsStore, data))
+		}
+
 		// CreateRef owns the invariant: slugify, duplicate-slug check, file
 		// write, body_text extraction, and the DB row. The CLI shrinks to
 		// parse-and-call.
@@ -73,4 +77,5 @@ func init() {
 	refCmd.AddCommand(refCreateCmd)
 	refCreateCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	refCreateCmd.Flags().String("body-file", "", "Read reference HTML content from a file (required)")
+	refCreateCmd.Flags().Bool("force", false, "Silence authoring-lint warnings")
 }

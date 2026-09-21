@@ -102,6 +102,12 @@ func newRootForTest() *cobra.Command {
 	resetScratchFlag(refReviseCmd, "body-file", "")
 	resetScratchFlag(refReviseCmd, "title", "")
 	resetScratchFlag(refReviseCmd, "summary", "")
+	// Lint --force leaks the same way: a test passing --force would silence
+	// every later test's lint warnings (bool flags keep their value across
+	// Executes on the shared command tree).
+	for _, cmd := range []*cobra.Command{lessonCreateCmd, lessonReviseCmd, refCreateCmd, refReviseCmd} {
+		_ = cmd.Flags().Set("force", "false")
+	}
 	return rootCmd
 }
 

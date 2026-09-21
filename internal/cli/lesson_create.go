@@ -41,6 +41,10 @@ Examples:
 			return err
 		}
 
+		if force, _ := cmd.Flags().GetBool("force"); !force {
+			printLintWarnings(lintFrameBody(wsStore, data))
+		}
+
 		created, err := wsStore.CreateLesson(title, string(data))
 		if err != nil {
 			return formatError("failed to create lesson", err)
@@ -114,4 +118,5 @@ func init() {
 	lessonCmd.AddCommand(lessonCreateCmd)
 	lessonCreateCmd.Flags().StringP("workspace", "w", "", "Workspace name")
 	lessonCreateCmd.Flags().String("body-file", "", "Read lesson HTML content from a file (required)")
+	lessonCreateCmd.Flags().Bool("force", false, "Silence authoring-lint warnings")
 }

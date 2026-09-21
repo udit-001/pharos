@@ -41,6 +41,12 @@ Examples:
 			return err
 		}
 
+		if in.body != nil {
+			if force, _ := cmd.Flags().GetBool("force"); !force {
+				printLintWarnings(lintFrameBody(wsStore, []byte(*in.body)))
+			}
+		}
+
 		if err := wsStore.ReviseLesson(lesson.SequenceNumber, in.body, in.title, in.summary); err != nil {
 			return formatError("failed to revise lesson", err)
 		}
@@ -72,4 +78,5 @@ func init() {
 	lessonReviseCmd.Flags().String("body-file", "", "Read lesson HTML content from a file (replaces the existing body)")
 	lessonReviseCmd.Flags().String("title", "", "Update the lesson title")
 	lessonReviseCmd.Flags().String("summary", "", "Update the lesson summary")
+	lessonReviseCmd.Flags().Bool("force", false, "Silence authoring-lint warnings")
 }
