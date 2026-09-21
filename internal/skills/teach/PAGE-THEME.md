@@ -128,16 +128,19 @@ Key rules:
 
 ## Libraries
 
-The server detects which libraries a page needs from the markup conventions
-below and loads them itself. Author semantic content; the server wires
-everything else.
+The server detects which **library markers** a page uses from the conventions
+below and loads the libraries itself. Author semantic content with the right
+marker; the server wires everything else.
 
-Pick by content kind:
+Pick the marker by content kind:
 
-- Structure and relationships (flowcharts, mindmaps, sequences) → mermaid
-- Quantities on axes (comparisons, distributions, trends) → vega chart
-- Math notation → katex delimiters
+- Structure and relationships (flowcharts, mindmaps, sequences) → mermaid — `<div class="mermaid">`
+- Quantities on axes (comparisons, distributions, trends) → vega chart — `<div class="chart" data-vega="id">` + JSON spec
+- Math notation → katex delimiters (`$…$`, `$$…$$`)
 - Code → fenced blocks with an explicit language marker
+
+Chart specs, worked examples, and chart-type selection:
+[references/chart.md](references/chart.md).
 
 ### Mermaid
 
@@ -177,9 +180,9 @@ sees them.
 
 ### Vega-Lite charts
 
-For **charts** — quantitative data on axes (bar, line, scatter, histogram, area). Not for diagrams (use mermaid) or equations (use katex). The server loads the charting stack for any page that uses `data-vega`.
+For **charts** — quantitative data on axes (bar, line, scatter, histogram, area). Not for diagrams (use the mermaid marker) or equations (katex). The server loads the charting stack for any page that uses the `data-vega` marker.
 
-**Convention — pure JSON, zero JS.** Write the chart spec as a JSON object inside a `<script type="application/json" id="my-chart">` tag, then place a `<div class="chart" data-vega="my-chart"></div>` where the chart should appear. The companion auto-discovers the pair, renders via `vegaEmbed` with Nord theming, and re-renders on theme toggle:
+**Marker convention — pure JSON, zero JS.** Write the chart spec as a JSON object inside a `<script type="application/json" id="my-chart">` tag, then place a `<div class="chart" data-vega="my-chart"></div>` where the chart should appear. The companion auto-discovers the pair, renders via `vegaEmbed` with Nord theming, and re-renders on theme toggle:
 
 ```html
 <div class="chart" data-vega="accuracy-chart"></div>

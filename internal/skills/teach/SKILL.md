@@ -89,6 +89,21 @@ Before creating any new lesson, read the workbench journal to see what the learn
 
 A lesson should be **beautiful** — clean, readable typography and layout — since the user will return to these later to review. Think Tufte. When a lesson compares two concepts or shows set overlap, see [references/venn-diagram.md](references/venn-diagram.md) — text goes in callout boxes, never crammed inside circles. Asset and link paths follow the [iframe escape rules](references/pharos-cli.md#links-inside-lesson-html-iframe-escape).
 
+### Library markers
+
+Lessons never ship JavaScript for third-party features and never link CDN scripts — the server scans the HTML for **markers** and injects the vendored library itself. Choose the marker from the content kind as you author each section:
+
+| Content | Marker |
+|---|---|
+| Structure — flowchart, mindmap, sequence | `<div class="mermaid">…</div>` |
+| Quantities on axes — bar, line, scatter, histogram | `<div class="chart" data-vega="id">` + a `<script type="application/json">` spec |
+| Math notation | `$…$` / `$$…$$` delimiters in prose |
+| Code | `<pre><code class="language-js">` — explicit language marker |
+| Copyable code block | `data-copy` on the `<pre>` |
+| Glossary term | `<span class="glossary-term" data-term="…">` |
+
+Charts are vega-lite: the spec is pure JSON — data as `data.values` rows, encodings by `field`/`type`, no color values (Nord theming is injected). Quantities on axes go in a vega chart; structure diagrams go in mermaid — pick by what the content *is*. Chart authoring recipe (chart-type selection, worked specs): [references/chart.md](references/chart.md). Full marker conventions and theming: [PAGE-THEME.md](./PAGE-THEME.md#libraries).
+
 The lesson should be short, and completable very quickly. Learners' working memory is very small, and we need to stay within it. But each lesson should give the user a single tangible win that they can build on. It should be directly tied to the mission, and should be in the user's zone of proximal development.
 
 A lesson isn't done when the file is written — it's done when the user is looking at it in the dashboard. After creating or revising a lesson, **present** it: `pharos lesson show <slug>`. This starts the dashboard if needed and opens the lesson in the browser. The dashboard renders the lesson with correct assets, navigation, and styling — the user should never open the raw HTML file directly.
@@ -110,9 +125,9 @@ HTML pages (lessons and references) are built from reusable **assets** in
 - **User components** — stylesheets, inline quiz widgets, simulators you author with
   `pharos asset create <filename> --body-file <path>`. Run `pharos asset list`
   before authoring; reuse an existing asset for every shared concern.
-- **Third-party libraries** — mermaid (diagrams), vega (charts), highlightjs
-  (code), katex (math) — are not assets. The server loads them when your
-  markup uses the conventions in [PAGE-THEME.md](./PAGE-THEME.md).
+- **Library markers** — mermaid, vega, katex, highlightjs are not assets and
+  not authored JS: author the [markers](#library-markers) and the server
+  injects the libraries.
 
 A shared stylesheet ships with every workspace (`assets/style.css`, seeded) —
 extend it rather than creating per-page styles. The Inter font is bundled
