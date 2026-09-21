@@ -94,7 +94,7 @@ Every HTML page — lessons and references alike — is:
 ```
 
 Key rules:
-- **No scripts, no stylesheet links** — everything behavioral is injected; a full document with `</head>` is required for injection to land
+- **No scripts, no stylesheet links** — everything behavioral is injected; a full document with `</head>` is required for injection to land. Exception: question stimuli get no stylesheet injection — link `assets/style.css` yourself when the stimulus uses component styles ([QUESTION-FORMAT.md](QUESTION-FORMAT.md))
 - **No `data-theme` on `<html>`** — the injected theme script sets it
 - **Asset paths are root-relative** — no `../`; see [references/pharos-cli.md](references/pharos-cli.md#links-inside-lesson-html-iframe-escape) for why
 
@@ -104,14 +104,12 @@ Key rules:
 
 The server detects which **library markers** a page uses from the conventions
 below and loads the libraries itself. Author semantic content with the right
-marker; the server wires everything else.
+marker; the server wires everything else. The content-kind → marker dispatch
+table is canonical in [SKILL.md](SKILL.md#library-markers); this section holds
+the per-library detail.
 
-Pick the marker by content kind:
-
-- Structure and relationships (flowcharts, mindmaps, sequences) → mermaid — `<div class="mermaid">`
-- Quantities on axes (comparisons, distributions, trends) → vega chart — `<div class="chart" data-vega="id">` + JSON spec
-- Math notation → katex delimiters (`$…$`, `$$…$$`)
-- Code → fenced blocks with an explicit language marker
+**If a chart, diagram, or highlighter doesn't render**, the vendor cache is
+likely missing that library — run `pharos vendor sync` while online and reload.
 
 Chart specs, worked examples, and chart-type selection:
 [references/chart.md](references/chart.md).
@@ -131,9 +129,10 @@ opens them full-size for readable detail.
 ### Highlight.js
 
 For syntax highlighting in code blocks. Mark the language explicitly:
-`<pre><code class="language-js">`. The server loads highlight.js for pages
-that use the marker. Language is auto-detected without a marker, but the
-explicit marker is more accurate.
+`<pre><code class="language-js">`. The server loads highlight.js only when at
+least one `language-*` block is present — a page with no marker gets no
+highlighter at all. Inside a marked page, unmarked blocks fall back to
+highlight.js auto-detection.
 
 ### KaTeX math rendering
 
