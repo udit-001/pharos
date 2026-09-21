@@ -126,29 +126,32 @@ Key rules:
 
 ---
 
-## Vendored Assets
+## Vendored Libraries
 
-Assets that ship with every workspace — no CDN required. The seed writes them to the workspace `assets/` directory at creation time.
+Third-party libraries (mermaid, vega, highlightjs, katex) are not workspace
+assets — they live in a global vendor cache that `pharos start` fills. The
+server detects each feature in your markup and injects its stack before
+`</head>`: you author semantic content, the server wires the library.
 
 ### Inter font
 
 The Inter variable font (latin subset, weight range 100–900) is bundled as `assets/fonts/inter-latin.woff2`. The `@font-face` declaration in `assets/style.css` loads it locally — no Google Fonts `<link>` needed. Just use `font-family: 'Inter'` in CSS (already the default in the boilerplate).
 
-### Mermaid (on-demand)
+### Mermaid
 
-For flowcharts, sequence diagrams, and other diagrams in lessons. The server injects the mermaid stack (library, theme, lightbox, init) from the global vendor cache whenever a lesson contains a `.mermaid` block — nothing to install, no includes to wire.
+For flowcharts, sequence diagrams, and other diagrams in lessons. The server injects the full stack (library, theme, lightbox, init) when a lesson contains a `.mermaid` block.
 
 Wrap diagrams in a `<div class="mermaid">` with the diagram text inside. Container background styles (rounded, padded, dark/light swap) are auto-seeded in `assets/style.css` — no extra `<style>` needed. Diagrams are capped at `max-height: 65vh` so tall vertical flowcharts don't consume the whole page; the expand button (lightbox) opens them full-size for readable detail.
 
-### Highlight.js (on-demand)
+### Highlight.js
 
-For syntax highlighting in code blocks. The server injects the highlighter from the global vendor cache when a lesson contains `<pre><code class="language-…">` — nothing to install, no includes to wire.
+For syntax highlighting in code blocks. The server injects the highlighter when a lesson contains `<pre><code class="language-…">`.
 
 Code block language is auto-detected, but explicit `<pre><code class="language-js">` is recommended for accuracy.
 
-### KaTeX math rendering (on-demand)
+### KaTeX math rendering
 
-For mathematical notation (equations, formulas, proofs) in lessons. The server injects the KaTeX stack (library, fonts, auto-render) from the global vendor cache when it detects math delimiters in body text — nothing to install, no includes to wire.
+For mathematical notation (equations, formulas, proofs) in lessons. The server injects the KaTeX stack (library, fonts, auto-render) when it detects math delimiters in body text.
 
 **Delimiters** (handled by `katex-render.js`):
 
@@ -161,9 +164,9 @@ For mathematical notation (equations, formulas, proofs) in lessons. The server i
 
 > **Theming:** KaTeX renders semantic HTML/CSS whose `.katex` root inherits `color` from the container. Fraction bars, radicals, and `\vec` arrows all use `currentColor`. No JS retint needed on theme toggle. Explicit `\color{...}` / `\textcolor{...}` in LaTeX stays fixed across themes by design.
 
-### Vega-Lite charts (on-demand)
+### Vega-Lite charts
 
-For **charts** — quantitative data on axes (bar, line, scatter, histogram, area). Not for diagrams (use mermaid) or equations (use katex). The server injects the vega stack (vega, vega-lite, vega-embed, theme) from the global vendor cache when it sees `data-vega` — nothing to install, no includes to wire.
+For **charts** — quantitative data on axes (bar, line, scatter, histogram, area). Not for diagrams (use mermaid) or equations (use katex). The server injects the vega stack (vega, vega-lite, vega-embed, theme) when it sees `data-vega`.
 
 **Convention — pure JSON, zero JS.** Write the chart spec as a JSON object inside a `<script type="application/json" id="my-chart">` tag, then place a `<div class="chart" data-vega="my-chart"></div>` where the chart should appear. The companion auto-discovers the pair, renders via `vegaEmbed` with Nord theming, and re-renders on theme toggle:
 

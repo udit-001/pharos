@@ -111,9 +111,9 @@ HTML pages (lessons and references) are built from reusable **assets** in
   `pharos asset create <filename> --body-file <path>`. Run `pharos asset list`
   before authoring; reuse an existing asset for every shared concern.
 - **Third-party libraries** — mermaid (diagrams), vega (charts), highlightjs
-  (code), katex (math) — are not assets. The server injects them from the
-  global vendor cache automatically when your markup uses the feature
-  conventions. Nothing to install or wire. See [references/chart.md](references/chart.md)
+  (code), katex (math) — are not assets. The server injects them
+  automatically when your markup uses the feature
+  conventions. See [references/chart.md](references/chart.md)
   for the chart authoring recipe.
 
 A shared stylesheet ships with every workspace (`assets/style.css`, seeded) —
