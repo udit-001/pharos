@@ -267,9 +267,7 @@ pharos asset delete <filename>         # remove a file (no prompt)
 ```
 
 Assets are raw files (CSS, JS, images, fonts) with no database tracking.
-Third-party libraries are not assets: the server injects them from the
-global vendor cache automatically (filled by `pharos start` via
-`pharos vendor sync`).
+Third-party libraries are not assets — the server loads them automatically.
 
 ## Dashboard
 

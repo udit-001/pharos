@@ -111,13 +111,13 @@ HTML pages (lessons and references) are built from reusable **assets** in
   `pharos asset create <filename> --body-file <path>`. Run `pharos asset list`
   before authoring; reuse an existing asset for every shared concern.
 - **Third-party libraries** — mermaid (diagrams), vega (charts), highlightjs
-  (code), katex (math) — are not assets. The server injects them
-  automatically when your markup uses the feature
-  conventions. See [references/chart.md](references/chart.md)
-  for the chart authoring recipe.
+  (code), katex (math) — are not assets. The server loads them when your
+  markup uses the conventions in [PAGE-THEME.md](./PAGE-THEME.md).
 
 A shared stylesheet ships with every workspace (`assets/style.css`, seeded) —
-extend it rather than creating per-page styles. See [PAGE-THEME.md](./PAGE-THEME.md)
+extend it rather than creating per-page styles. The Inter font is bundled
+with it (already wired via `@font-face`) — use `font-family: 'Inter'` in
+custom CSS. See [PAGE-THEME.md](./PAGE-THEME.md)
 for the design system (Nord palette, component patterns, theming
 conventions). As the workspace grows, so should the component library.
 
