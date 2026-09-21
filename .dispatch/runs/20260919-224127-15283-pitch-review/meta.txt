@@ -1,9 +1,0 @@
-id=20260919-224127-15283-pitch-review
-name=pitch-review
-dir=/home/udit/Dev/personal/learn-tool
-model=closedrouter/charm/glm-5.3-flash
-started=2026-09-19T22:41:27+05:30
-state=timeout
-pane=wA:p5
-exit=124
-ended=2026-09-19T22:47:34+05:30
