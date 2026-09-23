@@ -1,0 +1,12 @@
+/* Inter variable — server-injected companion for every lesson/reference
+   frame. Pages carry no font assets: this file plus inter-latin.woff2 are
+   served from /vendor/inter/. Relative url() resolves to /vendor/inter/.
+   Declared last in <head>, so it overrides any legacy in-page @font-face
+   for the same family and descriptor set. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('inter-latin.woff2') format('woff2');
+}

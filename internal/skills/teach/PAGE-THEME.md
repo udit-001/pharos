@@ -14,7 +14,7 @@ The dashboard controls theme via `data-theme` attribute on `<html>` — light or
 | Theme sync | injected `pharos-theme.js` — sets `data-theme` before first paint (FOUC-safe) and applies dashboard toggles live |
 | Shared styles | `assets/style.css`, injected by the server into lessons and references (variables, typography, layout, and component classes — quiz `.q`, `.callout`, `.source-box`) |
 | Quiz interactivity | embedded `pharos-quiz.js`, injected when `.q` elements are detected |
-| Font delivery | `@font-face` in `assets/style.css` → `assets/fonts/inter-latin.woff2` (vendored — works offline, no CDN) |
+| Font delivery | Inter injected by the server (`/vendor/inter/inter.css` companion + pinned variable woff2 from @fontsource-variable/inter 5.3.0) |
 | Copy code | add `data-copy` to a `<pre>` block — the server detects it and auto-injects the copy-button logic (no script tag needed) |
 
 ---

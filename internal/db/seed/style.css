@@ -1,10 +1,6 @@
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('fonts/inter-latin.woff2') format('woff2');
-}
+/* Inter variable font is injected by the server as a /vendor/inter/ companion
+   (@font-face lives there) — pages carry no font assets and use
+   font-family: 'Inter' directly. */
 
 :root {
   --slate-900: #2e3440;
@@ -338,4 +334,28 @@ button:hover, .btn:hover { opacity: 0.9; }
     transform: none !important;
     transition: opacity 0.15s ease !important;
   }
+}
+
+/* ─── SQL workbench page components (BENCH.md in the teach skill) ─── */
+
+/* Inline SQL keyword highlighting used by workbench lessons. */
+.sql-keyword { color: var(--blue-700); font-weight: 600; }
+.sql-function { color: var(--emerald-600); font-weight: 600; }
+
+/* Drill-block: prompt → what you should see → reveal, per BENCH.md. */
+.drill-block {
+  border: 1px solid var(--slate-200);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  background: var(--slate-50);
+}
+.drill-block .drill-prompt { margin: 0 0 0.5rem; }
+.drill-block .drill-expected {
+  padding: 0.5rem 0;
+  border-top: 1px dashed var(--slate-200);
+}
+.drill-block .drill-reveal {
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--slate-200);
 }

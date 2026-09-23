@@ -9,6 +9,13 @@ package vendor
 //nolint:lll // sha256 hex lines are long by nature
 func init() {
 	Manifest = []Entry{
+		// Inter variable — typeface for every lesson/reference frame. The
+		// @font-face (inter.css companion) references this file by relative
+		// name, so the manifest File keeps the flat name the CSS expects.
+		{Lib: "inter", Version: "5.3.0", File: "inter-latin.woff2",
+			Path:   "npm/@fontsource-variable/inter@5.3.0/files/inter-latin-wght-normal.woff2",
+			SHA256: "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"},
+
 		// mermaid 11.x — primary lib for .mermaid diagrams.
 		{Lib: "mermaid", Version: "11.17.2", File: "mermaid.min.js",
 			Path:   "npm/mermaid@11.17.2/dist/mermaid.min.js",

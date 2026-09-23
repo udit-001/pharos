@@ -90,6 +90,15 @@ func (e *testEnv) seedVendor(t *testing.T, files map[string]string) {
 	t.Cleanup(func() { vendor.SetDir("") })
 }
 
+// emptyVendor points the serving seam at an empty cache until the test ends,
+// for degrade assertions that must not depend on the developer's real cache
+// (the dashboard syncs it, so DefaultDir() is rarely empty in practice).
+func (e *testEnv) emptyVendor(t *testing.T) {
+	t.Helper()
+	vendor.SetDir(filepath.Join(t.TempDir(), "vendor"))
+	t.Cleanup(func() { vendor.SetDir("") })
+}
+
 func (e *testEnv) get(t *testing.T, target string) *httptest.ResponseRecorder {
 	t.Helper()
 	rec := httptest.NewRecorder()
@@ -540,6 +549,7 @@ func TestQuizBinderInjection(t *testing.T) {
 
 func TestMermaidStackInjection(t *testing.T) {
 	env := newTestEnv(t)
+	env.emptyVendor(t)
 	wsStore, _ := env.store.Workspace("alpha")
 
 	mk := func(name, html string) {
@@ -649,6 +659,7 @@ func TestKatexStackInjection(t *testing.T) {
 
 func TestVegaHighlightWorkbenchInjection(t *testing.T) {
 	env := newTestEnv(t)
+	env.emptyVendor(t)
 	wsStore, _ := env.store.Workspace("alpha")
 
 	mk := func(name, html string) {
@@ -727,10 +738,45 @@ func TestVegaHighlightWorkbenchInjection(t *testing.T) {
 	}
 }
 
+func TestInterFontInjection(t *testing.T) {
+	env := newTestEnv(t)
+	wsStore, _ := env.store.Workspace("alpha")
+	mk := func(name, html string) {
+		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0o644)
+		wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
+	}
+
+	// Empty cache — degrade: no inter.css tag (its font would 404), pages
+	// fall back to the system sans-serif like any other vendored lib.
+	env.emptyVendor(t)
+	mk("plain.html", `<html><head><title>T</title></head><body><p>lean</p></body></html>`)
+	rec := env.get(t, "/api/lesson-html/alpha/plain.html")
+	if strings.Contains(rec.Body.String(), "/vendor/inter/") {
+		t.Error("font not cached — inter stack must not inject at all")
+	}
+
+	// Font synced into the cache — the @font-face companion rides along and
+	// the legacy page gets it too (last-in-head @font-face wins the family).
+	env.seedVendor(t, map[string]string{"inter/inter-latin.woff2": "woff2-bytes"})
+	mk("legacy.html", `<html><head><link rel="stylesheet" href="assets/style.css"></head><body><p>legacy</p></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/legacy.html")
+	if !strings.Contains(rec.Body.String(), `href="/vendor/inter/inter.css?v=`) {
+		t.Error("cached font must inject the inter.css companion (even on legacy pages)")
+	}
+
+	rec = env.get(t, "/vendor/inter/inter.css")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "url('inter-latin.woff2')") {
+		t.Errorf("inter.css companion missing or wrong font url: %d", rec.Code)
+	}
+	rec = env.get(t, "/vendor/inter/inter-latin.woff2")
+	if rec.Code != http.StatusOK {
+		t.Errorf("inter-latin.woff2 not served from cache: %d", rec.Code)
+	}
+}
+
 func TestStyleAutoInjection(t *testing.T) {
 	env := newTestEnv(t)
 	wsStore, _ := env.store.Workspace("alpha")
-
 	// style.css is seeded into every real workspace at creation; the test
 	// env skips the seed, so write it (its absence = degrade-skip path).
 	os.WriteFile(filepath.Join(env.wsDir, "assets", "style.css"), []byte("/* base */"), 0644)
@@ -757,7 +803,6 @@ func TestStyleAutoInjection(t *testing.T) {
 	if strings.Count(rec.Body.String(), `href="assets/style.css"`) != 1 {
 		t.Error("legacy lesson linking style.css must not get a duplicate")
 	}
-
 	// References get it too.
 	mk("reference", "style-ref.html", `<html><head><title>R</title></head><body><p>ref</p></body></html>`)
 	rec = env.get(t, "/api/ref-html/alpha/style-ref.html")

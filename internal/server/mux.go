@@ -1674,10 +1674,10 @@ func assetFileExists(wsStore *db.WorkspaceStore, name string) bool {
 
 // handleVendorFile serves vendored library bytes from the global cache
 // (internal/vendor): downloaded pinned files from the cache dir, companions
-// (theme glue, lightbox, render helpers) from embedded bytes. URLs are
-// versioned with a sha256 query (vendor.URL), so responses are safely
-// cacheable. Unknown lib/file pairs, and pinned files the cache lacks
-// (offline first run), 404.
+// (theme glue, lightbox, render helpers, embedded typefaces) from embedded
+// bytes. URLs are versioned with a sha256 query (vendor.URL), so responses
+// are safely cacheable. Unknown lib/file pairs, and pinned files the cache
+// lacks (offline first run), 404.
 func handleVendorFile(w http.ResponseWriter, r *http.Request) {
 	lib, file := r.PathValue("lib"), r.PathValue("file")
 	data, ok := vendor.Open(lib, file)
@@ -1742,11 +1742,23 @@ func serveIframeHTML(w http.ResponseWriter, wsStore *db.WorkspaceStore, path, ki
 		tags = append(tags, bundleTag(name))
 	}
 
-	// Shared stylesheet: lessons and references only — question stimuli keep
-	// today's look. FOUC/theme needs nothing here: the injected pharos-theme.js
-	// runs before </head> and sets data-theme before first paint.
-	if (kind == "lesson" || kind == "reference") && !feat.StyleLinked {
-		tags = append(tags, assetStyleTag(wsStore, "style.css"))
+	// Base look for lessons/references: the shared stylesheet (user asset,
+	// skipped for legacy pages that link it themselves) plus the Inter font
+	// (embedded companion, injected unconditionally — the @font-face loads
+	// last in <head>, so it overrides any legacy in-page font wiring).
+	// FOUC/theme needs nothing here: the injected pharos-theme.js runs
+	// before </head> and sets data-theme before first paint.
+	if kind == "lesson" || kind == "reference" {
+		if !feat.StyleLinked {
+			tags = append(tags, assetStyleTag(wsStore, "style.css"))
+		}
+		// Inter font: the @font-face stylesheet is an embedded companion; the
+		// woff2 is a pinned download. Gate on the font being cached — an
+		// offline first run degrades to the system sans-serif instead of
+		// emitting a stylesheet whose font 404s.
+		if vendor.URL("inter", "inter-latin.woff2") != "" {
+			tags = append(tags, vendorStyle("inter", "inter.css"))
+		}
 	}
 
 	// Behavior bundles — marker-driven, lessons never link them by hand.
