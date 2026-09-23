@@ -749,6 +749,44 @@ func TestVegaHighlightWorkbenchInjection(t *testing.T) {
 	}
 }
 
+// Serve-time dataset resolution (LEARN-234): a bare slug on the bench's
+// dataset attribute is the author's whole contract — the server resolves it
+// to the workspace datasets route when the dataset is installed, and leaves
+// paths/URLs and uninstalled slugs untouched.
+func TestWorkbenchDatasetResolution(t *testing.T) {
+	env := newTestEnv(t)
+	env.seedVendor(t, map[string]string{"sql-workbench/sql-workbench.js": "/* wb */"})
+	wsStore, _ := env.store.Workspace("alpha")
+
+	mk := func(name, html string) {
+		os.WriteFile(filepath.Join(env.wsDir, "lessons", name), []byte(html), 0o644)
+		wsStore.AddLesson(db.Lesson{Title: name, Filename: name})
+	}
+
+	// Installed dataset: bare slug resolves to the workspace datasets route.
+	os.MkdirAll(filepath.Join(env.wsDir, "datasets"), 0o755)
+	os.WriteFile(filepath.Join(env.wsDir, "datasets", "books.json"), []byte(`{"id":"books"}`), 0o644)
+	mk("wb-resolve.html", `<html><head></head><body><sql-workbench namespace="l1" dataset="books"></sql-workbench><sql-workbench namespace="l2" dataset="https://example.com/other.json"></sql-workbench><sql-workbench namespace="l3" dataset="assets/local.json"></sql-workbench></body></html>`)
+	rec := env.get(t, "/api/lesson-html/alpha/wb-resolve.html")
+	body := rec.Body.String()
+	if !strings.Contains(body, `dataset="/api/workspaces/name/alpha/datasets/books"`) {
+		t.Errorf("installed bare slug should resolve to the workspace datasets route:\n%s", body)
+	}
+	if !strings.Contains(body, `dataset="https://example.com/other.json"`) {
+		t.Error("absolute URL must pass through verbatim")
+	}
+	if !strings.Contains(body, `dataset="assets/local.json"`) {
+		t.Error("root-relative path must pass through verbatim")
+	}
+
+	// Uninstalled slug: untouched — the bench's boot error names the fix.
+	mk("wb-missing.html", `<html><head></head><body><sql-workbench namespace="l1" dataset="ghost-data"></sql-workbench></body></html>`)
+	rec = env.get(t, "/api/lesson-html/alpha/wb-missing.html")
+	if !strings.Contains(rec.Body.String(), `dataset="ghost-data"`) {
+		t.Error("uninstalled slug must not be rewritten")
+	}
+}
+
 func TestInterFontInjection(t *testing.T) {
 	env := newTestEnv(t)
 	wsStore, _ := env.store.Workspace("alpha")

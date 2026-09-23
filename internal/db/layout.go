@@ -68,6 +68,13 @@ func (l Layout) QuestionRelPath(filename string) string {
 	return filepath.Join("questions", filename)
 }
 
+// DatasetPath returns the absolute path for a bench dataset file (the
+// workspace-hosted fixtures, LEARN-206 decision 4). The datasets/ dir is
+// created on demand by 'workbench add', so it stays out of Subdirs.
+func (l Layout) DatasetPath(filename string) string {
+	return filepath.Join(l.Root, "datasets", filename)
+}
+
 // SourcePath returns the absolute path for a source document file.
 func (l Layout) SourcePath(filename string) string {
 	return filepath.Join(l.Root, "sources", filename)

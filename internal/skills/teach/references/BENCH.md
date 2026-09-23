@@ -9,22 +9,24 @@ The workbench is a web component, not an iframe:
 
 ```html
 <sql-workbench namespace="lesson-N" mode="card"
-               dataset="/api/workspaces/name/{ws}/datasets/<id>"
+               dataset="movies"
                sql="SELECT * FROM movies LIMIT 10;"></sql-workbench>
 ```
 
 The server injects the component script when it sees the `<sql-workbench>`
-element — the page ships no scripts. The component shares the page's context
-and journals every run to the host.
+element — the page ships no scripts. It also resolves a bare-slug `dataset`
+to the workspace's installed dataset, so authors never write workspace routes.
+Path or URL references (v0.5.1 host-owned form) pass through verbatim. The
+component shares the page's context and journals every run to the host.
 
 **Attributes:**
 
 - `namespace` — isolates per-lesson journals; one namespace per lesson
   (a query in lesson-1 never appears in lesson-2's journal)
 - `mode` — `"card"` for interactive practice, `"full"` for expanded view
-- `dataset` — a **reference**: a bare slug loads `fixtures/<id>.json` from
-  the app root; a root-relative path or absolute URL is fetched verbatim.
-  In pharos lessons use the workspace datasets API path shown above.
+- `dataset` — the installed dataset's bare slug (e.g. `movies`); the server
+  resolves it when it serves the page. A root-relative path or absolute URL
+  is fetched verbatim instead.
 - `sql` — starter query pre-loaded in the editor
 
 ## Fixtures (datasets)
@@ -51,7 +53,7 @@ load and on reset). The `id` slug must equal the filename stem.
 2. `pharos workbench check ./<id>.json` — catches invalid JSON and bad
    filenames; the bench itself validates the full shape when it loads
 3. `pharos workbench add ./<id>.json` — installs into the workspace
-4. Reference it: `dataset="/api/workspaces/name/{ws}/datasets/<id>"`
+4. Reference it: `dataset="<id>"` (the server resolves the slug)
 
 `pharos workbench remove <id>` uninstalls. Full CLI syntax:
 [pharos-cli.md](pharos-cli.md#sql-workbench).

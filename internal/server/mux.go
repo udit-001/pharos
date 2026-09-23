@@ -1738,6 +1738,13 @@ func serveIframeHTML(w http.ResponseWriter, wsStore *db.WorkspaceStore, path, ki
 	feat := detectFrameFeatures(data)
 	var tags []string
 
+	// Workbench dataset resolution (LEARN-234): the host composes route
+	// shapes — bare slugs on the bench's dataset attribute become workspace
+	// datasets URLs before anything is served.
+	if feat.Workbench {
+		data = resolveDatasetSlugs(data, wsStore)
+	}
+
 	for _, name := range baseScripts {
 		tags = append(tags, bundleTag(name))
 	}

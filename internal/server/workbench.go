@@ -1,16 +1,53 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/udit-001/pharos/internal/db"
 	"github.com/udit-001/pharos/internal/workbench"
 )
+
+// ─── Serve-time dataset resolution (LEARN-234) ──────────────────────
+
+// datasetAttrRe matches the dataset attribute inside a single
+// <sql-workbench ...> start tag (double-quoted value, tag-scoped: lessons
+// escape their own code samples, so no false hits on prose).
+var datasetAttrRe = regexp.MustCompile(`<sql-workbench\b[^>]*?\bdataset="([^"]*)"`)
+
+// resolveDatasetSlugs rewrites a bare-slug dataset="..." attribute on a
+// <sql-workbench> element to the workspace datasets route when the dataset
+// is installed — the host composes route shapes so lesson content never
+// does (LEARN-206 decision 8). Paths and URLs (the v0.5.1 contract) and
+// uninstalled slugs pass through verbatim; the bench's plain-language boot
+// error names the fix for the latter (assetScriptTag degrade precedent).
+func resolveDatasetSlugs(html []byte, wsStore *db.WorkspaceStore) []byte {
+	return datasetAttrRe.ReplaceAllFunc(html, func(m []byte) []byte {
+		tag := datasetAttrRe.FindSubmatch(m)
+		ref := string(tag[1])
+		// Bare slug = anything the dataset-id pattern accepts; paths and
+		// URLs contain / or . and fail it, so they pass through untouched.
+		if workbench.ValidateDataset(ref) != nil {
+			return m
+		}
+		ws := wsStore.Workspace()
+		path := wsStore.Layout().DatasetPath(ref + ".json")
+		if _, err := os.Stat(path); err != nil {
+			log.Printf("[frame] %s: dataset %q not installed; leaving unresolved (bench boot error will name the fix)", ws.Name, ref)
+			return m
+		}
+		resolved := "/api/workspaces/name/" + url.PathEscape(ws.Name) + "/datasets/" + ref
+		return bytes.Replace(m, []byte(`dataset="`+ref+`"`), []byte(`dataset="`+resolved+`"`), 1)
+	})
+}
 
 // ─── POST /api/workspaces/name/{name}/workbench-events ──────────────
 
@@ -99,9 +136,8 @@ func handleGetDataset(store *db.Store) http.HandlerFunc {
 			return
 		}
 
-		ws := wsStore.Workspace()
-		datasetsDir := filepath.Join(ws.Path, "datasets")
-		filePath := filepath.Join(datasetsDir, datasetID+".json")
+		datasetsDir := wsStore.Layout().DatasetPath(".")
+		filePath := wsStore.Layout().DatasetPath(datasetID + ".json")
 
 		// Ensure the resolved path stays inside datasets/.
 		rel, err := filepath.Rel(datasetsDir, filePath)

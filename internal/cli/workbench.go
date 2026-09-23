@@ -204,13 +204,12 @@ Examples:
 			return err
 		}
 
-		ws := wsStore.Workspace()
-		datasetsDir := filepath.Join(ws.Path, "datasets")
+		datasetsDir := wsStore.Layout().DatasetPath(".")
 		if err := os.MkdirAll(datasetsDir, 0755); err != nil {
 			return formatError("failed to create datasets directory", err)
 		}
 
-		dest := filepath.Join(datasetsDir, id+".json")
+		dest := wsStore.Layout().DatasetPath(id + ".json")
 		if err := os.WriteFile(dest, data, 0644); err != nil {
 			return formatError("failed to write dataset", err)
 		}
@@ -248,8 +247,7 @@ Examples:
 			return err
 		}
 
-		ws := wsStore.Workspace()
-		filePath := filepath.Join(ws.Path, "datasets", id+".json")
+		filePath := wsStore.Layout().DatasetPath(id + ".json")
 
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			return fmt.Errorf("dataset %q not found", id)
