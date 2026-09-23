@@ -21,11 +21,12 @@ func init() {
 			Path:   "npm/mermaid@11.17.2/dist/mermaid.min.js",
 			SHA256: "581ed7d74bd9048d0e3a91363927d72ef22942d7722546b27f7cc29e35390eb8"},
 
-		// sql-workbench v0.3.0 — single-file web component (LEARN-194),
-		// released from udit-001/sql-workbench.
-		{Lib: "sql-workbench", Version: "v0.3.0", File: "sql-workbench.js",
-			Path:   "gh/udit-001/sql-workbench@v0.3.0/dist/sql-workbench.js",
-			SHA256: "520ab78be3e41993c1a3c5a84a0bd258dd11fa927587983f182fbf0fd43ab278"},
+		// sql-workbench v0.5.1 — single-file web component (LEARN-194),
+		// released from udit-001/sql-workbench. v0.5.x adds host-owned
+		// dataset references (dataset=<path-or-url>) and reworked error copy.
+		{Lib: "sql-workbench", Version: "v0.5.1", File: "sql-workbench.js",
+			Path:   "gh/udit-001/sql-workbench@v0.5.1/dist/sql-workbench.js",
+			SHA256: "72e9c15f1062185a0c2897a65d7be2e50040772f96b4043760d60720dce92f0e"},
 
 		// highlight.js 11.11.1 — common build (language-* opt-in).
 		{Lib: "highlightjs", Version: "11.11.1", File: "highlight.min.js",
