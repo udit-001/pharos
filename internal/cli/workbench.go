@@ -99,9 +99,12 @@ Examples:
 		}
 
 		// Table output: one line per event. The payload is a single-line JSON
-		// blob (newlines are escaped inside strings), so printing it verbatim
-		// keeps the one-line shape — and honors the verbatim contract
-		// (LEARN-206 decision 6): long SQL and error text must survive intact.
+		// blob — newlines are always escaped: the bridge serializes with
+		// JSON.stringify, and the ingest handler rejects raw control chars
+		// (json.Unmarshal → 400), so no writer can store a raw newline
+		// (verified empirically). Printing verbatim keeps the one-line shape
+		// and honors the verbatim contract (LEARN-206 decision 6): long SQL
+		// and error text must survive intact.
 		fmt.Println()
 		for _, ev := range events {
 			fmt.Printf("  %s  %-10s  %s\n", ev.Ts, ev.Type, strings.TrimSpace(ev.Payload))
