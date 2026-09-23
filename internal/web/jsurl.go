@@ -33,6 +33,7 @@ var jsBundles = map[string][]byte{
 	"glossary-tooltip.js":     GlossaryTooltipJS,
 	"copy-code.js":            CopyCodeJS,
 	"pharos-quiz.js":          PharosQuizJS,
+	"pharos-workbench.js":     PharosWorkbenchJS,
 	"pharos-mermaid.js":       PharosMermaidJS,
 	"pharos-hljs.js":          PharosHljsJS,
 	"presence.js":             PresenceJS,

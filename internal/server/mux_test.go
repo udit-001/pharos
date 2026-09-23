@@ -733,8 +733,19 @@ func TestVegaHighlightWorkbenchInjection(t *testing.T) {
 	env.seedVendor(t, map[string]string{"sql-workbench/sql-workbench.js": "/* wb */"})
 	mk("wb.html", `<html><head></head><body><sql-workbench namespace="l1" mode="card"></sql-workbench></body></html>`)
 	rec = env.get(t, "/api/lesson-html/alpha/wb.html")
-	if !strings.Contains(rec.Body.String(), "/vendor/sql-workbench/sql-workbench.js?v=") {
+	body = rec.Body.String()
+	if !strings.Contains(body, "/vendor/sql-workbench/sql-workbench.js?v=") {
 		t.Error("<sql-workbench> should inject the workbench lib from the cache")
+	}
+	// The relay glue rides on the workbench stack (LEARN-232): lib first,
+	// bridge second — same ordering discipline as the other vendored stacks.
+	libIdx := strings.Index(body, "/vendor/sql-workbench/sql-workbench.js")
+	bridgeIdx := strings.Index(body, "/js/pharos-workbench.js")
+	if bridgeIdx == -1 {
+		t.Fatal("<sql-workbench> should inject the event-bridge bundle alongside the lib")
+	}
+	if libIdx == -1 || libIdx > bridgeIdx {
+		t.Error("workbench lib must be injected before the event bridge")
 	}
 }
 

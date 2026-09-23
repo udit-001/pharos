@@ -1826,7 +1826,11 @@ func vendoredStacks(feat frameFeatures) []string {
 	}
 
 	if feat.Workbench && vendor.Available("sql-workbench", "sql-workbench.js") {
-		tags = append(tags, vendorScript("sql-workbench", "sql-workbench.js"))
+		// Lib first, bridge second (LEARN-232): the glue relays the bench's
+		// workbench-event CustomEvents to the workspace ingest endpoint.
+		tags = append(tags,
+			vendorScript("sql-workbench", "sql-workbench.js"),
+			bundleTag("pharos-workbench.js"))
 	}
 
 	return tags

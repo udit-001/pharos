@@ -70,6 +70,13 @@ var GlossaryTooltipJS []byte
 //go:embed pharos-quiz.js
 var PharosQuizJS []byte
 
+// Relay glue for sql-workbench journal events (LEARN-232). Injected on the
+// workbench stack right after the vendored lib — see server/mux.go
+// vendoredStacks and the transport contract on the LEARN-232 ticket.
+//
+//go:embed pharos-workbench.js
+var PharosWorkbenchJS []byte
+
 //go:embed pharos-mermaid.js
 var PharosMermaidJS []byte
 
