@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -122,7 +121,7 @@ func TestStartSyncsVendorCache(t *testing.T) {
 	}
 
 	// Shut the server down: its signal handler consumes SIGTERM and returns.
-	if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
+	if err := signalSelfTerminate(); err != nil {
 		t.Fatalf("sigterm: %v", err)
 	}
 	select {
@@ -142,7 +141,7 @@ func TestStartAlreadyRunningSkipsSync(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	runningPort, configPort := 19742, 19742
 	writeConfigWithPort(t, configPort)
-	writePidFile(t, runningPort, os.Getpid())
+	writePidFile(t, runningPort, 424242)
 	defer fakeServer(t, runningPort)()
 
 	oldOpts := vendorSyncOpts
@@ -153,7 +152,10 @@ func TestStartAlreadyRunningSkipsSync(t *testing.T) {
 	}
 	t.Cleanup(func() { vendorSyncOpts = oldOpts })
 
-	out := captureCLI(t, []string{"start"})
+	out, err := captureCLIResult(t, []string{"start"})
+	if !isExitCode(t, err, 1) {
+		t.Fatal("already-running start must exit non-zero (LEARN-235)")
+	}
 	if !strings.Contains(out, "already running") {
 		t.Fatalf("start output = %q", out)
 	}

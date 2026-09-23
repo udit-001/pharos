@@ -32,10 +32,11 @@ func TestStopServerByPidfileOutcomes(t *testing.T) {
 		t.Fatalf("no pidfile: outcome = %v, want stopNoServer", outcome)
 	}
 
-	// A pidfile naming a dead process → stopAlreadyStopped + cleaned up.
+	// A pidfile naming a dead process → stopStalePID (liveness probe first,
+	// LEARN-235) + cleaned up.
 	writePidFile(t, 9090, 999999999)
-	if outcome := stopServerByPidfile(); outcome != stopAlreadyStopped {
-		t.Fatalf("dead-pid pidfile: outcome = %v, want stopAlreadyStopped", outcome)
+	if outcome := stopServerByPidfile(); outcome != stopStalePID {
+		t.Fatalf("dead-pid pidfile: outcome = %v, want stopStalePID", outcome)
 	}
 	if _, err := os.Stat(config.PidPath()); !os.IsNotExist(err) {
 		t.Fatal("pidfile must have been cleaned up")

@@ -36,6 +36,17 @@ type Config struct {
 // The mux is a separate seam (NewMux) so tests can drive routes through
 // httptest without booting a real listener.
 func Start(cfg Config) error {
+	// Singleton guard first (LEARN-235): the lock is held for the server's
+	// entire lifetime and released when Start returns — either through the
+	// deferred release after a graceful SIGINT shutdown, or by process death
+	// on a crash. A second server (or a raced double start) refuses here
+	// instead of racing the first one's WAL.
+	releaseLock, err := acquireServerLock()
+	if err != nil {
+		return err
+	}
+	defer releaseLock()
+
 	mux := NewMux(cfg.DB, cfg.DevCSS)
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)

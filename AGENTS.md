@@ -46,6 +46,8 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 ### Code patterns
 
+- **Database locks (LEARN-235).** Every process that opens the DB — server and CLI verbs — holds a shared `flock` on `pharos.db.lock` (`gofrs/flock`: flock on unix, `LockFileEx` on Windows) for its handle's lifetime; destructive file ops (`init --force`) must take the exclusive lock and refuse while any shared holder exists. The daemon also holds an exclusive `server.lock` (config dir) so a second server fails loudly. `pharos stop` identity-checks the pidfile pid before signaling (unix: `/proc` exe / comm / `ps`; Windows: port-health gate). Never delete `pharos.db.lock`/`server.lock` while a server runs — and never hand-delete `pharos.db`/`-wal`/`-shm` while a server is up.
+
 - `goquery` parses HTML and extracts text. When extracting body text from lesson HTML, **strip `<head>`, `<script>`, `<style>`, and `<noscript>` tags first** — otherwise their content contaminates the extracted text.
 - `extract.FromHTML()` / `extract.FromMarkdown()` (in `internal/extract/`) convert body HTML/markdown to the plain-text that fills `body_text` for FTS. `internal/extract` also owns the document-ingestion extractors (`FromFile`/`Detect`) and the faithful (`FromHTMLFaithful`) path used by source documents.
 - `IndexLessons()` / `IndexRefs()` / `IndexRecords()` skip items that already have non-empty `body_text` — they're idempotent. To re-index after an extractText fix, clear body_text first: `UPDATE lessons SET body_text = ''`.

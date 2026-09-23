@@ -48,10 +48,27 @@ Examples:
 		dbPath := filepath.Join(cfg.DataDir, "pharos.db")
 		if _, statErr := os.Stat(dbPath); statErr == nil {
 			if force {
+				// LEARN-235: --force deletes pharos.db/-wal/-shm — the exact
+				// file-level mutation underneath a live connection that caused
+				// the 2026-09-24 corruption incident (a server kept writing the
+				// unlinked WAL via its fd; the next process recreated a fresh
+				// one → divergent b-trees). Take the exclusive db lock first:
+				// any shared holder (server or CLI verb) makes this refuse
+				// loudly instead of racing the daemon's WAL.
+				lock, err := db.AcquireExclusive(dbPath)
+				if err != nil {
+					return err
+				}
+				defer lock.Unlock()
+
 				for _, suffix := range []string{"", "-wal", "-shm"} {
 					if err := os.Remove(dbPath + suffix); err != nil && !os.IsNotExist(err) {
 						return fmt.Errorf("remove existing database: %w", err)
 					}
+				}
+				// Drop the exclusive lock before db.Open re-locks shared.
+				if err := lock.Unlock(); err != nil {
+					return fmt.Errorf("release db lock: %w", err)
 				}
 				s, err := db.Open(dbPath)
 				if err != nil {

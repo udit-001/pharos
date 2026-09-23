@@ -44,6 +44,14 @@ func PidPath() string {
 	return filepath.Join(ConfigDir(), "server.pid")
 }
 
+// ServerLockPath is the kernel-held advisory lock guarding server
+// singleton-ness (LEARN-235): the daemon takes an exclusive non-blocking
+// lock here before binding, so a second server fails loudly instead of
+// racing the first one's WAL. Lives next to the pidfile in the config dir.
+func ServerLockPath() string {
+	return filepath.Join(ConfigDir(), "server.lock")
+}
+
 func LogPath() string {
 	return filepath.Join(ConfigDir(), "server.log")
 }

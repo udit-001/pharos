@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -178,4 +179,29 @@ func TestLessonListWithInjectedStore(t *testing.T) {
 	if !strings.Contains(out, "Goroutines") {
 		t.Errorf("expected output to contain 'Goroutines', got:\n%s", out)
 	}
+}
+
+// captureCLIResult runs real cobra commands like captureCLI but tolerates a
+// returned error — needed for commands whose contract is a planned non-zero
+// exit (e.g. the already-running refusal of `pharos start`, LEARN-235).
+func captureCLIResult(t *testing.T, args []string) (string, error) {
+	t.Helper()
+	root := newRootForTest()
+	root.SetArgs(args)
+	orig := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() { os.Stdout = orig }()
+	err := root.Execute()
+	_ = w.Close()
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	return buf.String(), err
+}
+
+// isExitCode reports whether err is a planned exitError with the given code.
+func isExitCode(t *testing.T, err error, code int) bool {
+	t.Helper()
+	var ee exitError
+	return errors.As(err, &ee) && ee.code == code
 }

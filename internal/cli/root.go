@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -122,10 +123,26 @@ func init() {
 	rootCmd.SilenceUsage = true
 }
 
+// exitError is a planned non-zero exit whose message has already been
+// printed to stdout by the command itself (the friendly refusal shape).
+// Execute turns it into os.Exit without appending "Error:" noise or the
+// usage string (LEARN-235: the already-running refusal of `pharos start`).
+type exitError struct {
+	code int
+}
+
+func (e exitError) Error() string {
+	return fmt.Sprintf("exit status %d", e.code)
+}
+
 // Execute runs the root command.
 func Execute() {
 	cmd, err := rootCmd.ExecuteC()
 	if err != nil {
+		var ee exitError
+		if errors.As(err, &ee) {
+			os.Exit(ee.code)
+		}
 		if jsonEnabled(cmd) {
 			printJSON(map[string]any{"error": err.Error()})
 		} else {

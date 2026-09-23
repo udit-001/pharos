@@ -117,7 +117,7 @@ func (r *setupRunner) fillDefaults() {
 		// pretending all is well.
 		r.kill = func() error {
 			switch stopServerByPidfile() {
-			case stopStopped, stopAlreadyStopped, stopStalePID:
+			case stopStopped, stopAlreadyStopped, stopStalePID, stopForeignPID:
 				return nil
 			default:
 				return fmt.Errorf("no server found to stop")

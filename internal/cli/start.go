@@ -72,24 +72,26 @@ Examples:
 			url := dashboardURL(s, info.Port)
 			if jsonEnabled(cmd) {
 				printJSON(map[string]any{"url": url, "running": true, "port": info.Port})
-				return nil
+				return exitError{code: 1}
 			}
 			if info.Port != configPort() {
 				// LEARN-219 D3: the running server's port differs from the
 				// configured port (e.g. an older daemon started before a
 				// port change). `pharos setup` is the single restore command.
 				fmt.Println()
-				fmt.Printf("  Pharos running on %d, config says %d.\n", info.Port, configPort())
+				fmt.Printf("  Pharos running on %d (PID %d), config says %d.\n", info.Port, info.PID, configPort())
 				fmt.Println("  Fix: pharos setup")
 				fmt.Printf("  Dashboard: %s\n", url)
 				fmt.Println()
-				return nil
+				return exitError{code: 1}
 			}
 			fmt.Println()
-			fmt.Printf("  Pharos dashboard already running (%s)\n", version.DisplayVersion())
+			fmt.Printf("  Pharos dashboard already running (PID %d, %s)\n", info.PID, version.DisplayVersion())
 			fmt.Printf("  %s\n", url)
 			fmt.Println()
-			return nil
+			// LEARN-235: the refusal is loud — non-zero with the running
+			// instance named above. (A server is serving; nothing was started.)
+			return exitError{code: 1}
 		}
 
 		background := startFlags.background && !startFlags.foreground
