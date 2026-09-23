@@ -148,18 +148,19 @@
 
   function onEvent(e) {
     var ev = e.detail;
-    if (!ev || !ev.id) return;
+    if (!ev || !ev.id || !ev.ts) return;
     var wire = toWire(ev);
     if (!wire) {
       console.warn('[pharos-workbench] skipping unrelayable event', ev);
       return;
     }
     var ns = (e.currentTarget && e.currentTarget.getAttribute('namespace')) || 'default';
+    var ts = new Date(ev.ts).toISOString(); // throws on invalid input — guarded above
     pending.push({
       id: ev.id,
       namespace: ns,
       type: wire.type,
-      ts: new Date(ev.ts).toISOString(),
+      ts: ts,
       payload: wire.payload,
     });
     idbSave();

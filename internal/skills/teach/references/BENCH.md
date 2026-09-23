@@ -114,11 +114,10 @@ gap between what they practiced and what they need.
 succeeded and which failed, and scaffold forward into the gap — never repeat
 what they already practiced.
 
-The server auto-injects a relay next to the bench when it embeds the component:
-every journaled event is posted to the workspace's ingest endpoint within
-seconds (batched; buffered if the tab closes first). Events land in
-`pharos workbench log` with the element's `namespace` — read it before the
-next lesson rather than asking the learner what they ran.
+The journal feeds the CLI on its own: the server injects a relay next to the
+bench, and every journaled event lands in `pharos workbench log` under the
+element's `namespace` — within ~30 seconds, immediately when the tab closes,
+and buffered while the tab is offline.
 
 ## Two-tier vocabulary
 

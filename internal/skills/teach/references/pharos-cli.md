@@ -281,9 +281,9 @@ pharos workbench remove my-dataset                      # remove an installed da
 ```
 
 The bench journals every learner run (query, error, info, dataset events) and
-the server relays them to this store automatically — `log` reads what the
-learner actually ran in the browser. Read it before scaffolding the next SQL
-lesson; details and embed syntax in [BENCH.md](BENCH.md).
+the server relays them here automatically — `log` shows what the learner ran
+in the browser. Read it before scaffolding the next SQL lesson; details and
+embed syntax in [BENCH.md](BENCH.md).
 
 ## Dashboard
 
