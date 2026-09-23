@@ -98,10 +98,13 @@ Examples:
 			return nil
 		}
 
-		// Table output: one line per event.
+		// Table output: one line per event. The payload is a single-line JSON
+		// blob (newlines are escaped inside strings), so printing it verbatim
+		// keeps the one-line shape — and honors the verbatim contract
+		// (LEARN-206 decision 6): long SQL and error text must survive intact.
 		fmt.Println()
 		for _, ev := range events {
-			fmt.Printf("  %s  %-10s  %s\n", ev.Ts, ev.Type, truncateLogLine(ev.Payload, 80))
+			fmt.Printf("  %s  %-10s  %s\n", ev.Ts, ev.Type, strings.TrimSpace(ev.Payload))
 		}
 		fmt.Println()
 		return nil
@@ -290,20 +293,6 @@ func datasetIDFromFilename(path string) string {
 	id = strings.ReplaceAll(id, "_", "-")
 	id = strings.ReplaceAll(id, " ", "-")
 	return id
-}
-
-// truncateLogLine truncates a string to maxLen, breaking at a word boundary.
-func truncateLogLine(s string, maxLen int) string {
-	// Strip surrounding quotes if present.
-	s = strings.TrimSpace(s)
-	if len(s) <= maxLen {
-		return s
-	}
-	cut := strings.LastIndex(s[:maxLen], " ")
-	if cut < 1 {
-		cut = maxLen
-	}
-	return strings.TrimSpace(s[:cut]) + "..."
 }
 
 // Ensure unused imports don't break the build.

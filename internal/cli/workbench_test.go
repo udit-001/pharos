@@ -53,6 +53,43 @@ func TestWorkbenchLog_ShowsEvents(t *testing.T) {
 	}
 }
 
+func TestWorkbenchLog_NeverTruncates(t *testing.T) {
+	store, cleanup := newTestStore(t)
+	defer cleanup()
+	store.AddWorkspace(db.Workspace{Name: "ws1", Path: t.TempDir()})
+
+	// Long SQL + long verbatim error — both must survive pretty mode intact
+	// (LEARN-206 decision 6: one line per event, never truncated).
+	longSQL := `SELECT region, customer_name, order_total, RANK() OVER (PARTITION BY region ORDER BY order_total DESC) AS regional_rank FROM monthly_sales_summary WHERE fiscal_quarter = '2026-Q3' ORDER BY regional_rank ASC, customer_name ASC LIMIT 25;`
+	longErr := `SQLITE_ERROR: sqlite3 result code 1: no such column: monthly_sales_summary.regional_rank_after_discount_adjustment_with_tax_included`
+	seedWorkbenchEvents(t, store, "ws1", []db.WorkbenchEvent{
+		{ID: "ev-1", Namespace: "default", Type: "query", Ts: "2026-01-01T00:00:00Z", Payload: `{"sql":` + mustJSONString(t, longSQL) + `,"ok":true}`},
+		{ID: "ev-2", Namespace: "default", Type: "query", Ts: "2026-01-02T00:00:00Z", Payload: `{"sql":"SELECT regon FROM books","ok":false,"error":` + mustJSONString(t, longErr) + `}`},
+	})
+
+	out := runWithStore(t, []string{"workbench", "log", "-w", "ws1"}, store)
+	if !strings.Contains(out, longSQL) {
+		t.Errorf("pretty log must carry the full SQL verbatim:\n%s", out)
+	}
+	if !strings.Contains(out, longErr) {
+		t.Errorf("pretty log must carry the full error verbatim:\n%s", out)
+	}
+	if strings.Contains(out, "...") {
+		t.Errorf("pretty log must not truncate:\n%s", out)
+	}
+}
+
+// mustJSONString marshals s as a JSON string literal (with quotes) for
+// building single-line payload fixtures in tests.
+func mustJSONString(t *testing.T, s string) string {
+	t.Helper()
+	b, err := json.Marshal(s)
+	if err != nil {
+		t.Fatalf("marshal %q: %v", s, err)
+	}
+	return string(b)
+}
+
 func TestWorkbenchLog_FilterType(t *testing.T) {
 	store, cleanup := newTestStore(t)
 	defer cleanup()
