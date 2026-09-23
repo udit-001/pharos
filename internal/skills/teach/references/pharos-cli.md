@@ -269,6 +269,21 @@ pharos asset delete <filename>         # remove a file (no prompt)
 Assets are raw files (CSS, JS, images, fonts) with no database tracking.
 Third-party libraries are not assets — the server loads them automatically.
 
+## SQL workbench
+
+```bash
+pharos workbench log                                    # recent events (all namespaces merged)
+pharos workbench log --namespace lesson-1 --type query --limit 50
+pharos workbench log --json                             # machine-readable
+pharos workbench check ./my-dataset.json                # validate an event or dataset file
+pharos workbench add ./my-dataset.json                  # install a dataset into the workspace
+pharos workbench remove my-dataset                      # remove an installed dataset
+```
+
+The workbench journals every query the learner runs (query, error, info,
+dataset events) — read them via `log` before scaffolding the next SQL lesson.
+Embed syntax and dataset authoring: [BENCH.md](BENCH.md).
+
 ## Dashboard
 
 ```bash
