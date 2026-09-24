@@ -36,7 +36,7 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 ### Build workflow
 
-- **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs `templ generate` + CSS + Go (`--no-css` for Go-only). `pharos start` detects a running server via HTTP GET and skips starting.
+- **Run `pharos stop && pharos build && pharos start`** after any rebuild. `pharos build` runs `templ generate` + CSS + Go (`--no-css` for Go-only). A second `pharos start` while one runs refuses loudly (exit 1) naming the running instance — expected behavior (LEARN-235), not an error to work around.
 - **`pharos build` writes to `bin/pharos`** (gitignored), not the PATH. The `pharos` on PATH is `~/go/bin/pharos` — after a rebuild, `cp bin/pharos ~/go/bin/` so the running binary picks up the new code. Testing a build change via `pharos build` while the PATH binary is stale will silently exercise the old code path.
 - **Pre-commit hook in `.githooks/pre-commit`** runs `gofmt` on staged `.go` files. Install with `git config core.hooksPath .githooks`. CI runs the same check (`test -z "$(gofmt -l .)"`), so skipping it will fail in CI.
 
@@ -46,7 +46,7 @@ CLI + read-only web dashboard for AI-guided learning workspaces.
 
 ### Code patterns
 
-- **Database locks (LEARN-235).** Every process that opens the DB — server and CLI verbs — holds a shared `flock` on `pharos.db.lock` (`gofrs/flock`: flock on unix, `LockFileEx` on Windows) for its handle's lifetime; destructive file ops (`init --force`) must take the exclusive lock and refuse while any shared holder exists. The daemon also holds an exclusive `server.lock` (config dir) so a second server fails loudly. `pharos stop` identity-checks the pidfile pid before signaling (unix: `/proc` exe / comm / `ps`; Windows: port-health gate). Never delete `pharos.db.lock`/`server.lock` while a server runs — and never hand-delete `pharos.db`/`-wal`/`-shm` while a server is up.
+- **Database locks (LEARN-235).** Every DB opener holds a shared flock on `pharos.db.lock`; `init --force` takes it exclusive; the daemon holds exclusive `server.lock` (config dir). So `init --force` while the dashboard runs refuses with "another Pharos process has the database open — run 'pharos stop'" — expected behavior, not a bug to work around.
 
 - `goquery` parses HTML and extracts text. When extracting body text from lesson HTML, **strip `<head>`, `<script>`, `<style>`, and `<noscript>` tags first** — otherwise their content contaminates the extracted text.
 - `extract.FromHTML()` / `extract.FromMarkdown()` (in `internal/extract/`) convert body HTML/markdown to the plain-text that fills `body_text` for FTS. `internal/extract` also owns the document-ingestion extractors (`FromFile`/`Detect`) and the faithful (`FromHTMLFaithful`) path used by source documents.
