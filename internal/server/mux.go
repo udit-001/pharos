@@ -31,8 +31,16 @@ import (
 //
 // devCSS serves CSS from disk (no embed, no-cache) for `pharos dev`.
 func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
+	mux, _ := newBrokeredMux(store, devCSS)
+	return mux
+}
+
+// newBrokeredMux is NewMux with the broker exposed — tests that drive the
+// exec channel (LEARN-237) subscribe to the same broker the routes use.
+func newBrokeredMux(store *db.Store, devCSS bool) (*http.ServeMux, *Broker) {
 	mux := http.NewServeMux()
 	broker := NewBroker()
+	wbExec := newExecHub()
 
 	// Serve Tailwind CSS. In dev mode (DevCSS) read web/app.css from disk
 	// on each request so styling changes are live without a Go rebuild;
@@ -153,6 +161,9 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /api/workspaces/{id}/glossary-terms", jsonHandler(handleGetGlossaryTerms(store)))
 	mux.HandleFunc("GET /api/workspaces/name/{name}/glossary-terms", jsonHandler(handleGetGlossaryTermsByName(store)))
 	mux.HandleFunc("POST /api/workspaces/name/{name}/workbench-events", jsonHandler(handleIngestWorkbenchEvents(store)))
+	// Exec channel (LEARN-237): agent → relay commands over the SSE broker.
+	mux.HandleFunc("POST /api/workspaces/name/{name}/workbench-exec", jsonHandler(handleWorkbenchExec(store, broker, wbExec)))
+	mux.HandleFunc("POST /api/workspaces/name/{name}/workbench-replies", jsonHandler(handleWorkbenchReply(wbExec)))
 	mux.HandleFunc("GET /api/workspaces/name/{name}/datasets/{id}", jsonHandler(handleGetDataset(store)))
 	mux.HandleFunc("GET /api/workspaces/name/{name}/highlights", jsonHandler(handleListHighlights(store)))
 	mux.HandleFunc("POST /api/workspaces/name/{name}/highlights", jsonHandler(handleCreateHighlight(store)))
@@ -192,7 +203,7 @@ func NewMux(store *db.Store, devCSS bool) *http.ServeMux {
 	mux.HandleFunc("GET /api/events", handleSSE(broker))
 	mux.HandleFunc("POST /api/notify", handleNotify(broker))
 
-	return mux
+	return mux, broker
 }
 
 // dateShort returns the YYYY-MM-DD prefix of a timestamp.
@@ -1628,7 +1639,11 @@ func injectIframeConfig(html []byte, cfg iframeConfig) []byte {
 		return html
 	}
 	// JSON-encode for safety (handles quotes/backslashes in workspace name).
-	jsonCfg := fmt.Sprintf(`{"workspace":%q,"docType":%q,"docId":%d}`, cfg.workspace, cfg.docType, cfg.docID)
+	// workbenchToken (LEARN-237) lets the relay post exec replies; the
+	// token is only meaningful same-origin, which is exactly what an
+	// injected iframe is.
+	jsonCfg := fmt.Sprintf(`{"workspace":%q,"docType":%q,"docId":%d,"workbenchToken":%q}`,
+		cfg.workspace, cfg.docType, cfg.docID, workbenchToken())
 	tag := []byte("<script>window.__pharos=" + jsonCfg + ";</script>")
 	return bytes.Replace(html, []byte("</head>"), append(tag, []byte("</head>")...), 1)
 }

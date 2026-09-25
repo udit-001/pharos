@@ -19,9 +19,10 @@ import (
 // SQLite temp file (matching db test pattern). Workspace files are written
 // to a real temp dir so handlers that read from disk work correctly.
 type testEnv struct {
-	store *db.Store
-	mux   *http.ServeMux
-	wsDir string
+	store  *db.Store
+	mux    *http.ServeMux
+	broker *Broker
+	wsDir  string
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -60,7 +61,8 @@ func newTestEnv(t *testing.T) *testEnv {
 	os.WriteFile(filepath.Join(wsDir, "RESOURCES.md"), []byte("{some placeholder}"), 0644)
 	os.WriteFile(filepath.Join(wsDir, "NOTES.md"), []byte("# Notes\n\nReal notes"), 0644)
 
-	return &testEnv{store: store, mux: NewMux(store, false), wsDir: wsDir}
+	mux, broker := newBrokeredMux(store, false)
+	return &testEnv{store: store, mux: mux, broker: broker, wsDir: wsDir}
 }
 
 // seedVendor fills a temp global vendor cache with the given files (keys are

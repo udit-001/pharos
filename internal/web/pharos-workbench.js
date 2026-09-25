@@ -57,6 +57,8 @@
         // Server validation: query needs sql + ok; ok:false needs error.
         if (typeof ev.sql !== 'string') return null;
         wire = { sql: ev.sql, ok: !!ev.ok, dataset: ds };
+        // Actor attribution (LEARN-236/237): who ran — learner or agent.
+        if (ev.actor === 'learner' || ev.actor === 'agent') wire.actor = ev.actor;
         if (ev.ok) {
           if (typeof ev.rows === 'number') wire.rows = ev.rows;
           if (typeof ev.ms === 'number') wire.ms = ev.ms;
@@ -171,6 +173,109 @@
   var benches = document.querySelectorAll('sql-workbench');
   for (var i = 0; i < benches.length; i++) bind(benches[i]);
   mo.observe(document.documentElement, { childList: true, subtree: true });
+
+  // ── Exec channel (LEARN-237): agent commands → bench → replies ─────
+  // The server broadcasts workbench-command events on the SSE topic
+  // "workbench:<workspace>"; this glue executes them against the named
+  // bench element and posts replies. Rules (bench-kit/commands.ts):
+  // commands serialize (the human's in-flight run is never preempted);
+  // replies carry the outcome verbatim; failures are replies, not throws.
+  // Token: cfg.workbenchToken (injected by the server) gates replies —
+  // a forged reply would be a forged verdict.
+
+  var token = cfg.workbenchToken || '';
+  var replyURL = '/api/workspaces/name/' + encodeURIComponent(cfg.workspace) + '/workbench-replies';
+  var byNamespace = {};
+
+  function benchFor(ns) {
+    if (byNamespace[ns]) return byNamespace[ns];
+    var el = document.querySelector('sql-workbench[namespace="' + ns + '"]') ||
+             (ns === 'default' ? document.querySelector('sql-workbench:not([namespace])') : null);
+    if (el) byNamespace[ns] = el;
+    return el;
+  }
+
+  var cmdChain = Promise.resolve();
+  function enqueue(cmd) {
+    var turn = cmdChain.then(function () { return executeCommand(cmd); });
+    // A failed turn must not poison the queue for the next command.
+    cmdChain = turn.catch(function () {});
+    return turn;
+  }
+
+  function executeCommand(cmd) {
+    return new Promise(function (resolve) {
+      var done = function (reply) {
+        // The reply carries the command id (bench-kit/commands.ts reply shape).
+        fetch(replyURL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Pharos-Workbench-Token': token,
+          },
+          body: JSON.stringify({ id: cmd.id, reply: Object.assign({ id: cmd.id }, reply) }),
+        }).catch(function () {});
+      };
+
+      if (!cmd || !cmd.id || !cmd.op) { done({ ok: false, error: 'malformed command' }); return; }
+      var el = benchFor(cmd.namespace || 'default');
+      if (!el) { done({ ok: false, error: 'no bench element with namespace "' + (cmd.namespace || 'default') + '" on this page' }); return; }
+
+      try {
+        if (cmd.op === 'run') {
+          if (typeof el.runGraded === 'function') {
+            // runGraded journals with the given actor and returns the
+            // outcome verbatim plus the step verdict when a problem is
+            // loaded (older bundles lack it — fall back to run).
+            el.runGraded(cmd.sql || '', { actor: cmd.actor || 'agent' })
+              .then(function (r) {
+                done({ ok: true, op: 'run', outcome: r.outcome, verdict: r.verdict });
+              })
+              .catch(function (err) { done({ ok: false, op: 'run', error: String(err && err.message || err) }); });
+          } else {
+            el.run(cmd.sql || '', { actor: cmd.actor || 'agent' })
+              .then(function (outcome) {
+                done({ ok: true, op: 'run', outcome: outcome });
+              })
+              .catch(function (err) { done({ ok: false, op: 'run', error: String(err && err.message || err) }); });
+          }
+        } else if (cmd.op === 'setProblem') {
+          el.setProblem(cmd.problem || null);
+          done({ ok: true, op: 'setProblem' });
+        } else if (cmd.op === 'reset') {
+          el.reset()
+            .then(function () { done({ ok: true, op: 'reset' }); })
+            .catch(function (err) { done({ ok: false, op: 'reset', error: String(err && err.message || err) }); });
+        } else {
+          done({ ok: false, op: 'run', error: 'unknown command op "' + cmd.op + '"' });
+        }
+      } catch (err) {
+        done({ ok: false, op: 'run', error: String(err && err.message || err) });
+      }
+    });
+  }
+
+  function onCommandEvent(e) {
+    try {
+      var msg = JSON.parse(e.data);
+      if (!msg || msg.type !== 'workbench-command' || !msg.data) return;
+      enqueue(msg.data);
+    } catch (err) { /* malformed SSE frame — ignore, stream continues */ }
+  }
+
+  var es = null;
+  function connectCommands() {
+    if (es || !token) return; // no token → no command channel (server governs)
+    es = new EventSource('/api/events?topic=' + encodeURIComponent('workbench:' + cfg.workspace));
+    es.onmessage = onCommandEvent;
+    es.onerror = function () {
+      // EventSource reconnects on its own; drop the dead instance so a
+      // new one is created after the backoff reconnect.
+      es = null;
+      setTimeout(connectCommands, 5000);
+    };
+  }
+  connectCommands();
 
   function scheduleFlush() {
     if (timer) return;

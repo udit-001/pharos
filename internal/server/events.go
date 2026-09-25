@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"log"
 	"sync"
 )
@@ -19,6 +20,9 @@ type Event struct {
 	Seq      int    `json:"seq,omitempty"`
 	Slug     string `json:"slug,omitempty"`
 	URL      string `json:"url,omitempty"`
+	// Data carries op payloads for command events (LEARN-237:
+	// workbench-command, workbench-reply) — opaque to the broker.
+	Data json.RawMessage `json:"data,omitempty"`
 }
 
 // brokerBufferSize caps the per-subscriber buffer. A slow client that

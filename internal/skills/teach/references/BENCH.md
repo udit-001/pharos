@@ -71,6 +71,122 @@ before shipping.
 If the bench shows a boot error, its copy names the field and the fix —
 surface it verbatim and fix the file it points at.
 
+### The exec channel (agent runs SQL in a live bench tab, LEARN-237)
+
+Verification runs in the learner's runtime: the agent opens the lesson
+page (`pharos nav <url>` — the page must be open in the dashboard),
+then drives the bench through the CLI. The server broadcasts commands
+to the page over the live SSE relay; the bench executes them, and the
+reply carries the engine outcome verbatim plus the verdict.
+
+```bash
+pharos workbench exec --namespace lesson-1 \
+    --sql "SELECT count(*) FROM movies"
+#   PASS — attempt matched the problem's test   (or FAIL + first-diff detail)
+#   outcome: {"kind":"ok","rowCount":12,...}
+
+pharos workbench verify ./revenue-top5.json --sql ./reference.sql \
+    --namespace lesson-1
+#   composes: setProblem → run reference → reset (always)
+```
+
+`verify` fails (exit 1) when the reference solution misses the
+problem's own `test` — the hallucination guard, mechanical. It always
+resets afterward, so the lesson page stays clean for learners.
+
+No live tab → the error says so and names the fix (`pharos nav <url>`).
+Commands serialize behind the human's in-flight run — the agent never
+preempts the learner. Exec runs journal with `actor: agent`, visibly
+tagged in the lesson's history.
+
+### Verify protocol (state hygiene)
+
+The author bench is the lesson page itself. The agent composes the
+hygiene from three commands — the bench executes exactly what arrives:
+
+```
+reset  → run(reference.sql) → expect pass → reset  → run(wrong) → expect miss
+```
+
+Done when: the reference solution passes against the problem's `test`,
+a deliberately-wrong query misses, and the journal shows both runs
+(`workbench log --namespace <lesson> --type step` — agent-attributed).
+The final reset restores clean state for the learner.
+
+## Problem slots (graded practice, LEARN-236)
+
+When a lesson needs the learner to **attempt and be verified** (not just
+run demonstration queries), embed a **problem slot**: one element is one
+problem. The bench grades each attempt against the element's `test` and
+shows a verdict; the page or your glue decides what problem comes next
+(`setProblem()`, or a re-render) — the component renders one problem,
+nothing more.
+
+For glue-driven navigation, swap the slot programmatically:
+
+```js
+bench.setProblem({
+  title: "Ratings per title",
+  concept: "aggregate-null",
+  prompt: "Average stars per title. Include the book with no reviews.",
+  sql: "",               // omit/empty = write from memory (recall problem)
+  test: { rows: [["Database Internals", 4.5]], order: false },
+});
+```
+
+`test` may also carry `columns: ["title", "avg"]` (exact column-name
+check) and `error: "no such column"` (the problem PASSES on that
+verbatim engine error).
+
+```html
+<sql-workbench namespace="lesson-3" dataset="books" mode="card"
+               concept="left-join" label="Books nobody reviewed"
+               test='[["The Pragmatic Programmer"],["Database Internals"]]'>
+  Find every book that has no reviews.
+</sql-workbench>
+```
+
+Attributes:
+
+- `test` — JSON rows the learner's attempt is compared against. Grading
+  is on the RESULT (any correct query passes), order-insensitive unless
+  the lesson is about ordering. An unparsable `test` fails the boot with
+  an error naming the attribute.
+- `concept` — free string tag naming the skill; journals carry it so you
+  can read misses by concept.
+- `label` — short problem title for journals and history.
+- `sql` — starter query. **Omit it for a recall problem**: the learner
+  writes from memory, and the same test grades the result.
+- Child text — the prompt, in tier-1 language (see below).
+
+### Author self-verify (the hallucination guard)
+
+You wrote the `test` — so verify it before the learner does. The same
+bench grades you:
+
+1. Embed the problem in a scratch page (or the draft lesson)
+2. Run your own reference solution in the editor
+3. **Pass = your test is consistent. Miss = your truth was wrong —
+   regenerate `test` from the actual output and re-run.**
+
+Completion: your reference solution passes, and a deliberately wrong
+query (one column off, one filter dropped) misses. Then the learner
+ships.
+
+### Reading step events
+
+Every attempt on a graded slot journals a `step` event next to its
+`query` event — `title`, `concept`, `outcome` (pass|miss):
+
+```
+pharos workbench log --namespace lesson-3 --type step
+```
+
+Read them like journal events: scaffold into the miss
+([journal interpretation](#journal-interpretation)). A concept the
+learner repeatedly misses on gets **promoted** to a tracked question —
+same rule as an inline check they keep failing.
+
 ## Drill-block template
 
 A drill-block is a focused practice unit with three parts:

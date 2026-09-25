@@ -56,6 +56,16 @@ func LogPath() string {
 	return filepath.Join(ConfigDir(), "server.log")
 }
 
+func WorkbenchTokenPath() string {
+	return filepath.Join(ConfigDir(), "workbench.token")
+}
+
+// The workbench exec token (LEARN-237): the server generates it on first
+// use (0600) and injects it into server-served iframe configs; the CLI
+// reads it from disk. It gates the two dangerous directions —
+// `workbench-exec` (CLI→server) and replies (tab→server) — so a random
+// local page cannot execute SQL in a bench tab or forge verify replies.
+
 func Load() (*Config, error) {
 	p := Path()
 	data, err := os.ReadFile(p)

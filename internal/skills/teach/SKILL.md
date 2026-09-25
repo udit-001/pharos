@@ -83,7 +83,7 @@ pharos workspace create "sql-joins" --topic "SQL Joins"  # same, but explicit to
 
 A lesson is the main thing you produce — the unit in which knowledge and skills reach the user. Each lesson is one self-contained HTML file, saved to `./lessons/` and identified by a **slug** derived from its title. If a lesson already covers the topic, **read** it with `pharos lesson read <slug>`, then **revise** with `pharos lesson revise <slug> --body-file <path>` instead of creating a duplicate.
 
-**Workbench first.** When the lesson involves SQL practice or database queries, read [references/BENCH.md](references/BENCH.md) before scaffolding — it covers the workbench embed pattern, dataset authoring, fixture workflow, drill-block templates, and journal reading via `pharos workbench log`.
+**Workbench first.** When the lesson involves SQL practice or database queries, read [references/BENCH.md](references/BENCH.md) before scaffolding — it covers the workbench embed pattern, dataset authoring, fixture workflow, problem authoring (graded practice with a `test`), drill-block templates, and journal reading via `pharos workbench log`.
 
 Before creating any new lesson, read the workbench journal to see what the learner has already practiced; scaffold forward from there, not backward into repetition.
 
